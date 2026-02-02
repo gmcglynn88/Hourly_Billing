@@ -257,21 +257,11 @@
   </style>
 </head>
 <body>
-  <!-- Authentication Form -->
-  <div id="authContainer" class="container" style="max-width:500px;margin-top:50px;">
+  <!-- Authentication Form (Hidden by default, shown if not authenticated) -->
+  <div id="authContainer" class="container" style="max-width:500px;margin-top:50px;display:none;">
     <div class="auth-card">
       <h3>🔐 Genesys Cloud Authentication</h3>
-      <p>Enter your OAuth Client Credentials to connect to Genesys Cloud</p>
-      
-      <div class="form-group">
-        <label for="clientId">Client ID</label>
-        <input type="text" id="clientId" placeholder="Enter Client ID">
-      </div>
-      
-      <div class="form-group">
-        <label for="clientSecret">Client Secret</label>
-        <input type="password" id="clientSecret" placeholder="Enter Client Secret">
-      </div>
+      <p>Click below to authenticate with Genesys Cloud using OAuth</p>
       
       <div class="form-group">
         <label for="environment">Environment</label>
@@ -286,35 +276,12 @@
         </select>
       </div>
       
-      <div class="form-group">
-        <label for="authMethod">Authentication Method</label>
-        <select id="authMethod">
-          <option value="proxy">Use CORS Proxy (Development)</option>
-          <option value="direct">Direct (Localhost Only)</option>
-        </select>
-        <div style="font-size:12px;color:var(--text-light);margin-top:5px;">
-          Select "Use CORS Proxy" when running from GitHub Pages
-        </div>
-      </div>
-      
-      <div class="form-group">
-        <label for="corsProxy">CORS Proxy URL</label>
-        <select id="corsProxy">
-          <option value="https://corsproxy.io/?">corsproxy.io</option>
-          <option value="https://api.allorigins.win/raw?url=">allorigins.win</option>
-          <option value="https://cors-anywhere.herokuapp.com/">cors-anywhere (requires access)</option>
-        </select>
-        <div style="font-size:12px;color:var(--text-light);margin-top:5px;">
-          If using cors-anywhere, visit <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank" style="color:white;text-decoration:underline;">corsdemo</a> first to request access
-        </div>
-      </div>
-      
-      <button id="btnConnect" class="btn btn-block">
-        <span>🔗 Connect to Genesys Cloud</span>
+      <button id="btnAuthenticate" class="btn btn-block">
+        <span>🔗 Sign in to Genesys Cloud</span>
       </button>
       
       <div style="margin-top:20px;font-size:12px;opacity:0.8;">
-        <strong>Note:</strong> This application requires an OAuth Client with appropriate permissions.
+        <strong>Note:</strong> You will be redirected to Genesys Cloud to sign in.
       </div>
     </div>
     
@@ -681,20 +648,16 @@
   <script src="https://unpkg.com/chart.js@3.9.1/dist/chart.min.js"></script>
   <script>
     // ==============================================
-    // CONFIGURATION - EDIT THESE VALUES
+    // OAuth Configuration
     // ==============================================
-    // For development, you can hardcode credentials here
-    // Remove the values below and add your own client ID and secret
-    const DEV_CONFIG = {
-      clientId: '3131e33d-153f-49af-8687-47ccb5ef307e',  // ← ADD YOUR CLIENT ID HERE
-      clientSecret: 'ajLZWc8rEKQPo54Ocu4GC7xV9D59tkmVeqhWSwTSRJY',  // ← ADD YOUR CLIENT SECRET HERE
-      environment: 'https://api.euw2.pure.cloud'  // Default to London
+    const CONFIG = {
+      clientId: 'd968eca4-cdb7-4b90-91b1-4628b5bb679e',  // Your OAuth Client ID
+      redirectUri: 'https://gmcglynn88.github.io/Hourly_Billing/',
+      environment: 'https://api.euw2.pure.cloud'  // Default environment
     };
     
     // Or leave empty to use the form input
     let CURRENT_CONFIG = {
-      clientId: '',
-      clientSecret: '',
       environment: '',
       token: null,
       tokenExpiry: null
@@ -719,12 +682,8 @@
     const el = {
       // Auth Elements
       authContainer: document.getElementById('authContainer'),
-      clientId: document.getElementById('clientId'),
-      clientSecret: document.getElementById('clientSecret'),
       environment: document.getElementById('environment'),
-      authMethod: document.getElementById('authMethod'),
-      corsProxy: document.getElementById('corsProxy'),
-      btnConnect: document.getElementById('btnConnect'),
+      btnAuthenticate: document.getElementById('btnAuthenticate'),
       btnDisconnect: document.getElementById('btnDisconnect'),
       envDisplay: document.getElementById('envDisplay'),
       
@@ -790,116 +749,70 @@
     };
 
     // ==============================================
-    // AUTHENTICATION - CLIENT CREDENTIALS FLOW
+    // AUTHENTICATION - OAuth Implicit Grant Flow
     // ==============================================
-    async function authenticate() {
-      setLoading(true, 'Authenticating...', 'Connecting to Genesys Cloud...');
+    function parseTokenFromHash() {
+      const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      return {
+        token: params.get('access_token'),
+        error: params.get('error'),
+        errorDescription: params.get('error_description'),
+        expiresIn: params.get('expires_in')
+      };
+    }
+
+    function getLoginHost(environment) {
+      return environment.replace('api.', 'login.');
+    }
+
+    function authUrl(environment) {
+      const loginHost = getLoginHost(environment);
+      return `${loginHost}/oauth/authorize?client_id=${encodeURIComponent(CONFIG.clientId)}&response_type=token&redirect_uri=${encodeURIComponent(CONFIG.redirectUri)}`;
+    }
+
+    function initAuth() {
+      // Check if we have a token in the URL hash
+      const { token, error, errorDescription, expiresIn } = parseTokenFromHash();
       
-      try {
-        // Get credentials from form or use hardcoded dev config
-        const clientId = el.clientId.value || DEV_CONFIG.clientId;
-        const clientSecret = el.clientSecret.value || DEV_CONFIG.clientSecret;
-        const environment = el.environment.value || DEV_CONFIG.environment;
-        const authMethod = el.authMethod.value;
-        const corsProxy = el.corsProxy.value;
-        
-        if (!clientId || !clientSecret) {
-          throw new Error('Please enter Client ID and Client Secret');
-        }
-        
-        CURRENT_CONFIG.clientId = clientId;
-        CURRENT_CONFIG.clientSecret = clientSecret;
-        CURRENT_CONFIG.environment = environment;
-        
-        // Get login host from environment URL
-        const loginHost = environment.replace('api.', 'login.');
-        
-        // Make OAuth request with CORS proxy if needed
-        const authUrl = `${loginHost}/oauth/token`;
-        let authResponse;
-        
-        if (authMethod === 'proxy') {
-          // Use CORS proxy for development
-          logMessage('INFO', 'Using CORS proxy for authentication');
-          let proxyUrl;
-          
-          // Handle different proxy formats
-          if (corsProxy.includes('corsproxy.io')) {
-            // corsproxy.io expects URL as query parameter
-            proxyUrl = corsProxy + encodeURIComponent(authUrl);
-          } else if (corsProxy.includes('allorigins.win')) {
-            // allorigins.win expects URL after query parameter
-            proxyUrl = corsProxy + encodeURIComponent(authUrl);
-          } else {
-            // cors-anywhere expects URL appended
-            proxyUrl = corsProxy + authUrl;
-          }
-          
-          logMessage('INFO', `Using proxy URL: ${proxyUrl}`);
-          
-          authResponse = await fetch(proxyUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'Authorization': 'Basic ' + btoa(`${clientId}:${clientSecret}`),
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: 'grant_type=client_credentials'
-          });
-        } else {
-          // Direct request (only works locally)
-          authResponse = await fetch(authUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'Authorization': 'Basic ' + btoa(`${clientId}:${clientSecret}`)
-            },
-            body: 'grant_type=client_credentials'
-          });
-        }
-        
-        if (!authResponse.ok) {
-          let errorText = '';
-          try {
-            errorText = await authResponse.text();
-          } catch (e) {
-            errorText = 'Could not read error response';
-          }
-          
-          if (authResponse.status === 403 && corsProxy.includes('cors-anywhere')) {
-            throw new Error('CORS proxy requires access. Visit https://cors-anywhere.herokuapp.com/corsdemo first to request access.');
-          }
-          
-          if (authResponse.status === 0 && authMethod === 'proxy') {
-            throw new Error('CORS proxy may be blocked. Try running locally or use a different proxy.');
-          }
-          
-          throw new Error(`Authentication failed: ${authResponse.status} ${authResponse.statusText} - ${errorText.slice(0,200)}`);
-        }
-        
-        const authData = await authResponse.json();
-        
+      // Clear hash from URL
+      if (window.location.hash) {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+      
+      if (token) {
         // Store token
-        CURRENT_CONFIG.token = authData.access_token;
-        CURRENT_CONFIG.tokenExpiry = Date.now() + (authData.expires_in * 1000);
+        CURRENT_CONFIG.token = token;
+        CURRENT_CONFIG.tokenExpiry = Date.now() + (parseInt(expiresIn || '3600') * 1000);
+        CURRENT_CONFIG.environment = localStorage.getItem('gc_environment') || CONFIG.environment;
         
         // Show main app
         showMainApp();
-        
-        setLoading(false);
-        logMessage('SUCCESS', 'Authentication successful', `Connected to ${environment}`);
+        logMessage('SUCCESS', 'Authentication successful', `Connected to ${CURRENT_CONFIG.environment}`);
         showStatusMessage('✅ Connected to Genesys Cloud', 'success');
-        
-      } catch (error) {
-        setLoading(false);
-        logMessage('ERROR', 'Authentication failed', error.message);
-        showStatusMessage('❌ Authentication failed', 'error');
-        
-        // Provide helpful suggestions based on error
-        if (error.message.includes('CORS') || error.message.includes('proxy')) {
-          showStatusMessage('💡 Try running locally or use different authentication method', 'info');
-        }
+        return;
       }
+      
+      if (error) {
+        logMessage('ERROR', 'Authentication failed', `${error}: ${errorDescription}`);
+        showStatusMessage(`❌ Authentication failed: ${error}`, 'error');
+      }
+      
+      // Show auth form
+      el.authContainer.style.display = 'block';
+    }
+
+    function authenticate() {
+      const environment = el.environment.value || CONFIG.environment;
+      
+      // Store environment in localStorage
+      localStorage.setItem('gc_environment', environment);
+      CURRENT_CONFIG.environment = environment;
+      
+      // Store auto-auth attempt to prevent loops
+      localStorage.setItem('gc_auto_auth_attempted', '1');
+      
+      // Redirect to Genesys Cloud for authentication
+      window.location.href = authUrl(environment);
     }
 
     function checkTokenExpiry() {
@@ -932,8 +845,6 @@
       if (confirm('Disconnect from Genesys Cloud?')) {
         // Clear all data
         CURRENT_CONFIG = {
-          clientId: '',
-          clientSecret: '',
           environment: '',
           token: null,
           tokenExpiry: null
@@ -949,14 +860,14 @@
           chartInstances: {}
         };
         
+        // Clear stored data
+        localStorage.removeItem('gc_environment');
+        localStorage.removeItem('gc_auto_auth_attempted');
+        
         // Reset UI
         el.mainContent.style.display = 'none';
         el.authContainer.style.display = 'block';
-        el.clientId.value = '';
-        el.clientSecret.value = '';
-        el.environment.value = 'https://api.euw2.pure.cloud';
-        el.authMethod.value = 'proxy';
-        el.corsProxy.value = 'https://corsproxy.io/?';
+        el.environment.value = CONFIG.environment;
         
         updateConnectionStatus(false, 'Not Connected');
         logMessage('INFO', 'Disconnected from Genesys Cloud');
@@ -1091,44 +1002,15 @@
       if (!CURRENT_CONFIG.token) throw new Error('Not authenticated');
       
       const url = `${CURRENT_CONFIG.environment}${path}`;
-      const authMethod = el.authMethod.value;
-      const corsProxy = el.corsProxy.value;
       
-      let response;
-      
-      if (authMethod === 'proxy' && !path.includes('/oauth/token')) {
-        // Use proxy for API calls too (except token endpoint which we already handled)
-        let proxyUrl;
-        
-        // Handle different proxy formats
-        if (corsProxy.includes('corsproxy.io')) {
-          proxyUrl = corsProxy + encodeURIComponent(url);
-        } else if (corsProxy.includes('allorigins.win')) {
-          proxyUrl = corsProxy + encodeURIComponent(url);
-        } else {
-          proxyUrl = corsProxy + url;
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Authorization': `Bearer ${CURRENT_CONFIG.token}`,
+          'Content-Type': 'application/json',
+          ...options.headers
         }
-        
-        response = await fetch(proxyUrl, {
-          ...options,
-          headers: {
-            'Authorization': `Bearer ${CURRENT_CONFIG.token}`,
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            ...options.headers
-          }
-        });
-      } else {
-        // Direct API call
-        response = await fetch(url, {
-          ...options,
-          headers: {
-            'Authorization': `Bearer ${CURRENT_CONFIG.token}`,
-            'Content-Type': 'application/json',
-            ...options.headers
-          }
-        });
-      }
+      });
       
       if (response.status === 401 || response.status === 403) {
         throw new Error(`Authentication error (${response.status}). Please reconnect.`);
@@ -1912,7 +1794,7 @@
       el.dateFrom.max = todayStr;
       
       // Event Listeners
-      el.btnConnect.addEventListener('click', authenticate);
+      el.btnAuthenticate.addEventListener('click', authenticate);
       el.btnDisconnect.addEventListener('click', disconnect);
       el.btnFetchData.addEventListener('click', fetchUserData);
       el.btnRunAnalysis.addEventListener('click', runAnalysis);
@@ -1983,14 +1865,6 @@
         });
       });
       
-      // Allow Enter key to authenticate
-      el.clientId.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') authenticate();
-      });
-      el.clientSecret.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') authenticate();
-      });
-      
       // Initial log
       logMessage('INFO', 'Hourly Billing Calculator initialized', 'Ready for authentication');
     }
@@ -1999,20 +1873,8 @@
     // START APPLICATION
     // ==============================================
     document.addEventListener('DOMContentLoaded', function() {
-      // Check if we have hardcoded dev credentials
-      if (DEV_CONFIG.clientId && DEV_CONFIG.clientSecret) {
-        // Pre-fill the form with dev credentials
-        el.clientId.value = DEV_CONFIG.clientId;
-        el.clientSecret.value = DEV_CONFIG.clientSecret;
-        el.environment.value = DEV_CONFIG.environment;
-        
-        // Auto-connect if credentials are provided
-        setTimeout(() => {
-          authenticate();
-        }, 500);
-      }
-      
-      initializeApp();
+      // Initialize authentication
+      initAuth();
     });
   </script>
 </body>
