@@ -264,6 +264,70 @@
       margin: 20px 0;
       border: 1px solid rgba(99, 171, 143, 0.3);
     }
+
+    /* Hour Distribution Bar Chart */
+    .hour-bar-chart {
+      display: flex;
+      align-items: flex-end;
+      height: 200px;
+      gap: 4px;
+      margin-top: 20px;
+      padding: 10px;
+      background: var(--light-bg);
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    .hour-bar {
+      flex: 1;
+      background: var(--primary-color);
+      border-radius: 4px 4px 0 0;
+      min-height: 4px;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .hour-bar:hover {
+      background: var(--secondary-color);
+      transform: scaleY(1.05);
+    }
+
+    .hour-bar-label {
+      position: absolute;
+      bottom: -25px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-light);
+      transform: rotate(-45deg);
+      transform-origin: left top;
+      white-space: nowrap;
+    }
+
+    .hour-bar-value {
+      position: absolute;
+      top: -25px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+
+    .hour-distribution-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    @media (max-width: 1024px) {
+      .hour-distribution-container {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -356,10 +420,10 @@
           <div class="card">
             <h2>⚙️ Business Rules</h2>
             <div class="form-group">
-              <label for="thresholdHours">HI Threshold (hours/month)</label>
+              <label for="thresholdHours">Hourly Interacting Threshold (hours/month)</label>
               <input type="number" id="thresholdHours" value="40" min="1" max="200">
               <div style="font-size:12px;color:var(--text-light);margin-top:5px;">
-                Users below this threshold get HI licences
+                Users below this threshold get Hourly Interacting licences
               </div>
             </div>
             <div class="form-group">
@@ -372,7 +436,7 @@
             <div style="background:rgba(99,171,143,0.05);padding:12px;border-radius:6px;margin-top:10px;">
               <div style="font-size:12px;color:var(--primary-color);font-weight:600;margin-bottom:5px;">📋 Business Logic:</div>
               <div style="font-size:11px;color:var(--text-light);">
-                • Interacting time &gt; 0 but &lt; threshold = HI Licence<br>
+                • Interacting time &gt; 0 but &lt; threshold = Hourly Interacting Licence<br>
                 • Interacting time ≥ threshold = Named Licence<br>
                 • Admins/Supervisors = Named (always)<br>
                 • NOLOGIN = No licence consumption
@@ -431,9 +495,9 @@
                 <div style="font-size:11px;color:var(--text-light);">Recommended</div>
               </div>
               <div class="stat-card">
-                <div class="stat-label">HI Users</div>
+                <div class="stat-label">Hourly Interacting</div>
                 <div class="stat-value" id="statHiUsers">0</div>
-                <div style="font-size:11px;color:var(--text-light);">Hourly Interacting</div>
+                <div style="font-size:11px;color:var(--text-light);">Hourly Interacting Users</div>
               </div>
             </div>
 
@@ -467,7 +531,14 @@
             <!-- Hour Distribution -->
             <div class="card" style="margin-top:20px;">
               <h2>⏱️ Hour Distribution</h2>
-              <div class="bucket-container" id="hourBuckets"></div>
+              <div class="hour-distribution-container">
+                <div>
+                  <div class="bucket-container" id="hourBuckets"></div>
+                </div>
+                <div>
+                  <div class="hour-bar-chart" id="hourBarChart"></div>
+                </div>
+              </div>
             </div>
 
             <!-- Progress Display -->
@@ -504,7 +575,7 @@
                     <option value="admin">Admins Only</option>
                     <option value="other">Others Only</option>
                     <option value="named">Named Licence</option>
-                    <option value="hi">HI Licence</option>
+                    <option value="hi">Hourly Interacting Licence</option>
                     <option value="nologin">NOLOGIN</option>
                   </select>
                   <div style="font-size:12px;color:var(--text-light);">
@@ -522,7 +593,7 @@
                       <th>Team</th>
                       <th>Role Type</th>
                       <th>Last Login</th>
-                      <th>Hours</th>
+                      <th>Talk Time</th>
                       <th>Licence</th>
                       <th>Status</th>
                     </tr>
@@ -578,9 +649,9 @@
                   <div style="font-size:11px;color:var(--text-light);">Agents with Named</div>
                 </div>
                 <div class="stat-card">
-                  <div class="stat-label">Agent HI</div>
+                  <div class="stat-label">Agent Hourly Interacting</div>
                   <div class="stat-value" id="statAgentHI">0</div>
-                  <div style="font-size:11px;color:var(--text-light);">Agents with HI</div>
+                  <div style="font-size:11px;color:var(--text-light);">Agents with Hourly Interacting</div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-label">Supervisor Named</div>
@@ -750,6 +821,7 @@
       progressPercent: document.getElementById('progressPercent'),
       progressFill: document.getElementById('progressFill'),
       hourBuckets: document.getElementById('hourBuckets'),
+      hourBarChart: document.getElementById('hourBarChart'),
 
       // Loading
       loadingOverlay: document.getElementById('loadingOverlay'),
@@ -762,8 +834,35 @@
     };
 
     // ==============================================
-    // AUTO-AUTHENTICATION SYSTEM
+    // UTILITY FUNCTIONS
     // ==============================================
+    function formatMillisecondsToHHMMSS(ms) {
+      if (!ms || ms === 0) return "00:00:00";
+      
+      const totalSeconds = Math.floor(ms / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function formatMillisecondsToDecimalHours(ms) {
+      if (!ms || ms === 0) return 0;
+      return parseFloat((ms / (1000 * 60 * 60)).toFixed(2));
+    }
+
+    function formatDecimalHoursToHHMMSS(decimalHours) {
+      if (!decimalHours || decimalHours === 0) return "00:00:00";
+      
+      const totalSeconds = Math.round(decimalHours * 3600);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
     function loadStoredCredentials() {
       try {
         const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
@@ -779,14 +878,12 @@
             refreshToken
           };
 
-          // Check if token is still valid (with 5-minute buffer)
           if (Date.now() < CURRENT_CONFIG.tokenExpiry - (5 * 60 * 1000)) {
             return true;
           }
 
-          // Token expired, try to refresh if we have refresh token
           if (refreshToken) {
-            return false; // Will trigger refresh
+            return false;
           }
         }
       } catch (e) {
@@ -879,9 +976,6 @@
       return false;
     }
 
-    // ==============================================
-    // AUTHENTICATION - OAuth Implicit Grant Flow
-    // ==============================================
     function parseTokenFromHash() {
       const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
       return {
@@ -899,25 +993,19 @@
 
     function authUrl(environment) {
       const loginHost = getLoginHost(environment);
-      // Request offline_access scope to get refresh token
       return `${loginHost}/oauth/authorize?client_id=${encodeURIComponent(CONFIG.clientId)}&response_type=token&redirect_uri=${encodeURIComponent(CONFIG.redirectUri)}&scope=offline_access`;
     }
 
-    // ✅ UPDATED initAuth() (locked to London + auto-auth)
     async function initAuth() {
-      // Show auth container while we check
       el.authContainer.style.display = 'block';
 
-      // Check if we have a token in the URL hash (returning from OAuth)
       const { token, refreshToken, error, errorDescription, expiresIn } = parseTokenFromHash();
 
-      // Clear hash from URL
       if (window.location.hash) {
         history.replaceState(null, '', window.location.pathname + window.location.search);
       }
 
       if (token) {
-        // We just returned from OAuth with a token - always use London region
         if (saveCredentials(token, expiresIn || '3600', CONFIG.environment, refreshToken)) {
           logMessage('SUCCESS', 'Authentication successful', `Connected to ${CONFIG.environment}`);
           showStatusMessage('✅ Connected to Genesys Cloud', 'success');
@@ -929,18 +1017,15 @@
       if (error) {
         logMessage('ERROR', 'Authentication failed', `${error}: ${errorDescription}`);
         showStatusMessage(`❌ Authentication failed: ${error}`, 'error');
-        // Auto-retry authentication after showing error
         setTimeout(() => {
           authenticate();
         }, 2000);
         return;
       }
 
-      // Try to auto-authenticate with stored credentials
       const hasValidToken = loadStoredCredentials();
 
       if (hasValidToken) {
-        // We have a valid stored token
         logMessage('INFO', 'Auto-authentication successful', 'Using stored credentials');
         setTimeout(() => {
           showMainApp();
@@ -948,7 +1033,6 @@
         return;
       }
 
-      // Try to refresh token
       const refreshSuccess = await attemptTokenRefresh();
       if (refreshSuccess) {
         logMessage('SUCCESS', 'Token refreshed', 'Auto-authentication successful');
@@ -958,32 +1042,16 @@
         return;
       }
 
-      // No valid credentials - auto-redirect to OAuth
       logMessage('INFO', 'No valid credentials found', 'Redirecting to authentication...');
       setTimeout(() => {
         authenticate();
       }, 1500);
     }
 
-    // ✅ UPDATED showManualAuth() (never shows manual section)
-    function showManualAuth() {
-      // Don't show manual auth section - just auto-authenticate
-      logMessage('INFO', 'Initiating automatic authentication', 'Redirecting to Genesys Cloud...');
-      setTimeout(() => {
-        authenticate();
-      }, 1000);
-    }
-
-    // ✅ UPDATED authenticate() (always London)
     function authenticate() {
-      // Always use London region
       const environment = CONFIG.environment;
-
-      // Store environment in localStorage
       localStorage.setItem(STORAGE_KEYS.ENVIRONMENT, environment);
       CURRENT_CONFIG.environment = environment;
-
-      // Redirect to Genesys Cloud for authentication
       window.location.href = authUrl(environment);
     }
 
@@ -992,7 +1060,6 @@
         return false;
       }
 
-      // Check if token expires in less than 5 minutes
       if (Date.now() > CURRENT_CONFIG.tokenExpiry - (5 * 60 * 1000)) {
         logMessage('WARN', 'Token expired or about to expire', 'Need to refresh authentication');
         return false;
@@ -1005,7 +1072,6 @@
       el.authContainer.style.display = 'none';
       el.mainContent.style.display = 'block';
 
-      // ✅ UPDATED environment display (fixed to London)
       const envName = 'EU West (London) - euw2.pure.cloud';
       el.envDisplay.value = envName;
 
@@ -1015,7 +1081,6 @@
 
     function disconnect() {
       if (confirm('Disconnect from Genesys Cloud? This will clear all stored credentials.')) {
-        // Clear all data
         clearCredentials();
 
         appState = {
@@ -1028,31 +1093,16 @@
           chartInstances: {}
         };
 
-        // Reset UI
         el.mainContent.style.display = 'none';
         el.authContainer.style.display = 'block';
 
         updateConnectionStatus(false, 'Not Connected');
         logMessage('INFO', 'Disconnected from Genesys Cloud');
 
-        // Auto-start auth again
         setTimeout(() => {
           initAuth();
         }, 500);
       }
-    }
-
-    function getEnvironmentName(url) {
-      const envMap = {
-        'https://api.euw2.pure.cloud': 'EU West (London) - euw2.pure.cloud',
-        'https://api.mypurecloud.ie': 'Ireland - mypurecloud.ie',
-        'https://api.mypurecloud.com': 'US East - mypurecloud.com',
-        'https://api.usw2.pure.cloud': 'US West - usw2.pure.cloud',
-        'https://api.cac1.pure.cloud': 'Canada - cac1.pure.cloud',
-        'https://api.apne2.pure.cloud': 'Australia - apne2.pure.cloud'
-      };
-
-      return envMap[url] || url;
     }
 
     function updateConnectionStatus(connected, message = '') {
@@ -1071,9 +1121,6 @@
       }
     }
 
-    // ==============================================
-    // UTILITY FUNCTIONS
-    // ==============================================
     function setLoading(show, text = '', subtext = '') {
       if (show) {
         el.loadingText.textContent = text;
@@ -1099,7 +1146,6 @@
       const logEntry = { timestamp, level, message, details };
       appState.logs.unshift(logEntry);
 
-      // Update logs table
       const row = document.createElement('tr');
       const levelIcon = level === 'ERROR' ? '🔴' :
                       level === 'WARN' ? '🟡' :
@@ -1114,12 +1160,10 @@
 
       el.logsTableBody.prepend(row);
 
-      // Keep only last 50 logs
       if (el.logsTableBody.children.length > 50) {
         el.logsTableBody.removeChild(el.logsTableBody.lastChild);
       }
 
-      // Show important messages in status container
       if (level === 'ERROR' || level === 'SUCCESS' || level === 'WARN') {
         showStatusMessage(message, level.toLowerCase());
       }
@@ -1149,7 +1193,6 @@
 
       el.statusContainer.appendChild(msgDiv);
 
-      // Auto-remove after 5 seconds
       setTimeout(() => {
         if (msgDiv.parentNode) {
           msgDiv.style.opacity = '0';
@@ -1163,9 +1206,7 @@
     // API HELPER
     // ==============================================
     async function apiCall(path, options = {}) {
-      // First check token validity
       if (!checkTokenExpiry()) {
-        // Try to refresh token
         const refreshSuccess = await attemptTokenRefresh();
         if (!refreshSuccess) {
           throw new Error('Authentication token expired. Please reconnect.');
@@ -1193,7 +1234,7 @@
         const retryAfter = response.headers.get('Retry-After') || 5;
         logMessage('WARN', `Rate limit exceeded`, `Retrying after ${retryAfter} seconds`);
         await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-        return apiCall(path, options); // Retry
+        return apiCall(path, options);
       }
 
       if (!response.ok) {
@@ -1212,19 +1253,16 @@
 
       const roleNames = roles.map(r => r.name.toLowerCase());
 
-      // Check for admin roles first
       const adminKeywords = ['admin', 'administrator', 'system administrator', 'org admin'];
       if (roleNames.some(role => adminKeywords.some(keyword => role.includes(keyword)))) {
         return 'admin';
       }
 
-      // Check for supervisor roles
       const supervisorKeywords = ['supervisor', 'team lead', 'manager', 'director', 'lead'];
       if (roleNames.some(role => supervisorKeywords.some(keyword => role.includes(keyword)))) {
         return 'supervisor';
       }
 
-      // Check for agent roles
       const agentKeywords = ['agent', 'user', 'employee', 'representative', 'customer service'];
       if (roleNames.some(role => agentKeywords.some(keyword => role.includes(keyword)))) {
         return 'agent';
@@ -1234,7 +1272,7 @@
     }
 
     // ==============================================
-    // DATA FETCHING - USING USER DETAILS ANALYTICS API
+    // DATA FETCHING - USING CONVERSATIONS ANALYTICS API
     // ==============================================
     async function fetchUserData() {
       setLoading(true, 'Fetching User Data', 'Retrieving user interaction data from Genesys Cloud...');
@@ -1248,23 +1286,22 @@
           throw new Error('Please select a date range');
         }
 
-        // First, get all users with expanded fields including dateLastLogin
+        // First, get all users
         updateLoadingProgress(20);
-        logMessage('INFO', 'Fetching user list with expanded fields');
+        logMessage('INFO', 'Fetching user list');
 
         let allUsers = [];
         let page = 1;
         const pageSize = 100;
 
         while (true) {
-          const usersData = await apiCall(`/api/v2/users?pageSize=${pageSize}&pageNumber=${page}&expand=dateLastLogin,organization,presence,conversationSummary,routingStatus,authorization,locations,groups,skills,profiles,employerInfo,biography`);
+          const usersData = await apiCall(`/api/v2/users?pageSize=${pageSize}&pageNumber=${page}&expand=dateLastLogin,authorization,groups`);
           const users = usersData?.entities || [];
           allUsers = allUsers.concat(users);
 
           if (!usersData?.nextUri || users.length < pageSize) break;
           page++;
 
-          // Add delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 200));
           updateLoadingProgress(20 + (page * 10));
         }
@@ -1272,22 +1309,18 @@
         updateLoadingProgress(40);
         logMessage('INFO', `Loaded ${allUsers.length} users from API`);
 
-        // Process users with team information and role detection
+        // Process users
         appState.userData = allUsers.map(user => {
-          // Extract team information (first team name)
           const teamName = user.groups && user.groups.length > 0
             ? user.groups[0].name
             : 'Unassigned';
 
-          // Get role names
           const roleNames = user.authorization?.roles
             ? user.authorization.roles.map(r => r.name).join(', ')
             : 'No role';
 
-          // Detect user type based on roles
           const userType = detectUserRole(user.authorization?.roles);
 
-          // Format last login date
           let lastLogin = 'Never';
           if (user.dateLastLogin) {
             const loginDate = new Date(user.dateLastLogin);
@@ -1303,15 +1336,17 @@
             userType: userType,
             lastLogin: lastLogin,
             rawLastLogin: user.dateLastLogin,
-            interactingHours: 0, // Will be fetched separately
+            interactingMilliseconds: 0, // Will store total ms
+            interactingHoursFormatted: '00:00:00',
+            interactingHoursDecimal: 0,
             isSupervisor: userType === 'supervisor' || userType === 'admin',
-            status: user.presence?.presenceDefinition?.systemPresence || 'Unknown'
+            status: 'Unknown'
           };
         });
 
-        // Now fetch interaction data using User Details Analytics API
+        // Now fetch conversation data using Conversations Analytics API
         updateLoadingProgress(50);
-        logMessage('INFO', 'Fetching user interaction data using Analytics API');
+        logMessage('INFO', 'Fetching conversation talk time data');
 
         const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
         
@@ -1319,153 +1354,97 @@
         const userHoursMap = {};
 
         try {
-          // Step 1: Create analytics job
-          updateLoadingProgress(55);
-          logMessage('INFO', 'Creating analytics job for user details');
-          
-          const jobBody = {
+          // Use Conversations Analytics API with tTalk metric
+          const queryBody = {
             interval: interval,
-            presenceFilters: [{
-              type: "and",
-              clauses: [{
-                type: "or",
-                predicates: [{
-                  dimension: "systemPresence",
-                  operator: "matches",
-                  value: "AVAILABLE"
-                }, {
-                  dimension: "systemPresence",
-                  operator: "matches",
-                  value: "ON_QUEUE"
-                }, {
-                  dimension: "systemPresence",
-                  operator: "matches",
-                  value: "BUSY"
-                }]
-              }]
-            }],
-            routingStatusFilters: [{
-              type: "and",
-              predicates: [{
-                dimension: "routingStatus",
-                operator: "matches",
-                value: "INTERACTING"
-              }]
-            }]
+            groupBy: ["userId"],
+            metrics: ["tTalk"],
+            filter: {
+              type: "or",
+              predicates: [
+                {
+                  dimension: "mediaType",
+                  value: "voice"
+                },
+                {
+                  dimension: "mediaType",
+                  value: "chat"
+                },
+                {
+                  dimension: "mediaType",
+                  value: "email"
+                },
+                {
+                  dimension: "mediaType",
+                  value: "message"
+                }
+              ]
+            }
           };
 
-          const jobResponse = await apiCall('/api/v2/analytics/users/details/jobs', {
-            method: 'POST',
-            body: JSON.stringify(jobBody)
-          });
-
-          if (!jobResponse.id) {
-            throw new Error('Failed to create analytics job');
-          }
-
-          const jobId = jobResponse.id;
-          logMessage('INFO', `Analytics job created`, `Job ID: ${jobId}`);
-
-          // Step 2: Poll for job completion
           updateLoadingProgress(60);
-          let jobStatus = 'PENDING';
-          let attempts = 0;
-          const maxAttempts = 60; // 3 minutes max
+          logMessage('INFO', 'Querying Conversations Analytics API for tTalk metric');
 
-          while (jobStatus !== 'COMPLETED' && attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 3000)); // Check every 3 seconds
-            const statusResponse = await apiCall(`/api/v2/analytics/users/details/jobs/${jobId}`);
-            jobStatus = statusResponse.state;
-            attempts++;
-
-            updateLoadingProgress(60 + (attempts / maxAttempts * 30));
-
-            if (jobStatus === 'FAILED') {
-              throw new Error('Analytics job failed');
+          const analyticsResponse = await apiCall(
+            '/api/v2/analytics/conversations/aggregates/query', 
+            {
+              method: 'POST',
+              body: JSON.stringify(queryBody)
             }
+          );
 
-            if (jobStatus === 'COMPLETED') {
-              break;
-            }
+          console.log('Analytics API Response:', analyticsResponse);
 
-            logMessage('INFO', `Job status: ${jobStatus}`, `Attempt ${attempts}/${maxAttempts}`);
-          }
-
-          if (jobStatus !== 'COMPLETED') {
-            throw new Error(`Analytics job timed out after ${maxAttempts * 3} seconds`);
-          }
-
-          // Step 3: Fetch results
-          updateLoadingProgress(90);
-          logMessage('INFO', 'Job completed, fetching results');
-
-          // Fetch results in pages
-          let pageNumber = 1;
-          const resultsPageSize = 1000;
-          let totalResults = 0;
-
-          while (true) {
-            const resultsResponse = await apiCall(
-              `/api/v2/analytics/users/details/jobs/${jobId}/results?pageSize=${resultsPageSize}&pageNumber=${pageNumber}`
-            );
-
-            const results = resultsResponse.results || [];
-            totalResults += results.length;
-
-            // Process each user's interaction records
-            results.forEach(record => {
-              const userId = record.userId;
-              
-              // Check if this is an INTERACTING status record
-              if (record.routingStatus && record.routingStatus.routingStatus === 'INTERACTING') {
-                // Calculate duration in hours
-                const startTime = new Date(record.startTime);
-                const endTime = new Date(record.endTime);
-                const durationMs = endTime - startTime;
-                const durationHours = durationMs / (1000 * 60 * 60); // Convert ms to hours
+          if (analyticsResponse.results && analyticsResponse.results.length > 0) {
+            analyticsResponse.results.forEach(record => {
+              if (record.group && record.group.userId) {
+                const userId = record.group.userId;
+                const tTalkData = record.data.find(d => d.metric === "tTalk");
+                const talkTimeMs = tTalkData?.stats?.sum || 0;
                 
-                // Add to user's total
-                if (!userHoursMap[userId]) {
-                  userHoursMap[userId] = 0;
+                if (talkTimeMs > 0) {
+                  if (!userHoursMap[userId]) {
+                    userHoursMap[userId] = 0;
+                  }
+                  userHoursMap[userId] += talkTimeMs;
                 }
-                userHoursMap[userId] += durationHours;
               }
             });
 
-            if (!resultsResponse.nextUri || results.length < resultsPageSize) {
-              break;
-            }
+            logMessage('SUCCESS', 'Analytics query completed', `Found ${Object.keys(userHoursMap).length} users with talk time data`);
             
-            pageNumber++;
+            // Log sample data
+            const sampleUsers = Object.keys(userHoursMap).slice(0, 5);
+            sampleUsers.forEach(userId => {
+              const hoursFormatted = formatMillisecondsToHHMMSS(userHoursMap[userId]);
+              logMessage('DEBUG', `Sample user ${userId.substring(0, 8)}...`, `Talk time: ${hoursFormatted}`);
+            });
+          } else {
+            logMessage('WARN', 'No conversation data found in selected period', 'Users will have 0 talk time');
           }
-
-          logMessage('SUCCESS', 'Analytics results processed', `Found ${totalResults} records, ${Object.keys(userHoursMap).length} users with interaction time`);
-
         } catch (analyticsError) {
-          logMessage('WARN', 'Analytics job failed or timed out', analyticsError.message);
-          logMessage('INFO', 'Using fallback method - analyzing user list only');
-          // Continue with user list even if analytics fails
+          logMessage('ERROR', 'Analytics query failed', analyticsError.message);
+          console.error('Analytics error details:', analyticsError);
         }
 
-        // Update user data with hours (round to 2 decimal places)
+        // Update user data with talk time
         appState.userData.forEach(user => {
-          user.interactingHours = parseFloat((userHoursMap[user.id] || 0).toFixed(2));
+          const talkTimeMs = userHoursMap[user.id] || 0;
+          user.interactingMilliseconds = talkTimeMs;
+          user.interactingHoursFormatted = formatMillisecondsToHHMMSS(talkTimeMs);
+          user.interactingHoursDecimal = formatMillisecondsToDecimalHours(talkTimeMs);
         });
 
         // Log hour distribution for debugging
-        const usersWithHours = appState.userData.filter(u => u.interactingHours > 0);
-        logMessage('INFO', `Hour distribution`, `${usersWithHours.length} users have > 0 hours, ${appState.userData.length - usersWithHours.length} users have 0 hours`);
+        const usersWithHours = appState.userData.filter(u => u.interactingMilliseconds > 0);
+        logMessage('INFO', `Talk time distribution`, `${usersWithHours.length} users have > 0 talk time, ${appState.userData.length - usersWithHours.length} users have 0 talk time`);
 
         if (usersWithHours.length > 0) {
-          const totalHours = usersWithHours.reduce((sum, u) => sum + u.interactingHours, 0);
-          const avgHours = totalHours / usersWithHours.length;
-          logMessage('INFO', `Hour statistics`, `Total: ${totalHours.toFixed(2)}h, Avg: ${avgHours.toFixed(2)}h per user`);
-          
-          // Log some sample data
-          const sampleUsers = usersWithHours.slice(0, 5);
-          sampleUsers.forEach(user => {
-            logMessage('DEBUG', `Sample user ${user.name.substring(0, 20)}`, `${user.interactingHours.toFixed(2)} hours`);
-          });
+          const totalMs = usersWithHours.reduce((sum, u) => sum + u.interactingMilliseconds, 0);
+          const totalHoursFormatted = formatMillisecondsToHHMMSS(totalMs);
+          const avgMs = totalMs / usersWithHours.length;
+          const avgHoursFormatted = formatMillisecondsToHHMMSS(avgMs);
+          logMessage('INFO', `Talk time statistics`, `Total: ${totalHoursFormatted}, Avg per user: ${avgHoursFormatted}`);
         }
 
         updateLoadingProgress(95);
@@ -1473,7 +1452,7 @@
         // Update user type statistics
         updateUserTypeStats();
 
-        logMessage('SUCCESS', 'Data loaded successfully', `${appState.userData.length} users loaded, ${usersWithHours.length} with interaction hours`);
+        logMessage('SUCCESS', 'Data loaded successfully', `${appState.userData.length} users loaded, ${usersWithHours.length} with talk time`);
 
         // Update UI
         el.statTotalUsers.textContent = appState.userData.length;
@@ -1485,12 +1464,13 @@
         // Display initial user table
         renderUserTable();
         updateHourBuckets();
+        updateHourBarChart();
 
         updateLoadingProgress(100);
         await new Promise(resolve => setTimeout(resolve, 500));
 
         setLoading(false);
-        showStatusMessage(`✅ Loaded ${appState.userData.length} users (${usersWithHours.length} with hours)`, 'success');
+        showStatusMessage(`✅ Loaded ${appState.userData.length} users (${usersWithHours.length} with talk time)`, 'success');
 
       } catch (error) {
         setLoading(false);
@@ -1531,12 +1511,12 @@
         updateProgress('Filtering users...', 30);
         let usersToAnalyze = appState.userData;
         if (!includeNologin) {
-          usersToAnalyze = appState.userData.filter(u => u.interactingHours > 0 || u.rawLastLogin);
+          usersToAnalyze = appState.userData.filter(u => u.interactingMilliseconds > 0 || u.rawLastLogin);
         }
 
         // Initialise recommendedLicence property for all users
         usersToAnalyze.forEach(user => {
-          user.recommendedLicense = 'NOLOGIN'; // Default
+          user.recommendedLicense = 'NOLOGIN';
           user.recommendedReason = 'No login activity';
         });
 
@@ -1544,7 +1524,7 @@
         updateProgress('Applying business rules...', 50);
         usersToAnalyze.forEach(user => {
           // Check if user has never logged in
-          const hasNeverLoggedIn = !user.rawLastLogin && user.interactingHours === 0;
+          const hasNeverLoggedIn = !user.rawLastLogin && user.interactingMilliseconds === 0;
 
           if (hasNeverLoggedIn) {
             user.recommendedLicense = 'NOLOGIN';
@@ -1553,17 +1533,17 @@
             // Admins and Supervisors always get Named licences
             user.recommendedLicense = 'Named';
             user.recommendedReason = `${user.userType === 'admin' ? 'Admin' : 'Supervisor'} role`;
-          } else if (user.interactingHours > 0 && user.interactingHours < threshold) {
-            // Agents with hours below threshold get HI
-            user.recommendedLicense = 'HI';
-            user.recommendedReason = `Under ${threshold} hours (${user.interactingHours}h)`;
-          } else if (user.interactingHours >= threshold) {
+          } else if (user.interactingHoursDecimal > 0 && user.interactingHoursDecimal < threshold) {
+            // Agents with hours below threshold get Hourly Interacting
+            user.recommendedLicense = 'Hourly Interacting';
+            user.recommendedReason = `Under ${threshold} hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
+          } else if (user.interactingHoursDecimal >= threshold) {
             // Agents with hours above threshold get Named
             user.recommendedLicense = 'Named';
-            user.recommendedReason = `Over ${threshold} hours (${user.interactingHours}h)`;
-          } else if (user.interactingHours === 0 && user.rawLastLogin) {
+            user.recommendedReason = `Over ${threshold} hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
+          } else if (user.interactingHoursDecimal === 0 && user.rawLastLogin) {
             // Users who have logged in but have no interacting hours
-            user.recommendedLicense = 'HI';
+            user.recommendedLicense = 'Hourly Interacting';
             user.recommendedReason = 'Logged in but no interaction hours';
           } else {
             user.recommendedLicense = 'NOLOGIN';
@@ -1571,8 +1551,8 @@
           }
 
           // Cost calculation
-          if (user.recommendedLicense === 'HI') {
-            user.estimatedCost = user.interactingHours * 0.45;
+          if (user.recommendedLicense === 'Hourly Interacting') {
+            user.estimatedCost = user.interactingHoursDecimal * 0.45;
           } else if (user.recommendedLicense === 'Named') {
             user.estimatedCost = 70;
           } else {
@@ -1583,32 +1563,32 @@
         // Calculate statistics
         updateProgress('Calculating statistics...', 70);
         const totalUsers = usersToAnalyze.length;
-        const activeUsers = usersToAnalyze.filter(u => u.interactingHours > 0).length;
+        const activeUsers = usersToAnalyze.filter(u => u.interactingMilliseconds > 0).length;
         const namedUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'Named').length;
-        const hiUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'HI').length;
+        const hiUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'Hourly Interacting').length;
         const nologinUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'NOLOGIN').length;
-        const totalHours = usersToAnalyze.reduce((sum, u) => sum + u.interactingHours, 0);
+        const totalHours = usersToAnalyze.reduce((sum, u) => sum + u.interactingHoursDecimal, 0);
 
         // Role-based statistics
         const agentNamed = usersToAnalyze.filter(u => u.userType === 'agent' && u.recommendedLicense === 'Named').length;
-        const agentHI = usersToAnalyze.filter(u => u.userType === 'agent' && u.recommendedLicense === 'HI').length;
+        const agentHI = usersToAnalyze.filter(u => u.userType === 'agent' && u.recommendedLicense === 'Hourly Interacting').length;
         const supervisorNamed = usersToAnalyze.filter(u => u.userType === 'supervisor' && u.recommendedLicense === 'Named').length;
         const adminNamed = usersToAnalyze.filter(u => u.userType === 'admin' && u.recommendedLicense === 'Named').length;
 
         // Cost analysis
         const allNamedCost = totalUsers * 70;
         const hiHours = usersToAnalyze
-          .filter(u => u.recommendedLicense === 'HI')
-          .reduce((sum, u) => sum + u.interactingHours, 0);
+          .filter(u => u.recommendedLicense === 'Hourly Interacting')
+          .reduce((sum, u) => sum + u.interactingHoursDecimal, 0);
         const hybridCost = (namedUsers * 70) + (hiHours * 0.45);
         const savings = allNamedCost > 0 ? ((allNamedCost - hybridCost) / allNamedCost * 100).toFixed(1) : 0;
 
         // Determine optimal model
         let optimalModel = 'Hybrid';
-        if (hiUsers / totalUsers > 0.7) optimalModel = 'Mostly HI';
+        if (hiUsers / totalUsers > 0.7) optimalModel = 'Mostly Hourly Interacting';
         else if (namedUsers / totalUsers > 0.7) optimalModel = 'Mostly Named';
         else if (hiUsers === 0) optimalModel = 'All Named';
-        else if (namedUsers === 0) optimalModel = 'All HI';
+        else if (namedUsers === 0) optimalModel = 'All Hourly Interacting';
 
         // Store results
         appState.analysisResults = {
@@ -1653,7 +1633,7 @@
         updateProgress('Analysis complete!', 100);
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        logMessage('SUCCESS', 'Analysis complete', `${namedUsers} Named, ${hiUsers} HI users`);
+        logMessage('SUCCESS', 'Analysis complete', `${namedUsers} Named, ${hiUsers} Hourly Interacting users`);
         showStatusMessage(`✅ Analysis complete: ${savings}% cost savings`, 'success');
 
         el.btnExport.disabled = false;
@@ -1695,8 +1675,12 @@
 
       // Apply type filter
       if (filterValue !== 'all') {
-        if (filterValue === 'named' || filterValue === 'hi' || filterValue === 'nologin') {
-          usersToDisplay = usersToDisplay.filter(u => u.recommendedLicense === filterValue.toUpperCase());
+        if (filterValue === 'named') {
+          usersToDisplay = usersToDisplay.filter(u => u.recommendedLicense === 'Named');
+        } else if (filterValue === 'hi') {
+          usersToDisplay = usersToDisplay.filter(u => u.recommendedLicense === 'Hourly Interacting');
+        } else if (filterValue === 'nologin') {
+          usersToDisplay = usersToDisplay.filter(u => u.recommendedLicense === 'NOLOGIN');
         } else {
           usersToDisplay = usersToDisplay.filter(u => u.userType === filterValue);
         }
@@ -1727,9 +1711,9 @@
               badgeClass = 'status-named';
               licenseBadge = `<span class="status-badge ${badgeClass}">Named</span>`;
               break;
-            case 'HI':
+            case 'Hourly Interacting':
               badgeClass = 'status-hi';
-              licenseBadge = `<span class="status-badge ${badgeClass}">HI</span>`;
+              licenseBadge = `<span class="status-badge ${badgeClass}">Hourly Interacting</span>`;
               break;
             case 'NOLOGIN':
               badgeClass = 'status-nologin';
@@ -1738,7 +1722,7 @@
           }
         } else {
           // If no recommended licence yet, show based on hours
-          if (user.interactingHours === 0) {
+          if (user.interactingMilliseconds === 0) {
             licenseBadge = `<span class="status-badge status-nologin">NOLOGIN</span>`;
           } else {
             licenseBadge = `<span class="status-badge" style="background:rgba(108,117,125,0.15);color:var(--text-light);">Pending</span>`;
@@ -1775,13 +1759,14 @@
           <td style="font-size:12px;color:${user.lastLogin === 'Never' ? 'var(--text-light)' : 'var(--success)'}">
             ${user.lastLogin}
           </td>
-          <td style="text-align:center;font-weight:600;">
-            ${(user.interactingHours || 0).toFixed(1)}
+          <td style="text-align:center;font-weight:600;font-family:monospace;">
+            ${user.interactingHoursFormatted}
+            <div style="font-size:11px;color:var(--text-light);">${user.interactingHoursDecimal.toFixed(2)} hours</div>
           </td>
           <td>${licenseBadge}</td>
           <td>
-            <span style="font-size:11px;color:${user.status === 'AVAILABLE' ? 'var(--success)' : 'var(--text-light)'}">
-              ${user.status || 'Unknown'}
+            <span style="font-size:11px;color:var(--text-light);">
+              ${user.recommendedReason || 'Pending analysis'}
             </span>
           </td>
         `;
@@ -1807,7 +1792,7 @@
       };
 
       (appState.userData || []).forEach(user => {
-        const hours = user.interactingHours || 0;
+        const hours = user.interactingHoursDecimal || 0;
         if (hours === 0) buckets['0h']++;
         else if (hours <= 10) buckets['1-10h']++;
         else if (hours <= 20) buckets['11-20h']++;
@@ -1843,6 +1828,59 @@
       });
     }
 
+    function updateHourBarChart() {
+      const buckets = {
+        '0h': 0,
+        '1-10h': 0,
+        '11-20h': 0,
+        '21-30h': 0,
+        '31-40h': 0,
+        '41-50h': 0,
+        '51-60h': 0,
+        '61-70h': 0,
+        '71-80h': 0,
+        '81-90h': 0,
+        '91-100h': 0,
+        '100+h': 0
+      };
+
+      (appState.userData || []).forEach(user => {
+        const hours = user.interactingHoursDecimal || 0;
+        if (hours === 0) buckets['0h']++;
+        else if (hours <= 10) buckets['1-10h']++;
+        else if (hours <= 20) buckets['11-20h']++;
+        else if (hours <= 30) buckets['21-30h']++;
+        else if (hours <= 40) buckets['31-40h']++;
+        else if (hours <= 50) buckets['41-50h']++;
+        else if (hours <= 60) buckets['51-60h']++;
+        else if (hours <= 70) buckets['61-70h']++;
+        else if (hours <= 80) buckets['71-80h']++;
+        else if (hours <= 90) buckets['81-90h']++;
+        else if (hours <= 100) buckets['91-100h']++;
+        else buckets['100+h']++;
+      });
+
+      el.hourBarChart.innerHTML = '';
+
+      const maxValue = Math.max(...Object.values(buckets));
+      const bucketLabels = Object.keys(buckets);
+
+      bucketLabels.forEach(label => {
+        const count = buckets[label];
+        const barHeight = maxValue > 0 ? (count / maxValue * 100) : 0;
+        
+        const bar = document.createElement('div');
+        bar.className = 'hour-bar';
+        bar.style.height = `${barHeight}%`;
+        bar.innerHTML = `
+          <div class="hour-bar-value">${count}</div>
+          <div class="hour-bar-label">${label}</div>
+        `;
+        
+        el.hourBarChart.appendChild(bar);
+      });
+    }
+
     function createLicenseChart() {
       const ctx = document.getElementById('licenseChart').getContext('2d');
 
@@ -1854,7 +1892,7 @@
       if (!appState.analysisResults) return;
 
       const data = {
-        labels: ['Named Users', 'HI Users', 'NOLOGIN Users'],
+        labels: ['Named Users', 'Hourly Interacting Users', 'NOLOGIN Users'],
         datasets: [{
           data: [
             appState.analysisResults.namedUsers,
@@ -1916,14 +1954,14 @@
       let csv = 'Genesys Cloud Hourly Billing Analysis Report\n';
       csv += `Generated: ${new Date().toLocaleString()}\n`;
       csv += `Period: ${el.dateFrom.value} to ${el.dateTo.value}\n`;
-      csv += `HI Threshold: ${results.threshold} hours\n\n`;
+      csv += `Hourly Interacting Threshold: ${results.threshold} hours\n\n`;
 
       csv += 'SUMMARY\n';
       csv += 'Metric,Value\n';
       csv += `Total Users,${results.totalUsers}\n`;
       csv += `Active Users,${results.activeUsers}\n`;
       csv += `Named Users,${results.namedUsers}\n`;
-      csv += `HI Users,${results.hiUsers}\n`;
+      csv += `Hourly Interacting Users,${results.hiUsers}\n`;
       csv += `NOLOGIN Users,${results.nologinUsers}\n`;
       csv += `Total Hours,${results.totalHours}\n`;
       csv += `All Named Cost,$${results.allNamedCost}\n`;
@@ -1934,15 +1972,15 @@
       csv += 'ROLE-BASED ANALYSIS\n';
       csv += 'Role Type,Metric,Value\n';
       csv += `Agent,Named Users,${results.agentNamed}\n`;
-      csv += `Agent,HI Users,${results.agentHI}\n`;
+      csv += `Agent,Hourly Interacting Users,${results.agentHI}\n`;
       csv += `Supervisor,Named Users,${results.supervisorNamed}\n`;
       csv += `Admin,Named Users,${results.adminNamed}\n\n`;
 
       csv += 'USER DETAILS\n';
-      csv += 'Name,Email,Team,Role Type,Roles,Last Login,Hours,Recommended Licence,Reason,Estimated Cost\n';
+      csv += 'Name,Email,Team,Role Type,Roles,Last Login,Talk Time (HH:MM:SS),Talk Time (hours),Recommended Licence,Reason,Estimated Cost\n';
 
       results.users.forEach(user => {
-        csv += `"${user.name || ''}","${user.email || ''}","${user.team || ''}","${user.userType || ''}","${user.role || ''}","${user.lastLogin || 'Never'}",${user.interactingHours || 0},"${user.recommendedLicense || ''}","${user.recommendedReason || ''}",${(user.estimatedCost || 0).toFixed(2)}\n`;
+        csv += `"${user.name || ''}","${user.email || ''}","${user.team || ''}","${user.userType || ''}","${user.role || ''}","${user.lastLogin || 'Never'}","${user.interactingHoursFormatted}",${user.interactingHoursDecimal},"${user.recommendedLicense || ''}","${user.recommendedReason || ''}",${(user.estimatedCost || 0).toFixed(2)}\n`;
       });
 
       // Download
@@ -2002,6 +2040,7 @@
 
         // Clear hour buckets
         el.hourBuckets.innerHTML = '';
+        el.hourBarChart.innerHTML = '';
 
         // Destroy chart
         if (appState.chartInstances.license) {
@@ -2031,7 +2070,6 @@
       el.dateFrom.max = todayStr;
 
       // Event Listeners
-      // (Authenticate button is not used in auto-auth mode, but harmless if kept)
       if (el.btnAuthenticate) el.btnAuthenticate.addEventListener('click', authenticate);
 
       el.btnDisconnect.addEventListener('click', disconnect);
@@ -2071,11 +2109,9 @@
           const tabId = this.dataset.tab;
           appState.currentTab = tabId;
 
-          // Update active tab
           document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
           this.classList.add('active');
 
-          // Show active content
           document.querySelectorAll('.tab-content').forEach(content => {
             content.classList.remove('active');
             if (content.id === `tab-${tabId}`) {
