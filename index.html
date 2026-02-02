@@ -593,7 +593,7 @@
                       <th>Team</th>
                       <th>Role Type</th>
                       <th>Last Login</th>
-                      <th>Talk Time</th>
+                      <th>Interacting Time</th>
                       <th>Licence</th>
                       <th>Status</th>
                     </tr>
@@ -850,17 +850,6 @@
     function formatMillisecondsToDecimalHours(ms) {
       if (!ms || ms === 0) return 0;
       return parseFloat((ms / (1000 * 60 * 60)).toFixed(2));
-    }
-
-    function formatDecimalHoursToHHMMSS(decimalHours) {
-      if (!decimalHours || decimalHours === 0) return "00:00:00";
-      
-      const totalSeconds = Math.round(decimalHours * 3600);
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-      
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }
 
     function loadStoredCredentials() {
@@ -1272,10 +1261,10 @@
     }
 
     // ==============================================
-    // DATA FETCHING - USING CONVERSATIONS ANALYTICS API
+    // DATA FETCHING - USING AGENT STATUS API
     // ==============================================
     async function fetchUserData() {
-      setLoading(true, 'Fetching User Data', 'Retrieving user interaction data from Genesys Cloud...');
+      setLoading(true, 'Fetching User Data', 'Retrieving agent interaction data from Genesys Cloud...');
       updateLoadingProgress(10);
 
       try {
@@ -1344,9 +1333,9 @@
           };
         });
 
-        // Now fetch conversation data using Conversations Analytics API
+        // Now fetch agent status data using Agent Status API
         updateLoadingProgress(50);
-        logMessage('INFO', 'Fetching conversation talk time data');
+        logMessage('INFO', 'Fetching agent status data using Agent Status API');
 
         const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
         
@@ -1354,97 +1343,130 @@
         const userHoursMap = {};
 
         try {
-          // Use Conversations Analytics API with tTalk metric
+          // Use Agent Status Query API - this is the correct API for agent interaction time
           const queryBody = {
             interval: interval,
-            groupBy: ["userId"],
-            metrics: ["tTalk"],
-            filter: {
-              type: "or",
-              predicates: [
-                {
-                  dimension: "mediaType",
-                  value: "voice"
-                },
-                {
-                  dimension: "mediaType",
-                  value: "chat"
-                },
-                {
-                  dimension: "mediaType",
-                  value: "email"
-                },
-                {
-                  dimension: "mediaType",
-                  value: "message"
-                }
-              ]
-            }
+            order: "asc",
+            orderBy: "userId",
+            paging: {
+              pageSize: 1000,
+              pageNumber: 1
+            },
+            segmentFilters: [
+              {
+                type: "and",
+                predicates: [
+                  {
+                    dimension: "routingStatus",
+                    value: "INTERACTING"
+                  }
+                ]
+              }
+            ]
           };
 
           updateLoadingProgress(60);
-          logMessage('INFO', 'Querying Conversations Analytics API for tTalk metric');
+          logMessage('INFO', 'Querying Agent Status API for INTERACTING status records');
 
+          // Agent Status API uses POST method
           const analyticsResponse = await apiCall(
-            '/api/v2/analytics/conversations/aggregates/query', 
+            '/api/v2/analytics/agentstatus/query', 
             {
               method: 'POST',
               body: JSON.stringify(queryBody)
             }
           );
 
-          console.log('Analytics API Response:', analyticsResponse);
+          console.log('Agent Status API Response:', analyticsResponse);
 
           if (analyticsResponse.results && analyticsResponse.results.length > 0) {
+            // Process each agent status record
             analyticsResponse.results.forEach(record => {
-              if (record.group && record.group.userId) {
-                const userId = record.group.userId;
-                const tTalkData = record.data.find(d => d.metric === "tTalk");
-                const talkTimeMs = tTalkData?.stats?.sum || 0;
+              const userId = record.userId;
+              
+              // Calculate duration in milliseconds
+              // The API returns startDate and endDate for each status period
+              if (record.startDate && record.endDate && record.routingStatus === "INTERACTING") {
+                const startTime = new Date(record.startDate);
+                const endTime = new Date(record.endDate);
+                const durationMs = endTime - startTime;
                 
-                if (talkTimeMs > 0) {
+                if (durationMs > 0) {
                   if (!userHoursMap[userId]) {
                     userHoursMap[userId] = 0;
                   }
-                  userHoursMap[userId] += talkTimeMs;
+                  userHoursMap[userId] += durationMs;
                 }
               }
             });
 
-            logMessage('SUCCESS', 'Analytics query completed', `Found ${Object.keys(userHoursMap).length} users with talk time data`);
+            logMessage('SUCCESS', 'Agent Status query completed', `Found ${Object.keys(userHoursMap).length} users with INTERACTING time`);
             
             // Log sample data
             const sampleUsers = Object.keys(userHoursMap).slice(0, 5);
             sampleUsers.forEach(userId => {
               const hoursFormatted = formatMillisecondsToHHMMSS(userHoursMap[userId]);
-              logMessage('DEBUG', `Sample user ${userId.substring(0, 8)}...`, `Talk time: ${hoursFormatted}`);
+              const hoursDecimal = formatMillisecondsToDecimalHours(userHoursMap[userId]);
+              logMessage('DEBUG', `Sample user ${userId.substring(0, 8)}...`, `INTERACTING time: ${hoursFormatted} (${hoursDecimal.toFixed(2)} hours)`);
             });
           } else {
-            logMessage('WARN', 'No conversation data found in selected period', 'Users will have 0 talk time');
+            logMessage('WARN', 'No agent status data found in selected period', 'Users will have 0 interacting time');
           }
         } catch (analyticsError) {
-          logMessage('ERROR', 'Analytics query failed', analyticsError.message);
-          console.error('Analytics error details:', analyticsError);
+          logMessage('ERROR', 'Agent Status API query failed', analyticsError.message);
+          console.error('Agent Status API error details:', analyticsError);
+          
+          // Try fallback to Conversations Analytics API
+          await fetchConversationAnalyticsAsFallback(interval, userHoursMap);
         }
 
-        // Update user data with talk time
+        // Update user data with interacting time
         appState.userData.forEach(user => {
-          const talkTimeMs = userHoursMap[user.id] || 0;
-          user.interactingMilliseconds = talkTimeMs;
-          user.interactingHoursFormatted = formatMillisecondsToHHMMSS(talkTimeMs);
-          user.interactingHoursDecimal = formatMillisecondsToDecimalHours(talkTimeMs);
+          const interactTimeMs = userHoursMap[user.id] || 0;
+          user.interactingMilliseconds = interactTimeMs;
+          user.interactingHoursFormatted = formatMillisecondsToHHMMSS(interactTimeMs);
+          user.interactingHoursDecimal = formatMillisecondsToDecimalHours(interactTimeMs);
         });
 
         // Log hour distribution for debugging
         const usersWithHours = appState.userData.filter(u => u.interactingMilliseconds > 0);
-        logMessage('INFO', `Talk time distribution`, `${usersWithHours.length} users have > 0 talk time, ${appState.userData.length - usersWithHours.length} users have 0 talk time`);
+        logMessage('INFO', `Interacting time distribution`, `${usersWithHours.length} users have > 0 interacting time, ${appState.userData.length - usersWithHours.length} users have 0 interacting time`);
 
         if (usersWithHours.length > 0) {
           const totalMs = usersWithHours.reduce((sum, u) => sum + u.interactingMilliseconds, 0);
           const totalHoursFormatted = formatMillisecondsToHHMMSS(totalMs);
           const avgMs = totalMs / usersWithHours.length;
           const avgHoursFormatted = formatMillisecondsToHHMMSS(avgMs);
-          logMessage('INFO', `Talk time statistics`, `Total: ${totalHoursFormatted}, Avg per user: ${avgHoursFormatted}`);
+          logMessage('INFO', `Interacting time statistics`, `Total: ${totalHoursFormatted}, Avg per user: ${avgHoursFormatted}`);
+          
+          // Log distribution by hour ranges
+          const hourRanges = {
+            '0': 0, '1-10': 0, '11-20': 0, '21-30': 0, '31-40': 0,
+            '41-50': 0, '51-60': 0, '61-70': 0, '71-80': 0, '81-90': 0,
+            '91-100': 0, '100+': 0
+          };
+          
+          usersWithHours.forEach(user => {
+            const hours = user.interactingHoursDecimal;
+            if (hours === 0) hourRanges['0']++;
+            else if (hours <= 10) hourRanges['1-10']++;
+            else if (hours <= 20) hourRanges['11-20']++;
+            else if (hours <= 30) hourRanges['21-30']++;
+            else if (hours <= 40) hourRanges['31-40']++;
+            else if (hours <= 50) hourRanges['41-50']++;
+            else if (hours <= 60) hourRanges['51-60']++;
+            else if (hours <= 70) hourRanges['61-70']++;
+            else if (hours <= 80) hourRanges['71-80']++;
+            else if (hours <= 90) hourRanges['81-90']++;
+            else if (hours <= 100) hourRanges['91-100']++;
+            else hourRanges['100+']++;
+          });
+          
+          Object.entries(hourRanges).forEach(([range, count]) => {
+            if (count > 0) {
+              logMessage('DEBUG', `Hour range ${range}h`, `${count} users`);
+            }
+          });
         }
 
         updateLoadingProgress(95);
@@ -1452,7 +1474,7 @@
         // Update user type statistics
         updateUserTypeStats();
 
-        logMessage('SUCCESS', 'Data loaded successfully', `${appState.userData.length} users loaded, ${usersWithHours.length} with talk time`);
+        logMessage('SUCCESS', 'Data loaded successfully', `${appState.userData.length} users loaded, ${usersWithHours.length} with interacting time`);
 
         // Update UI
         el.statTotalUsers.textContent = appState.userData.length;
@@ -1470,12 +1492,75 @@
         await new Promise(resolve => setTimeout(resolve, 500));
 
         setLoading(false);
-        showStatusMessage(`✅ Loaded ${appState.userData.length} users (${usersWithHours.length} with talk time)`, 'success');
+        showStatusMessage(`✅ Loaded ${appState.userData.length} users (${usersWithHours.length} with interacting time)`, 'success');
 
       } catch (error) {
         setLoading(false);
         logMessage('ERROR', 'Failed to fetch data', error.message);
         showStatusMessage('❌ Failed to fetch data', 'error');
+      }
+    }
+
+    // Fallback to Conversations Analytics API if Agent Status API fails
+    async function fetchConversationAnalyticsAsFallback(interval, userHoursMap) {
+      try {
+        logMessage('INFO', 'Trying fallback to Conversations Analytics API');
+        
+        const queryBody = {
+          interval: interval,
+          groupBy: ["userId"],
+          metrics: ["tTalk"],
+          filter: {
+            type: "or",
+            predicates: [
+              {
+                dimension: "mediaType",
+                value: "voice"
+              },
+              {
+                dimension: "mediaType",
+                value: "chat"
+              },
+              {
+                dimension: "mediaType",
+                value: "email"
+              },
+              {
+                dimension: "mediaType",
+                value: "message"
+              }
+            ]
+          }
+        };
+
+        const analyticsResponse = await apiCall(
+          '/api/v2/analytics/conversations/aggregates/query', 
+          {
+            method: 'POST',
+            body: JSON.stringify(queryBody)
+          }
+        );
+
+        if (analyticsResponse.results && analyticsResponse.results.length > 0) {
+          analyticsResponse.results.forEach(record => {
+            if (record.group && record.group.userId) {
+              const userId = record.group.userId;
+              const tTalkData = record.data.find(d => d.metric === "tTalk");
+              const talkTimeMs = tTalkData?.stats?.sum || 0;
+              
+              if (talkTimeMs > 0) {
+                if (!userHoursMap[userId]) {
+                  userHoursMap[userId] = 0;
+                }
+                userHoursMap[userId] += talkTimeMs;
+              }
+            }
+          });
+
+          logMessage('INFO', 'Fallback API successful', `Found ${Object.keys(userHoursMap).length} users with talk time`);
+        }
+      } catch (fallbackError) {
+        logMessage('WARN', 'Fallback API also failed', 'All users will have 0 hours');
       }
     }
 
@@ -1977,7 +2062,7 @@
       csv += `Admin,Named Users,${results.adminNamed}\n\n`;
 
       csv += 'USER DETAILS\n';
-      csv += 'Name,Email,Team,Role Type,Roles,Last Login,Talk Time (HH:MM:SS),Talk Time (hours),Recommended Licence,Reason,Estimated Cost\n';
+      csv += 'Name,Email,Team,Role Type,Roles,Last Login,Interacting Time (HH:MM:SS),Interacting Time (hours),Recommended Licence,Reason,Estimated Cost\n';
 
       results.users.forEach(user => {
         csv += `"${user.name || ''}","${user.email || ''}","${user.team || ''}","${user.userType || ''}","${user.role || ''}","${user.lastLogin || 'Never'}","${user.interactingHoursFormatted}",${user.interactingHoursDecimal},"${user.recommendedLicense || ''}","${user.recommendedReason || ''}",${(user.estimatedCost || 0).toFixed(2)}\n`;
