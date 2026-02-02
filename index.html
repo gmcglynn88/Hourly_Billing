@@ -1234,7 +1234,7 @@
     }
 
     // ==============================================
-    // DATA FETCHING
+    // DATA FETCHING - USING USER DETAILS ANALYTICS API
     // ==============================================
     async function fetchUserData() {
       setLoading(true, 'Fetching User Data', 'Retrieving user interaction data from Genesys Cloud...');
@@ -1257,7 +1257,6 @@
         const pageSize = 100;
 
         while (true) {
-          // Updated API call with dateLastLogin in expand
           const usersData = await apiCall(`/api/v2/users?pageSize=${pageSize}&pageNumber=${page}&expand=dateLastLogin,organization,presence,conversationSummary,routingStatus,authorization,locations,groups,skills,profiles,employerInfo,biography`);
           const users = usersData?.entities || [];
           allUsers = allUsers.concat(users);
@@ -1310,90 +1309,145 @@
           };
         });
 
-        // Now fetch interaction data using Conversations Analytics API
+        // Now fetch interaction data using User Details Analytics API
         updateLoadingProgress(50);
-        logMessage('INFO', 'Fetching conversation talk time data for all users');
+        logMessage('INFO', 'Fetching user interaction data using Analytics API');
 
         const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
-
+        
         // Create user hours map
         const userHoursMap = {};
 
         try {
-          // Use Conversations Analytics API to get actual talk time (tTalk)
-          // We need to include conversation filters to get meaningful results
-          const queryBody = {
+          // Step 1: Create analytics job
+          updateLoadingProgress(55);
+          logMessage('INFO', 'Creating analytics job for user details');
+          
+          const jobBody = {
             interval: interval,
-            groupBy: ["userId"],
-            metrics: ["tTalk"],
-            filter: {
-              type: "or",
-              predicates: [
-                {
-                  dimension: "mediaType",
-                  value: "voice"
-                },
-                {
-                  dimension: "mediaType",
-                  value: "chat"
-                },
-                {
-                  dimension: "mediaType",
-                  value: "email"
-                },
-                {
-                  dimension: "mediaType",
-                  value: "message"
-                }
-              ]
-            }
+            presenceFilters: [{
+              type: "and",
+              clauses: [{
+                type: "or",
+                predicates: [{
+                  dimension: "systemPresence",
+                  operator: "matches",
+                  value: "AVAILABLE"
+                }, {
+                  dimension: "systemPresence",
+                  operator: "matches",
+                  value: "ON_QUEUE"
+                }, {
+                  dimension: "systemPresence",
+                  operator: "matches",
+                  value: "BUSY"
+                }]
+              }]
+            }],
+            routingStatusFilters: [{
+              type: "and",
+              predicates: [{
+                dimension: "routingStatus",
+                operator: "matches",
+                value: "INTERACTING"
+              }]
+            }]
           };
 
+          const jobResponse = await apiCall('/api/v2/analytics/users/details/jobs', {
+            method: 'POST',
+            body: JSON.stringify(jobBody)
+          });
+
+          if (!jobResponse.id) {
+            throw new Error('Failed to create analytics job');
+          }
+
+          const jobId = jobResponse.id;
+          logMessage('INFO', `Analytics job created`, `Job ID: ${jobId}`);
+
+          // Step 2: Poll for job completion
           updateLoadingProgress(60);
-          logMessage('INFO', 'Querying Conversations Analytics API...', JSON.stringify(queryBody, null, 2));
+          let jobStatus = 'PENDING';
+          let attempts = 0;
+          const maxAttempts = 60; // 3 minutes max
 
-          const analyticsResponse = await apiCall(
-            '/api/v2/analytics/conversations/aggregates/query', 
-            {
-              method: 'POST',
-              body: JSON.stringify(queryBody)
+          while (jobStatus !== 'COMPLETED' && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 3000)); // Check every 3 seconds
+            const statusResponse = await apiCall(`/api/v2/analytics/users/details/jobs/${jobId}`);
+            jobStatus = statusResponse.state;
+            attempts++;
+
+            updateLoadingProgress(60 + (attempts / maxAttempts * 30));
+
+            if (jobStatus === 'FAILED') {
+              throw new Error('Analytics job failed');
             }
-          );
 
-          // Debug: log the response
-          console.log('Analytics API Response:', analyticsResponse);
-          logMessage('INFO', 'Analytics API response received', `Found ${analyticsResponse?.results?.length || 0} results`);
+            if (jobStatus === 'COMPLETED') {
+              break;
+            }
 
-          if (analyticsResponse.results && analyticsResponse.results.length > 0) {
-            analyticsResponse.results.forEach(record => {
-              if (record.group && record.group.userId) {
-                const userId = record.group.userId;
-                const tTalkData = record.data.find(d => d.metric === "tTalk");
-                const hours = (tTalkData?.stats?.sum || 0) / 3600000; // Convert ms to hours
-                userHoursMap[userId] = (userHoursMap[userId] || 0) + hours;
+            logMessage('INFO', `Job status: ${jobStatus}`, `Attempt ${attempts}/${maxAttempts}`);
+          }
+
+          if (jobStatus !== 'COMPLETED') {
+            throw new Error(`Analytics job timed out after ${maxAttempts * 3} seconds`);
+          }
+
+          // Step 3: Fetch results
+          updateLoadingProgress(90);
+          logMessage('INFO', 'Job completed, fetching results');
+
+          // Fetch results in pages
+          let pageNumber = 1;
+          const resultsPageSize = 1000;
+          let totalResults = 0;
+
+          while (true) {
+            const resultsResponse = await apiCall(
+              `/api/v2/analytics/users/details/jobs/${jobId}/results?pageSize=${resultsPageSize}&pageNumber=${pageNumber}`
+            );
+
+            const results = resultsResponse.results || [];
+            totalResults += results.length;
+
+            // Process each user's interaction records
+            results.forEach(record => {
+              const userId = record.userId;
+              
+              // Check if this is an INTERACTING status record
+              if (record.routingStatus && record.routingStatus.routingStatus === 'INTERACTING') {
+                // Calculate duration in hours
+                const startTime = new Date(record.startTime);
+                const endTime = new Date(record.endTime);
+                const durationMs = endTime - startTime;
+                const durationHours = durationMs / (1000 * 60 * 60); // Convert ms to hours
+                
+                // Add to user's total
+                if (!userHoursMap[userId]) {
+                  userHoursMap[userId] = 0;
+                }
+                userHoursMap[userId] += durationHours;
               }
             });
 
-            logMessage('SUCCESS', 'Analytics query completed', `Processed ${analyticsResponse.results.length} user records with talk time data`);
+            if (!resultsResponse.nextUri || results.length < resultsPageSize) {
+              break;
+            }
             
-            // Log some sample data for debugging
-            const sampleUsers = Object.keys(userHoursMap).slice(0, 5);
-            sampleUsers.forEach(userId => {
-              logMessage('DEBUG', `Sample user ${userId.substring(0, 8)}...`, `${userHoursMap[userId].toFixed(2)} hours`);
-            });
-          } else {
-            logMessage('WARN', 'No conversation data found in selected period', 'Using 0 hours for all users');
-            // Try a test query to see if API is working at all
-            await testAnalyticsAPI(interval);
+            pageNumber++;
           }
+
+          logMessage('SUCCESS', 'Analytics results processed', `Found ${totalResults} records, ${Object.keys(userHoursMap).length} users with interaction time`);
+
         } catch (analyticsError) {
-          logMessage('ERROR', 'Analytics query failed', analyticsError.message);
-          console.error('Analytics error details:', analyticsError);
-          // Try the old method as fallback
-          await fetchHoursUsingOldMethod(interval, allUsers, userHoursMap);
+          logMessage('WARN', 'Analytics job failed or timed out', analyticsError.message);
+          logMessage('INFO', 'Using fallback method - analyzing user list only');
+          // Continue with user list even if analytics fails
         }
 
-        // Update user data with hours
+        // Update user data with hours (round to 2 decimal places)
         appState.userData.forEach(user => {
           user.interactingHours = parseFloat((userHoursMap[user.id] || 0).toFixed(2));
         });
@@ -1406,6 +1460,12 @@
           const totalHours = usersWithHours.reduce((sum, u) => sum + u.interactingHours, 0);
           const avgHours = totalHours / usersWithHours.length;
           logMessage('INFO', `Hour statistics`, `Total: ${totalHours.toFixed(2)}h, Avg: ${avgHours.toFixed(2)}h per user`);
+          
+          // Log some sample data
+          const sampleUsers = usersWithHours.slice(0, 5);
+          sampleUsers.forEach(user => {
+            logMessage('DEBUG', `Sample user ${user.name.substring(0, 20)}`, `${user.interactingHours.toFixed(2)} hours`);
+          });
         }
 
         updateLoadingProgress(95);
@@ -1436,65 +1496,6 @@
         setLoading(false);
         logMessage('ERROR', 'Failed to fetch data', error.message);
         showStatusMessage('❌ Failed to fetch data', 'error');
-      }
-    }
-
-    // Helper function to test if Analytics API is working
-    async function testAnalyticsAPI(interval) {
-      try {
-        // Simple test query
-        const testQuery = {
-          interval: interval,
-          groupBy: [],
-          metrics: ["tTalk"]
-        };
-        
-        const testResponse = await apiCall('/api/v2/analytics/conversations/aggregates/query', {
-          method: 'POST',
-          body: JSON.stringify(testQuery)
-        });
-        
-        logMessage('INFO', 'Analytics API test successful', `API is responding with ${testResponse?.results?.length || 0} results`);
-        return testResponse;
-      } catch (error) {
-        logMessage('ERROR', 'Analytics API test failed', error.message);
-        return null;
-      }
-    }
-
-    // Fallback method using old approach
-    async function fetchHoursUsingOldMethod(interval, allUsers, userHoursMap) {
-      logMessage('INFO', 'Trying fallback method for hour calculation...');
-      
-      try {
-        // Create a simplified query that might work better
-        const queryBody = {
-          interval: interval,
-          groupBy: ["userId"],
-          metrics: ["tTalk"]
-        };
-
-        const analyticsResponse = await apiCall(
-          '/api/v2/analytics/conversations/aggregates/query', 
-          {
-            method: 'POST',
-            body: JSON.stringify(queryBody)
-          }
-        );
-
-        if (analyticsResponse.results) {
-          analyticsResponse.results.forEach(record => {
-            if (record.group && record.group.userId) {
-              const userId = record.group.userId;
-              const tTalkData = record.data.find(d => d.metric === "tTalk");
-              const hours = (tTalkData?.stats?.sum || 0) / 3600000;
-              userHoursMap[userId] = hours;
-            }
-          });
-          logMessage('INFO', 'Fallback method successful', `Got ${Object.keys(userHoursMap).length} users with hours`);
-        }
-      } catch (fallbackError) {
-        logMessage('WARN', 'Fallback method also failed', 'All users will have 0 hours');
       }
     }
 
