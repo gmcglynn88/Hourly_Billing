@@ -297,6 +297,18 @@
         </div>
       </div>
       
+      <div class="form-group">
+        <label for="corsProxy">CORS Proxy URL</label>
+        <select id="corsProxy">
+          <option value="https://corsproxy.io/?">corsproxy.io</option>
+          <option value="https://api.allorigins.win/raw?url=">allorigins.win</option>
+          <option value="https://cors-anywhere.herokuapp.com/">cors-anywhere (requires access)</option>
+        </select>
+        <div style="font-size:12px;color:var(--text-light);margin-top:5px;">
+          If using cors-anywhere, visit <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank" style="color:white;text-decoration:underline;">corsdemo</a> first to request access
+        </div>
+      </div>
+      
       <button id="btnConnect" class="btn btn-block">
         <span>🔗 Connect to Genesys Cloud</span>
       </button>
@@ -665,7 +677,8 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Use a local version of Chart.js to avoid tracking prevention issues -->
+  <script src="https://unpkg.com/chart.js@3.9.1/dist/chart.min.js"></script>
   <script>
     // ==============================================
     // CONFIGURATION - EDIT THESE VALUES
@@ -686,12 +699,6 @@
       token: null,
       tokenExpiry: null
     };
-    
-    // CORS Proxy Configuration
-    const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/'; // Public proxy for development
-    // Alternative proxies you can try if this one is rate-limited:
-    // 'https://api.allorigins.win/raw?url=' // Another CORS proxy
-    // 'https://corsproxy.io/?' // Another option
 
     // ==============================================
     // APPLICATION STATE
@@ -716,6 +723,7 @@
       clientSecret: document.getElementById('clientSecret'),
       environment: document.getElementById('environment'),
       authMethod: document.getElementById('authMethod'),
+      corsProxy: document.getElementById('corsProxy'),
       btnConnect: document.getElementById('btnConnect'),
       btnDisconnect: document.getElementById('btnDisconnect'),
       envDisplay: document.getElementById('envDisplay'),
@@ -793,6 +801,7 @@
         const clientSecret = el.clientSecret.value || DEV_CONFIG.clientSecret;
         const environment = el.environment.value || DEV_CONFIG.environment;
         const authMethod = el.authMethod.value;
+        const corsProxy = el.corsProxy.value;
         
         if (!clientId || !clientSecret) {
           throw new Error('Please enter Client ID and Client Secret');
@@ -812,14 +821,28 @@
         if (authMethod === 'proxy') {
           // Use CORS proxy for development
           logMessage('INFO', 'Using CORS proxy for authentication');
-          const proxyUrl = CORS_PROXY + authUrl;
+          let proxyUrl;
+          
+          // Handle different proxy formats
+          if (corsProxy.includes('corsproxy.io')) {
+            // corsproxy.io expects URL as query parameter
+            proxyUrl = corsProxy + encodeURIComponent(authUrl);
+          } else if (corsProxy.includes('allorigins.win')) {
+            // allorigins.win expects URL after query parameter
+            proxyUrl = corsProxy + encodeURIComponent(authUrl);
+          } else {
+            // cors-anywhere expects URL appended
+            proxyUrl = corsProxy + authUrl;
+          }
+          
+          logMessage('INFO', `Using proxy URL: ${proxyUrl}`);
           
           authResponse = await fetch(proxyUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded',
               'Authorization': 'Basic ' + btoa(`${clientId}:${clientSecret}`),
-              'X-Requested-With': 'XMLHttpRequest' // Some proxies need this
+              'X-Requested-With': 'XMLHttpRequest'
             },
             body: 'grant_type=client_credentials'
           });
@@ -841,6 +864,10 @@
             errorText = await authResponse.text();
           } catch (e) {
             errorText = 'Could not read error response';
+          }
+          
+          if (authResponse.status === 403 && corsProxy.includes('cors-anywhere')) {
+            throw new Error('CORS proxy requires access. Visit https://cors-anywhere.herokuapp.com/corsdemo first to request access.');
           }
           
           if (authResponse.status === 0 && authMethod === 'proxy') {
@@ -929,6 +956,7 @@
         el.clientSecret.value = '';
         el.environment.value = 'https://api.euw2.pure.cloud';
         el.authMethod.value = 'proxy';
+        el.corsProxy.value = 'https://corsproxy.io/?';
         
         updateConnectionStatus(false, 'Not Connected');
         logMessage('INFO', 'Disconnected from Genesys Cloud');
@@ -1064,12 +1092,23 @@
       
       const url = `${CURRENT_CONFIG.environment}${path}`;
       const authMethod = el.authMethod.value;
+      const corsProxy = el.corsProxy.value;
       
       let response;
       
       if (authMethod === 'proxy' && !path.includes('/oauth/token')) {
         // Use proxy for API calls too (except token endpoint which we already handled)
-        const proxyUrl = CORS_PROXY + url;
+        let proxyUrl;
+        
+        // Handle different proxy formats
+        if (corsProxy.includes('corsproxy.io')) {
+          proxyUrl = corsProxy + encodeURIComponent(url);
+        } else if (corsProxy.includes('allorigins.win')) {
+          proxyUrl = corsProxy + encodeURIComponent(url);
+        } else {
+          proxyUrl = corsProxy + url;
+        }
+        
         response = await fetch(proxyUrl, {
           ...options,
           headers: {
