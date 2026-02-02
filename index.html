@@ -254,44 +254,47 @@
       .main-grid{grid-template-columns:1fr}
       .status-container{max-width:300px}
     }
+    
+    /* Auto-auth specific styles */
+    .auto-auth-message {
+      text-align: center;
+      padding: 20px;
+      background: rgba(99, 171, 143, 0.1);
+      border-radius: 8px;
+      margin: 20px 0;
+      border: 1px solid rgba(99, 171, 143, 0.3);
+    }
   </style>
 </head>
 <body>
-  <!-- Authentication Form (Hidden by default, shown if not authenticated) -->
-  <div id="authContainer" class="container" style="max-width:500px;margin-top:50px;display:none;">
-    <div class="auth-card">
-      <h3>🔐 Genesys Cloud Authentication</h3>
-      <p>Click below to authenticate with Genesys Cloud using OAuth</p>
-      
-      <div class="form-group">
-        <label for="environment">Environment</label>
-        <select id="environment">
-          <option value="https://api.euw2.pure.cloud">EU West (London) - euw2.pure.cloud</option>
-          <option value="https://api.mypurecloud.ie">Ireland - mypurecloud.ie</option>
-          <option value="https://api.mypurecloud.com">US East - mypurecloud.com</option>
-          <option value="https://api.usw2.pure.cloud">US West - usw2.pure.cloud</option>
-          <option value="https://api.cac1.pure.cloud">Canada - cac1.pure.cloud</option>
-          <option value="https://api.apne2.pure.cloud">Australia - apne2.pure.cloud</option>
-          <option value="https://api.euw2.pure.cloud">EU West (Frankfurt) - euw2.pure.cloud</option>
-        </select>
-      </div>
-      
-      <button id="btnAuthenticate" class="btn btn-block">
-        <span>🔗 Sign in to Genesys Cloud</span>
-      </button>
-      
-      <div style="margin-top:20px;font-size:12px;opacity:0.8;">
-        <strong>Note:</strong> You will be redirected to Genesys Cloud to sign in.
-      </div>
-    </div>
-    
-    <div class="card" style="margin-top:20px;text-align:center;">
-      <h4>📋 Required Permissions</h4>
-      <div style="font-size:12px;text-align:left;margin-top:10px;">
-        <div>• analytics:userDetail:view</div>
-        <div>• users:read</div>
-        <div>• routing:queue:view</div>
-        <div>• organization:read</div>
+  <!-- Hidden Auth Container (Only shown during auth process) -->
+  <div id="authContainer" style="display:none;">
+    <div class="container" style="max-width:500px;margin:100px auto;">
+      <div class="auth-card">
+        <h3>🔐 Genesys Cloud Authentication</h3>
+        <div class="auto-auth-message">
+          <div class="spinner" style="width:40px;height:40px;border-width:3px;"></div>
+          <p style="margin-top:15px;font-size:14px;">Attempting automatic authentication...</p>
+        </div>
+        
+        <div id="manualAuthSection" style="display:none;margin-top:20px;">
+          <div class="form-group">
+            <label for="environment">Environment</label>
+            <select id="environment">
+              <option value="https://api.euw2.pure.cloud">EU West (London) - euw2.pure.cloud</option>
+              <option value="https://api.mypurecloud.ie">Ireland - mypurecloud.ie</option>
+              <option value="https://api.mypurecloud.com">US East - mypurecloud.com</option>
+              <option value="https://api.usw2.pure.cloud">US West - usw2.pure.cloud</option>
+              <option value="https://api.cac1.pure.cloud">Canada - cac1.pure.cloud</option>
+              <option value="https://api.apne2.pure.cloud">Australia - apne2.pure.cloud</option>
+              <option value="https://api.euw2.pure.cloud">EU West (Frankfurt) - euw2.pure.cloud</option>
+            </select>
+          </div>
+          
+          <button id="btnAuthenticate" class="btn btn-block">
+            <span>🔗 Sign in to Genesys Cloud</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -656,11 +659,20 @@
       environment: 'https://api.euw2.pure.cloud'  // Default environment
     };
     
-    // Or leave empty to use the form input
+    // Storage keys for auto-authentication
+    const STORAGE_KEYS = {
+      ENVIRONMENT: 'gc_environment',
+      TOKEN: 'gc_token',
+      TOKEN_EXPIRY: 'gc_token_expiry',
+      REFRESH_TOKEN: 'gc_refresh_token',
+      AUTO_AUTH_ATTEMPTED: 'gc_auto_auth_attempted'
+    };
+    
     let CURRENT_CONFIG = {
       environment: '',
       token: null,
-      tokenExpiry: null
+      tokenExpiry: null,
+      refreshToken: null
     };
 
     // ==============================================
@@ -684,6 +696,7 @@
       authContainer: document.getElementById('authContainer'),
       environment: document.getElementById('environment'),
       btnAuthenticate: document.getElementById('btnAuthenticate'),
+      manualAuthSection: document.getElementById('manualAuthSection'),
       btnDisconnect: document.getElementById('btnDisconnect'),
       envDisplay: document.getElementById('envDisplay'),
       
@@ -749,12 +762,131 @@
     };
 
     // ==============================================
+    // AUTO-AUTHENTICATION SYSTEM
+    // ==============================================
+    function loadStoredCredentials() {
+      try {
+        const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+        const tokenExpiry = localStorage.getItem(STORAGE_KEYS.TOKEN_EXPIRY);
+        const environment = localStorage.getItem(STORAGE_KEYS.ENVIRONMENT);
+        const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+        
+        if (token && tokenExpiry && environment) {
+          CURRENT_CONFIG = {
+            token,
+            tokenExpiry: parseInt(tokenExpiry),
+            environment,
+            refreshToken
+          };
+          
+          // Check if token is still valid (with 5-minute buffer)
+          if (Date.now() < CURRENT_CONFIG.tokenExpiry - (5 * 60 * 1000)) {
+            return true;
+          }
+          
+          // Token expired, try to refresh if we have refresh token
+          if (refreshToken) {
+            return false; // Will trigger refresh
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load stored credentials:', e);
+      }
+      
+      return false;
+    }
+
+    function saveCredentials(token, expiresIn, environment, refreshToken = null) {
+      try {
+        const tokenExpiry = Date.now() + (parseInt(expiresIn) * 1000);
+        
+        CURRENT_CONFIG = {
+          token,
+          tokenExpiry,
+          environment,
+          refreshToken
+        };
+        
+        localStorage.setItem(STORAGE_KEYS.TOKEN, token);
+        localStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRY, tokenExpiry.toString());
+        localStorage.setItem(STORAGE_KEYS.ENVIRONMENT, environment);
+        
+        if (refreshToken) {
+          localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
+        }
+        
+        return true;
+      } catch (e) {
+        console.error('Failed to save credentials:', e);
+        return false;
+      }
+    }
+
+    function clearCredentials() {
+      try {
+        localStorage.removeItem(STORAGE_KEYS.TOKEN);
+        localStorage.removeItem(STORAGE_KEYS.TOKEN_EXPIRY);
+        localStorage.removeItem(STORAGE_KEYS.ENVIRONMENT);
+        localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+        localStorage.removeItem(STORAGE_KEYS.AUTO_AUTH_ATTEMPTED);
+        
+        CURRENT_CONFIG = {
+          environment: '',
+          token: null,
+          tokenExpiry: null,
+          refreshToken: null
+        };
+      } catch (e) {
+        console.error('Failed to clear credentials:', e);
+      }
+    }
+
+    async function attemptTokenRefresh() {
+      if (!CURRENT_CONFIG.refreshToken || !CURRENT_CONFIG.environment) {
+        return false;
+      }
+      
+      try {
+        const loginHost = getLoginHost(CURRENT_CONFIG.environment);
+        const response = await fetch(`${loginHost}/oauth/token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': 'Basic ' + btoa(`${CONFIG.clientId}:`)
+          },
+          body: new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: CURRENT_CONFIG.refreshToken
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          saveCredentials(
+            data.access_token,
+            data.expires_in,
+            CURRENT_CONFIG.environment,
+            data.refresh_token || CURRENT_CONFIG.refreshToken
+          );
+          
+          logMessage('SUCCESS', 'Token refreshed successfully');
+          return true;
+        }
+      } catch (error) {
+        console.warn('Token refresh failed:', error);
+      }
+      
+      return false;
+    }
+
+    // ==============================================
     // AUTHENTICATION - OAuth Implicit Grant Flow
     // ==============================================
     function parseTokenFromHash() {
       const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
       return {
         token: params.get('access_token'),
+        refreshToken: params.get('refresh_token'),
         error: params.get('error'),
         errorDescription: params.get('error_description'),
         expiresIn: params.get('expires_in')
@@ -767,12 +899,16 @@
 
     function authUrl(environment) {
       const loginHost = getLoginHost(environment);
-      return `${loginHost}/oauth/authorize?client_id=${encodeURIComponent(CONFIG.clientId)}&response_type=token&redirect_uri=${encodeURIComponent(CONFIG.redirectUri)}`;
+      // Request offline_access scope to get refresh token
+      return `${loginHost}/oauth/authorize?client_id=${encodeURIComponent(CONFIG.clientId)}&response_type=token&redirect_uri=${encodeURIComponent(CONFIG.redirectUri)}&scope=offline_access`;
     }
 
-    function initAuth() {
-      // Check if we have a token in the URL hash
-      const { token, error, errorDescription, expiresIn } = parseTokenFromHash();
+    async function initAuth() {
+      // Show auth container while we check
+      el.authContainer.style.display = 'block';
+      
+      // Check if we have a token in the URL hash (returning from OAuth)
+      const { token, refreshToken, error, errorDescription, expiresIn } = parseTokenFromHash();
       
       // Clear hash from URL
       if (window.location.hash) {
@@ -780,36 +916,69 @@
       }
       
       if (token) {
-        // Store token
-        CURRENT_CONFIG.token = token;
-        CURRENT_CONFIG.tokenExpiry = Date.now() + (parseInt(expiresIn || '3600') * 1000);
-        CURRENT_CONFIG.environment = localStorage.getItem('gc_environment') || CONFIG.environment;
+        // We just returned from OAuth with a token
+        const environment = localStorage.getItem(STORAGE_KEYS.ENVIRONMENT) || CONFIG.environment;
         
-        // Show main app
-        showMainApp();
-        logMessage('SUCCESS', 'Authentication successful', `Connected to ${CURRENT_CONFIG.environment}`);
-        showStatusMessage('✅ Connected to Genesys Cloud', 'success');
-        return;
+        if (saveCredentials(token, expiresIn || '3600', environment, refreshToken)) {
+          logMessage('SUCCESS', 'Authentication successful', `Connected to ${environment}`);
+          showStatusMessage('✅ Connected to Genesys Cloud', 'success');
+          showMainApp();
+          return;
+        }
       }
       
       if (error) {
         logMessage('ERROR', 'Authentication failed', `${error}: ${errorDescription}`);
         showStatusMessage(`❌ Authentication failed: ${error}`, 'error');
+        showManualAuth();
+        return;
       }
       
-      // Show auth form
-      el.authContainer.style.display = 'block';
+      // Try to auto-authenticate with stored credentials
+      const hasValidToken = loadStoredCredentials();
+      
+      if (hasValidToken) {
+        // We have a valid stored token
+        logMessage('INFO', 'Auto-authentication successful', 'Using stored credentials');
+        setTimeout(() => {
+          showMainApp();
+        }, 500);
+        return;
+      }
+      
+      // Try to refresh token
+      const refreshSuccess = await attemptTokenRefresh();
+      if (refreshSuccess) {
+        logMessage('SUCCESS', 'Token refreshed', 'Auto-authentication successful');
+        setTimeout(() => {
+          showMainApp();
+        }, 500);
+        return;
+      }
+      
+      // No valid token, show manual auth
+      logMessage('INFO', 'No valid credentials found', 'Please sign in manually');
+      setTimeout(() => {
+        showManualAuth();
+      }, 1000);
+    }
+
+    function showManualAuth() {
+      el.manualAuthSection.style.display = 'block';
+      
+      // Set default environment
+      const storedEnv = localStorage.getItem(STORAGE_KEYS.ENVIRONMENT);
+      if (storedEnv) {
+        el.environment.value = storedEnv;
+      }
     }
 
     function authenticate() {
       const environment = el.environment.value || CONFIG.environment;
       
       // Store environment in localStorage
-      localStorage.setItem('gc_environment', environment);
+      localStorage.setItem(STORAGE_KEYS.ENVIRONMENT, environment);
       CURRENT_CONFIG.environment = environment;
-      
-      // Store auto-auth attempt to prevent loops
-      localStorage.setItem('gc_auto_auth_attempted', '1');
       
       // Redirect to Genesys Cloud for authentication
       window.location.href = authUrl(environment);
@@ -842,13 +1011,9 @@
     }
 
     function disconnect() {
-      if (confirm('Disconnect from Genesys Cloud?')) {
+      if (confirm('Disconnect from Genesys Cloud? This will clear all stored credentials.')) {
         // Clear all data
-        CURRENT_CONFIG = {
-          environment: '',
-          token: null,
-          tokenExpiry: null
-        };
+        clearCredentials();
         
         appState = {
           isConnected: false,
@@ -860,14 +1025,10 @@
           chartInstances: {}
         };
         
-        // Clear stored data
-        localStorage.removeItem('gc_environment');
-        localStorage.removeItem('gc_auto_auth_attempted');
-        
         // Reset UI
         el.mainContent.style.display = 'none';
         el.authContainer.style.display = 'block';
-        el.environment.value = CONFIG.environment;
+        el.manualAuthSection.style.display = 'block';
         
         updateConnectionStatus(false, 'Not Connected');
         logMessage('INFO', 'Disconnected from Genesys Cloud');
@@ -995,8 +1156,13 @@
     // API HELPER
     // ==============================================
     async function apiCall(path, options = {}) {
+      // First check token validity
       if (!checkTokenExpiry()) {
-        throw new Error('Authentication token expired. Please reconnect.');
+        // Try to refresh token
+        const refreshSuccess = await attemptTokenRefresh();
+        if (!refreshSuccess) {
+          throw new Error('Authentication token expired. Please reconnect.');
+        }
       }
       
       if (!CURRENT_CONFIG.token) throw new Error('Not authenticated');
@@ -1873,7 +2039,7 @@
     // START APPLICATION
     // ==============================================
     document.addEventListener('DOMContentLoaded', function() {
-      // Initialize authentication
+      // Initialize auto-authentication
       initAuth();
     });
   </script>
