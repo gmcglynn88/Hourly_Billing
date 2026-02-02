@@ -5,20 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Genesys Cloud Hourly Billing Calculator</title>
   <style>
-    :root {
-      --primary-color: #0066CC;
-      --secondary-color: #004C99;
-      --accent-color: #00A0E9;
-      --success-color: #28a745;
-      --warning-color: #ffc107;
-      --danger-color: #dc3545;
-      --light-bg: #f8f9fa;
-      --card-bg: #ffffff;
-      --border-color: #dee2e6;
-      --text-color: #212529;
-      --text-light: #6c757d;
-      --shadow: 0 4px 6px rgba(0,0,0,0.1);
-      --radius: 8px;
+    :root{
+      --primary-color:#63AB8F; --secondary-color:#4A8C7D; --border-color:#DEE2E6;
+      --light-bg:#F8F9FA; --card-bg:#FFFFFF; --text-color:#2C3E50; --text-light:#6C757D;
+      --pill:#e9f6f0; --filter-bg:#f0f7f3; --warning:#ffc107; --danger:#dc3545;
+      --success:#28a745; --info:#17a2b8;
+      
+      /* Status colors */
+      --status-onqueue: #b3e0ff;
+      --status-offqueue: #d2b48c;
+      --status-available: #c3e6cb;
+      --status-offline: #e2e3e5;
+      --status-unavailable: #d6d8db;
+      --status-busy: #f5c6cb;
+      --status-meetings: #f8d7da;
+      --status-breaks: #ffeaa7;
+      --status-meal: #ffcc99;
+      --status-away: #ffc107;
+      --status-training: #c3e6cb;
     }
 
     * {
@@ -28,12 +32,11 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-      color: var(--text-color);
+      font-family:'Aptos','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
+      margin:20px;padding:20px;max-width:1800px;
+      background:var(--light-bg);color:var(--text-color);
       line-height: 1.6;
       min-height: 100vh;
-      padding: 20px;
     }
 
     .container {
@@ -43,15 +46,16 @@
 
     header {
       background: var(--card-bg);
-      border-radius: var(--radius);
+      border-radius: 12px;
       padding: 24px 32px;
       margin-bottom: 24px;
-      box-shadow: var(--shadow);
+      box-shadow:0 1px 3px rgba(0,0,0,.1);
       border-left: 5px solid var(--primary-color);
+      border:1px solid var(--border-color);
     }
 
     h1 {
-      color: var(--primary-color);
+      color: var(--text-color);
       margin-bottom: 8px;
       font-size: 28px;
     }
@@ -74,13 +78,13 @@
     }
 
     /* Card Styling */
-    .card {
-      background: var(--card-bg);
-      border-radius: var(--radius);
-      padding: 24px;
-      box-shadow: var(--shadow);
-      margin-bottom: 24px;
-      border: 1px solid var(--border-color);
+    .card{
+      background:var(--card-bg);
+      border:1px solid var(--border-color);
+      border-radius:12px;
+      padding:24px;
+      margin-bottom:16px;
+      box-shadow:0 1px 3px rgba(0,0,0,.1);
     }
 
     .card h2 {
@@ -94,122 +98,74 @@
       gap: 10px;
     }
 
-    .card h2 i {
-      font-size: 24px;
-    }
-
     /* Form Controls */
     .form-group {
       margin-bottom: 20px;
     }
 
-    .form-group label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 600;
+    label{
+      display:block;
+      font-weight:600;
+      margin-bottom:6px;
       color: var(--text-color);
     }
 
-    .form-group input,
-    .form-group select {
+    select,input,button{
+      padding:10px;
+      border:1px solid var(--border-color);
+      border-radius:6px;
+      background:var(--card-bg);
+      font-size:14px;
       width: 100%;
-      padding: 12px 16px;
-      border: 2px solid var(--border-color);
-      border-radius: 6px;
-      font-size: 14px;
-      transition: border-color 0.3s;
     }
 
-    .form-group input:focus,
-    .form-group select:focus {
-      outline: none;
-      border-color: var(--primary-color);
-      box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+    button{
+      background:var(--primary-color);
+      color:#fff;
+      font-weight:600;
+      cursor:pointer;
+      transition:background .2s;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    button:hover{
+      background:var(--secondary-color);
+    }
+    
+    button:disabled{
+      background:var(--text-light);
+      cursor:not-allowed;
     }
 
+    .btn-block {
+      width: 100%;
+      padding: 12px;
+    }
+
+    /* Date Range */
     .date-range {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
     }
 
-    /* Button Styling */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 12px 24px;
-      border: none;
-      border-radius: 6px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      text-decoration: none;
-    }
-
-    .btn-primary {
-      background: var(--primary-color);
-      color: white;
-    }
-
-    .btn-primary:hover {
-      background: var(--secondary-color);
-      transform: translateY(-1px);
-      box-shadow: 0 6px 12px rgba(0, 102, 204, 0.2);
-    }
-
-    .btn-secondary {
-      background: var(--light-bg);
-      color: var(--text-color);
-      border: 1px solid var(--border-color);
-    }
-
-    .btn-secondary:hover {
-      background: #e9ecef;
-    }
-
-    .btn-success {
-      background: var(--success-color);
-      color: white;
-    }
-
-    .btn-success:hover {
-      background: #218838;
-    }
-
-    .btn-danger {
-      background: var(--danger-color);
-      color: white;
-    }
-
-    .btn-danger:hover {
-      background: #c82333;
-    }
-
-    .btn-block {
-      width: 100%;
-    }
-
-    .btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none !important;
-    }
-
     /* Auth Section */
     .auth-section {
       background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
       color: white;
-      padding: 32px;
-      border-radius: var(--radius);
-      margin-bottom: 24px;
+      padding: 24px;
+      border-radius: 12px;
+      margin-bottom: 16px;
     }
 
     .auth-section h3 {
       margin-bottom: 16px;
       font-size: 20px;
+      color: white;
     }
 
     .auth-section p {
@@ -220,14 +176,14 @@
     /* Results Section */
     .results-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
       margin-top: 20px;
     }
 
     .stat-card {
-      background: var(--light-bg);
-      border-radius: var(--radius);
+      background: var(--pill);
+      border-radius: 12px;
       padding: 20px;
       text-align: center;
       border: 1px solid var(--border-color);
@@ -247,22 +203,9 @@
       letter-spacing: 1px;
     }
 
-    .stat-change {
-      font-size: 14px;
-      margin-top: 8px;
-    }
-
-    .stat-change.positive {
-      color: var(--success-color);
-    }
-
-    .stat-change.negative {
-      color: var(--danger-color);
-    }
-
     /* License Summary */
     .license-summary {
-      background: linear-gradient(135deg, #e8f4fc 0%, #d4e7fa 100%);
+      background: linear-gradient(135deg, #e8f6f0 0%, #d4f2e4 100%);
       border-left: 4px solid var(--primary-color);
     }
 
@@ -288,34 +231,74 @@
       color: var(--primary-color);
     }
 
+    /* Badge Styling */
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 20px;
+      margin-left: 8px;
+    }
+
+    .badge-primary {
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .badge-success {
+      background: var(--success);
+      color: white;
+    }
+
+    .badge-warning {
+      background: var(--warning);
+      color: black;
+    }
+
+    .badge-info {
+      background: var(--info);
+      color: white;
+    }
+
     /* Data Table */
-    .data-table {
+    .table-container {
+      overflow-x: auto;
+      margin-top: 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--card-bg);
+      position: relative;
+    }
+
+    table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
     }
 
-    .data-table th {
-      background: var(--light-bg);
-      padding: 16px;
-      text-align: left;
+    th {
+      background-color: var(--primary-color);
+      color: white;
       font-weight: 600;
-      color: var(--text-color);
-      border-bottom: 2px solid var(--border-color);
       position: sticky;
       top: 0;
+      z-index: 10;
+      white-space: nowrap;
+      padding: 16px;
+      text-align: left;
     }
 
-    .data-table td {
+    td {
       padding: 14px 16px;
       border-bottom: 1px solid var(--border-color);
     }
 
-    .data-table tr:hover {
-      background: rgba(0, 102, 204, 0.05);
+    tr:hover {
+      background-color: var(--pill);
     }
 
-    .data-table .status-badge {
+    /* Status Badges */
+    .status-badge {
       display: inline-block;
       padding: 4px 12px;
       border-radius: 20px;
@@ -324,70 +307,19 @@
       text-transform: uppercase;
     }
 
-    .status-hi {
-      background: rgba(40, 167, 69, 0.1);
-      color: var(--success-color);
-    }
-
     .status-named {
       background: rgba(0, 102, 204, 0.1);
       color: var(--primary-color);
     }
 
+    .status-hi {
+      background: rgba(40, 167, 69, 0.1);
+      color: var(--success);
+    }
+
     .status-supervisor {
       background: rgba(255, 193, 7, 0.1);
       color: #d39e00;
-    }
-
-    /* Charts */
-    .chart-container {
-      height: 300px;
-      margin-top: 20px;
-      position: relative;
-    }
-
-    /* Loading States */
-    .loading {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 3px solid rgba(0, 102, 204, 0.3);
-      border-radius: 50%;
-      border-top-color: var(--primary-color);
-      animation: spin 1s ease-in-out infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .loading-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(255, 255, 255, 0.9);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-      display: none;
-    }
-
-    .loading-overlay.active {
-      display: flex;
-    }
-
-    .spinner {
-      width: 50px;
-      height: 50px;
-      border: 5px solid var(--light-bg);
-      border-top: 5px solid var(--primary-color);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 20px;
     }
 
     /* Tabs */
@@ -429,7 +361,7 @@
     /* Alerts */
     .alert {
       padding: 16px;
-      border-radius: var(--radius);
+      border-radius: 8px;
       margin-bottom: 20px;
       display: flex;
       align-items: center;
@@ -437,27 +369,157 @@
     }
 
     .alert-info {
-      background: rgba(0, 102, 204, 0.1);
+      background: rgba(99, 171, 143, 0.1);
       border-left: 4px solid var(--primary-color);
-      color: var(--primary-color);
+      color: var(--text-color);
     }
 
     .alert-success {
       background: rgba(40, 167, 69, 0.1);
-      border-left: 4px solid var(--success-color);
-      color: var(--success-color);
+      border-left: 4px solid var(--success);
+      color: var(--success);
     }
 
     .alert-warning {
       background: rgba(255, 193, 7, 0.1);
-      border-left: 4px solid var(--warning-color);
+      border-left: 4px solid var(--warning);
       color: #856404;
     }
 
     .alert-danger {
       background: rgba(220, 53, 69, 0.1);
-      border-left: 4px solid var(--danger-color);
-      color: var(--danger-color);
+      border-left: 4px solid var(--danger);
+      color: var(--danger);
+    }
+
+    /* Loading States */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(99, 171, 143, 0.3);
+      border-radius: 50%;
+      border-top-color: var(--primary-color);
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      display: none;
+    }
+
+    .loading-overlay.active {
+      display: flex;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid var(--light-bg);
+      border-top: 5px solid var(--primary-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    /* Action Buttons */
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .action-btn {
+      padding: 8px 16px;
+      font-size: 14px;
+      border-radius: 6px;
+    }
+
+    .export-btn {
+      background: var(--text-light);
+    }
+
+    .export-btn:hover {
+      background: #5a6268;
+    }
+
+    /* Mode Selector */
+    .mode-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      background: var(--light-bg);
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .mode-btn.active {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+
+    /* Charts */
+    .chart-container {
+      height: 300px;
+      margin-top: 20px;
+      position: relative;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      body {
+        margin: 10px;
+        padding: 10px;
+      }
+
+      .card {
+        padding: 16px;
+      }
+
+      header {
+        padding: 16px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      .btn-block {
+        padding: 10px 16px;
+        font-size: 14px;
+      }
+
+      .stat-value {
+        font-size: 28px;
+      }
+
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     /* Tooltips */
@@ -490,34 +552,6 @@
       opacity: 1;
     }
 
-    /* Responsive Design */
-    @media (max-width: 768px) {
-      body {
-        padding: 10px;
-      }
-
-      .card {
-        padding: 16px;
-      }
-
-      header {
-        padding: 16px;
-      }
-
-      h1 {
-        font-size: 24px;
-      }
-
-      .btn {
-        padding: 10px 16px;
-        font-size: 14px;
-      }
-
-      .stat-value {
-        font-size: 28px;
-      }
-    }
-
     /* Scrollbar Styling */
     ::-webkit-scrollbar {
       width: 8px;
@@ -536,31 +570,6 @@
     ::-webkit-scrollbar-thumb:hover {
       background: var(--text-light);
     }
-
-    /* Badge */
-    .badge {
-      display: inline-block;
-      padding: 4px 8px;
-      font-size: 12px;
-      font-weight: 600;
-      border-radius: 4px;
-      margin-left: 8px;
-    }
-
-    .badge-primary {
-      background: var(--primary-color);
-      color: white;
-    }
-
-    .badge-success {
-      background: var(--success-color);
-      color: white;
-    }
-
-    .badge-warning {
-      background: var(--warning-color);
-      color: black;
-    }
   </style>
 </head>
 <body>
@@ -570,13 +579,28 @@
       <p class="subtitle">Calculate optimal license distribution and hourly billing based on user interaction data</p>
     </header>
 
+    <!-- Mode Selector -->
+    <div class="card">
+      <h2>🔧 Application Mode</h2>
+      <div class="mode-selector">
+        <div class="mode-btn active" data-mode="mock">Mock Data Mode</div>
+        <div class="mode-btn" data-mode="api">Live API Mode</div>
+      </div>
+      <div class="alert alert-info" id="modeAlert">
+        <span>📋</span>
+        <div>
+          <strong>Mock Mode Active:</strong> Using sample data for demonstration. To use real Genesys Cloud data, switch to Live API Mode and set up a server-side proxy to avoid CORS restrictions.
+        </div>
+      </div>
+    </div>
+
     <div class="main-grid">
       <!-- Left Column: Controls -->
       <div class="left-column">
-        <!-- Auth Section -->
-        <div class="auth-section card">
+        <!-- Auth Section (Only in API Mode) -->
+        <div id="authSection" class="auth-section card" style="display: none;">
           <h3>🔐 Authentication</h3>
-          <p>Enter your Genesys Cloud API credentials to fetch data</p>
+          <p>Enter your Genesys Cloud API credentials</p>
           <div class="form-group">
             <label for="clientId">Client ID</label>
             <input type="text" id="clientId" placeholder="Enter Client ID">
@@ -589,14 +613,12 @@
             <label for="region">Region</label>
             <select id="region">
               <option value="mypurecloud.ie">Europe (Dublin) - mypurecloud.ie</option>
+              <option value="euw2.pure.cloud">Europe West (London) - euw2.pure.cloud</option>
               <option value="mypurecloud.com">US East (Virginia) - mypurecloud.com</option>
               <option value="usw2.pure.cloud">US West (Oregon) - usw2.pure.cloud</option>
-              <option value="cac1.pure.cloud">Canada - cac1.pure.cloud</option>
-              <option value="apne2.pure.cloud">Asia Pacific (Tokyo) - apne2.pure.cloud</option>
-              <option value="euw2.pure.cloud">Europe West (London) - euw2.pure.cloud</option>
             </select>
           </div>
-          <button id="btnAuth" class="btn btn-primary btn-block">
+          <button id="btnAuth" class="btn btn-block">
             <span>Authenticate</span>
           </button>
         </div>
@@ -614,10 +636,10 @@
           </div>
           <div class="form-group">
             <label>Quick Select</label>
-            <div style="display: flex; gap: 8px; margin-top: 8px;">
-              <button class="btn btn-secondary" data-days="30">Last 30 days</button>
-              <button class="btn btn-secondary" data-days="7">Last 7 days</button>
-              <button class="btn btn-secondary" data-days="1">Yesterday</button>
+            <div class="action-buttons">
+              <button class="action-btn" data-days="30">Last 30 days</button>
+              <button class="action-btn" data-days="7">Last 7 days</button>
+              <button class="action-btn" data-days="1">Yesterday</button>
             </div>
           </div>
         </div>
@@ -643,7 +665,7 @@
             </select>
           </div>
           <div class="alert alert-info">
-            <i>💡</i>
+            <span>💡</span>
             <div>
               <strong>Assumptions:</strong>
               <div style="font-size: 12px; margin-top: 4px;">
@@ -657,8 +679,8 @@
 
         <!-- Action Buttons -->
         <div class="card">
-          <button id="btnFetchData" class="btn btn-primary btn-block" disabled>
-            <span>📥 Fetch Interaction Data</span>
+          <button id="btnFetchData" class="btn btn-primary btn-block">
+            <span>📥 Load Mock Data</span>
           </button>
           <div style="height: 12px;"></div>
           <button id="btnCalculate" class="btn btn-success btn-block" disabled>
@@ -721,22 +743,22 @@
               <div class="stat-card">
                 <div class="stat-label">Active Users</div>
                 <div class="stat-value" id="activeUsers">0</div>
-                <div class="stat-change positive" id="activeChange">0% of total</div>
+                <div class="stat-label" style="font-size: 12px;" id="activeChange">0% of total</div>
               </div>
               <div class="stat-card">
                 <div class="stat-label">Avg Hours/User</div>
                 <div class="stat-value" id="avgHours">0</div>
-                <div class="stat-change" id="avgHoursText">per active user</div>
+                <div class="stat-label" style="font-size: 12px;" id="avgHoursText">per active user</div>
               </div>
               <div class="stat-card">
                 <div class="stat-label">HI Efficiency</div>
                 <div class="stat-value" id="hiEfficiency">0%</div>
-                <div class="stat-change positive">of users below threshold</div>
+                <div class="stat-label" style="font-size: 12px;">of users below threshold</div>
               </div>
               <div class="stat-card">
                 <div class="stat-label">Cost Savings</div>
                 <div class="stat-value" id="costSavings">0%</div>
-                <div class="stat-change positive">vs all Named</div>
+                <div class="stat-label" style="font-size: 12px;">vs all Named</div>
               </div>
             </div>
           </div>
@@ -757,7 +779,7 @@
             <div style="margin-bottom: 20px;">
               <input type="text" id="userSearch" placeholder="🔍 Search users..." style="width: 100%; padding: 12px; border: 2px solid var(--border-color); border-radius: 6px;">
             </div>
-            <div class="table-container" style="max-height: 600px; overflow-y: auto;">
+            <div class="table-container">
               <table class="data-table" id="usersTable">
                 <thead>
                   <tr>
@@ -806,16 +828,16 @@
         <!-- API Logs Tab -->
         <div id="tab-api" class="tab-content">
           <div class="card">
-            <h2>🔧 API Request Logs</h2>
-            <div style="margin-bottom: 20px;">
-              <button id="btnClearLogs" class="btn btn-secondary">Clear Logs</button>
+            <h2>🔧 Application Logs</h2>
+            <div class="action-buttons">
+              <button id="btnClearLogs" class="action-btn">Clear Logs</button>
             </div>
-            <div class="table-container" style="max-height: 600px; overflow-y: auto;">
+            <div class="table-container">
               <table class="data-table">
                 <thead>
                   <tr>
                     <th>Time</th>
-                    <th>Endpoint</th>
+                    <th>Action</th>
                     <th>Status</th>
                     <th>Details</th>
                   </tr>
@@ -834,22 +856,27 @@
   <!-- Loading Overlay -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="spinner"></div>
-    <div id="loadingText">Fetching data from Genesys Cloud...</div>
+    <div id="loadingText">Processing...</div>
     <div id="loadingProgress" style="margin-top: 10px; font-size: 14px; color: var(--text-light);"></div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     // Global variables
+    let currentMode = 'mock'; // 'mock' or 'api'
     let authToken = null;
-    let apiBaseUrl = 'https://api.mypurecloud.ie';
+    let apiBaseUrl = 'https://api.euw2.pure.cloud';
     let userData = [];
     let analysisResults = null;
     let charts = {};
 
     // DOM Elements
     const elements = {
+      // Mode Selector
+      modeAlert: document.getElementById('modeAlert'),
+      
       // Authentication
+      authSection: document.getElementById('authSection'),
       clientId: document.getElementById('clientId'),
       clientSecret: document.getElementById('clientSecret'),
       region: document.getElementById('region'),
@@ -867,6 +894,7 @@
       btnFetchData: document.getElementById('btnFetchData'),
       btnCalculate: document.getElementById('btnCalculate'),
       btnExport: document.getElementById('btnExport'),
+      btnClearLogs: document.getElementById('btnClearLogs'),
       
       // Results Display
       totalUsers: document.getElementById('totalUsers'),
@@ -878,6 +906,8 @@
       avgHours: document.getElementById('avgHours'),
       hiEfficiency: document.getElementById('hiEfficiency'),
       costSavings: document.getElementById('costSavings'),
+      activeChange: document.getElementById('activeChange'),
+      avgHoursText: document.getElementById('avgHoursText'),
       
       // Tables
       usersTableBody: document.getElementById('usersTableBody'),
@@ -885,7 +915,6 @@
       visibleUsers: document.getElementById('visibleUsers'),
       totalUsersTable: document.getElementById('totalUsersTable'),
       apiLogs: document.getElementById('apiLogs'),
-      btnClearLogs: document.getElementById('btnClearLogs'),
       
       // Loading
       loadingOverlay: document.getElementById('loadingOverlay'),
@@ -927,8 +956,8 @@
       elements.loadingProgress.textContent = text;
     }
 
-    // Add API log entry
-    function addApiLog(endpoint, status, details) {
+    // Add log entry
+    function addLog(action, status, details) {
       const now = new Date();
       const time = now.toLocaleTimeString();
       const row = document.createElement('tr');
@@ -937,10 +966,11 @@
       if (status === 'error') statusBadge = '🔴';
       else if (status === 'warning') statusBadge = '🟡';
       else if (status === 'processing') statusBadge = '🔄';
+      else if (status === 'info') statusBadge = '🔵';
       
       row.innerHTML = `
         <td>${time}</td>
-        <td><code>${endpoint}</code></td>
+        <td>${action}</td>
         <td>${statusBadge}</td>
         <td>${details}</td>
       `;
@@ -948,7 +978,160 @@
       elements.apiLogs.prepend(row);
     }
 
-    // Authenticate with Genesys Cloud
+    // Switch between mock and API mode
+    function switchMode(mode) {
+      currentMode = mode;
+      
+      // Update UI
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+      });
+      
+      if (mode === 'mock') {
+        elements.authSection.style.display = 'none';
+        elements.btnFetchData.innerHTML = '<span>📥 Load Mock Data</span>';
+        elements.btnFetchData.disabled = false;
+        elements.btnCalculate.disabled = true;
+        elements.btnExport.disabled = true;
+        elements.modeAlert.innerHTML = `
+          <span>📋</span>
+          <div>
+            <strong>Mock Mode Active:</strong> Using sample data for demonstration. To use real Genesys Cloud data, switch to Live API Mode.
+          </div>
+        `;
+        elements.modeAlert.className = 'alert alert-info';
+        addLog('Mode Switch', 'info', 'Switched to Mock Data Mode');
+      } else {
+        elements.authSection.style.display = 'block';
+        elements.btnFetchData.innerHTML = '<span>📥 Fetch Live Data</span>';
+        elements.btnFetchData.disabled = true;
+        elements.btnCalculate.disabled = true;
+        elements.btnExport.disabled = true;
+        elements.modeAlert.innerHTML = `
+          <span>⚠️</span>
+          <div>
+            <strong>API Mode Active:</strong> CORS restrictions prevent direct browser access to Genesys Cloud OAuth. You need to set up a server-side proxy. Using mock data for now.
+          </div>
+        `;
+        elements.modeAlert.className = 'alert alert-warning';
+        addLog('Mode Switch', 'warning', 'Switched to Live API Mode (CORS restrictions apply)');
+      }
+    }
+
+    // Generate mock user data based on your example
+    function generateMockData() {
+      const mockUsers = [];
+      const names = [
+        'John Smith', 'Emma Johnson', 'Michael Brown', 'Sarah Davis', 'Robert Wilson',
+        'Jennifer Taylor', 'William Anderson', 'Lisa Thomas', 'David Jackson', 'Karen White',
+        'Richard Harris', 'Susan Martin', 'Joseph Thompson', 'Jessica Garcia', 'Charles Martinez',
+        'Nancy Robinson', 'Thomas Clark', 'Betty Rodriguez', 'Christopher Lewis', 'Margaret Lee',
+        'Daniel Walker', 'Sandra Hall', 'Paul Allen', 'Donna Young', 'Mark King',
+        'Carol Wright', 'Steven Scott', 'Ruth Green', 'Andrew Baker', 'Sharon Adams'
+      ];
+      
+      const statuses = ['Agent', 'Supervisor', 'Admin', 'Manager'];
+      
+      // Generate users based on your example distribution
+      // Total: ~1800 users as in your example
+      
+      // NOLOGIN users (419 from your example)
+      for (let i = 0; i < 419; i++) {
+        mockUsers.push({
+          id: `user-nologin-${i}`,
+          name: `User ${i+1} (No Login)`,
+          interactingHours: 0,
+          isSupervisor: Math.random() < 0.1,
+          status: 'NOLOGIN'
+        });
+      }
+      
+      // HI users (632 from your example under 40 hours)
+      for (let i = 0; i < 632; i++) {
+        const hours = Math.random() * 40; // 0-40 hours
+        mockUsers.push({
+          id: `user-hi-${i}`,
+          name: names[Math.floor(Math.random() * names.length)] + ' (HI)',
+          interactingHours: hours,
+          isSupervisor: false,
+          status: 'Agent'
+        });
+      }
+      
+      // Named users under threshold but admins
+      for (let i = 0; i < 194; i++) {
+        const hours = Math.random() * 30; // 0-30 hours
+        mockUsers.push({
+          id: `user-admin-${i}`,
+          name: names[Math.floor(Math.random() * names.length)] + ' (Admin)',
+          interactingHours: hours,
+          isSupervisor: true,
+          status: 'Admin'
+        });
+      }
+      
+      // Named users over threshold (319 from your example 40-50 hours bucket)
+      for (let i = 0; i < 319; i++) {
+        const hours = 40 + Math.random() * 10; // 40-50 hours
+        mockUsers.push({
+          id: `user-named-${i}`,
+          name: names[Math.floor(Math.random() * names.length)] + ' (Named)',
+          interactingHours: hours,
+          isSupervisor: false,
+          status: 'Agent'
+        });
+      }
+      
+      // Additional users in higher hour buckets
+      const hourBuckets = [
+        { count: 128, range: [0, 10] },
+        { count: 44, range: [10, 20] },
+        { count: 56, range: [20, 30] },
+        { count: 28, range: [50, 60] },
+        { count: 35, range: [60, 70] },
+        { count: 42, range: [70, 80] },
+        { count: 26, range: [80, 90] },
+        { count: 27, range: [90, 100] },
+        { count: 119, range: [100, 120] },
+        { count: 1373, range: [120, 200] } // Above 100 hours
+      ];
+      
+      hourBuckets.forEach((bucket, index) => {
+        for (let i = 0; i < bucket.count; i++) {
+          const hours = bucket.range[0] + Math.random() * (bucket.range[1] - bucket.range[0]);
+          mockUsers.push({
+            id: `user-bucket${index}-${i}`,
+            name: `${names[Math.floor(Math.random() * names.length)]} (${bucket.range[0]}-${bucket.range[1]}h)`,
+            interactingHours: hours,
+            isSupervisor: Math.random() < 0.05,
+            status: statuses[Math.floor(Math.random() * statuses.length)]
+          });
+        }
+      });
+      
+      // Shuffle and return
+      return mockUsers.sort(() => Math.random() - 0.5).slice(0, 1800);
+    }
+
+    // Load mock data
+    function loadMockData() {
+      setLoading(true, 'Generating mock user data...');
+      
+      setTimeout(() => {
+        userData = generateMockData();
+        
+        const activeUsers = userData.filter(u => u.interactingHours > 0).length;
+        const totalHours = userData.reduce((sum, u) => sum + u.interactingHours, 0);
+        
+        addLog('Data Load', 'success', `Loaded ${userData.length} mock users, ${activeUsers} active, ${totalHours.toFixed(1)} total hours`);
+        alert(`✅ Loaded ${userData.length} mock users for analysis`);
+        
+        elements.btnCalculate.disabled = false;
+        setLoading(false);
+      }, 1000);
+    }
+
+    // Authenticate with Genesys Cloud (Note: CORS will block this in browser)
     async function authenticate() {
       const clientId = elements.clientId.value.trim();
       const clientSecret = elements.clientSecret.value.trim();
@@ -959,49 +1142,39 @@
         return;
       }
       
-      setLoading(true, 'Authenticating with Genesys Cloud...');
-      addApiLog('POST /oauth/token', 'processing', 'Starting authentication');
+      setLoading(true, 'Attempting authentication...');
+      addLog('Authentication', 'processing', 'Starting authentication');
       
       try {
+        // Note: This will fail due to CORS in browser
+        // In production, you need a server-side proxy
         const authUrl = `https://login.${region}/oauth/token`;
-        const credentials = btoa(`${clientId}:${clientSecret}`);
         
-        const response = await fetch(authUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Basic ${credentials}`,
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: 'grant_type=client_credentials'
-        });
+        addLog('Authentication', 'warning', 'CORS will block this request in browser. Using mock mode instead.');
         
-        if (!response.ok) {
-          throw new Error(`Authentication failed: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        authToken = data.access_token;
-        apiBaseUrl = `https://api.${region}`;
-        
-        addApiLog('POST /oauth/token', 'success', 'Authentication successful');
-        alert('✅ Authentication successful!');
-        
-        // Enable fetch button
-        elements.btnFetchData.disabled = false;
-        elements.btnAuth.innerHTML = '✅ Authenticated';
-        elements.btnAuth.classList.add('btn-success');
-        elements.btnAuth.classList.remove('btn-primary');
+        // Simulate authentication with mock token
+        setTimeout(() => {
+          authToken = 'mock-token-for-demo';
+          apiBaseUrl = `https://api.${region}`;
+          
+          addLog('Authentication', 'success', 'Using mock authentication for demo');
+          alert('⚠️ CORS prevents browser authentication. Using mock mode for demonstration.');
+          
+          elements.btnFetchData.disabled = false;
+          elements.btnAuth.innerHTML = '✅ Using Mock Mode';
+          elements.btnAuth.classList.add('btn-success');
+          setLoading(false);
+        }, 1500);
         
       } catch (error) {
-        addApiLog('POST /oauth/token', 'error', error.message);
-        alert(`❌ Authentication failed: ${error.message}`);
-      } finally {
+        addLog('Authentication', 'error', error.message);
+        alert(`❌ Authentication error: ${error.message}`);
         setLoading(false);
       }
     }
 
-    // Fetch user interaction data
-    async function fetchInteractionData() {
+    // Fetch real data from Genesys Cloud (Note: CORS issues)
+    async function fetchRealData() {
       if (!authToken) {
         alert('Please authenticate first');
         return;
@@ -1015,174 +1188,20 @@
         return;
       }
       
-      setLoading(true, 'Fetching user interaction data...');
-      updateProgress('Step 1/3: Creating analytics job...');
+      setLoading(true, 'Fetching data from Genesys Cloud...');
+      addLog('Data Fetch', 'warning', 'CORS prevents direct API calls from browser');
       
-      try {
-        // Create analytics job
-        const jobUrl = `${apiBaseUrl}/api/v2/analytics/users/details/jobs`;
-        const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
-        
-        const jobBody = {
-          presenceFilters: [{
-            type: "and",
-            clauses: [{
-              type: "or",
-              predicates: [{
-                dimension: "systemPresence",
-                operator: "matches",
-                value: "e08eaf1b-ee47-4fa9-a231-1200e284798f"
-              }]
-            }]
-          }],
-          routingStatusFilters: [{
-            type: "and",
-            predicates: [{
-              dimension: "routingStatus",
-              value: "INTERACTING"
-            }]
-          }],
-          interval: interval
-        };
-        
-        addApiLog('POST /analytics/users/details/jobs', 'processing', 'Creating analytics job');
-        
-        const jobResponse = await fetch(jobUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(jobBody)
-        });
-        
-        if (!jobResponse.ok) {
-          throw new Error(`Failed to create job: ${jobResponse.status}`);
-        }
-        
-        const jobData = await jobResponse.json();
-        const jobId = jobData.id;
-        
-        addApiLog('POST /analytics/users/details/jobs', 'success', `Job created: ${jobId}`);
-        updateProgress('Step 2/3: Waiting for job completion...');
-        
-        // Poll for job completion
-        let jobStatus = 'PENDING';
-        let attempts = 0;
-        const maxAttempts = 60;
-        
-        while (jobStatus !== 'COMPLETED' && attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          const statusResponse = await fetch(`${apiBaseUrl}/api/v2/analytics/users/details/jobs/${jobId}`, {
-            headers: {
-              'Authorization': `Bearer ${authToken}`
-            }
-          });
-          
-          const statusData = await statusResponse.json();
-          jobStatus = statusData.state;
-          
-          attempts++;
-          updateProgress(`Step 2/3: Job status: ${jobStatus} (${attempts}/${maxAttempts})`);
-          
-          if (jobStatus === 'FAILED') {
-            throw new Error('Analytics job failed');
-          }
-        }
-        
-        if (jobStatus !== 'COMPLETED') {
-          throw new Error('Job timeout');
-        }
-        
-        addApiLog('GET /analytics/users/details/jobs/{id}', 'success', 'Job completed');
-        updateProgress('Step 3/3: Fetching results...');
-        
-        // Fetch results with pagination
-        let allResults = [];
-        let cursor = null;
-        
-        do {
-          let resultsUrl = `${apiBaseUrl}/api/v2/analytics/users/details/jobs/${jobId}/results`;
-          if (cursor) {
-            resultsUrl += `?cursor=${cursor}`;
-          }
-          
-          const resultsResponse = await fetch(resultsUrl, {
-            headers: {
-              'Authorization': `Bearer ${authToken}`
-            }
-          });
-          
-          if (!resultsResponse.ok) {
-            throw new Error(`Failed to fetch results: ${resultsResponse.status}`);
-          }
-          
-          const resultsData = await resultsResponse.json();
-          allResults = allResults.concat(resultsData.results || []);
-          cursor = resultsData.cursor;
-          
-          updateProgress(`Step 3/3: Fetched ${allResults.length} records...`);
-          
-          // Add delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-        } while (cursor);
-        
-        addApiLog('GET /analytics/users/details/jobs/{id}/results', 'success', `Fetched ${allResults.length} records`);
-        
-        // Process the raw data
-        userData = processUserData(allResults);
-        
-        alert(`✅ Successfully fetched data for ${userData.length} users`);
-        elements.btnCalculate.disabled = false;
-        elements.btnExport.disabled = false;
-        
-        // Show summary of fetched data
-        const activeUsers = userData.filter(u => u.interactingHours > 0).length;
-        const totalHours = userData.reduce((sum, u) => sum + u.interactingHours, 0);
-        addApiLog('Data Processing', 'success', `Processed ${userData.length} users, ${activeUsers} active, ${totalHours.toFixed(1)} total hours`);
-        
-      } catch (error) {
-        addApiLog('Data Fetch', 'error', error.message);
-        alert(`❌ Error fetching data: ${error.message}`);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    // Process raw API data into user objects
-    function processUserData(rawResults) {
-      const userMap = new Map();
-      
-      rawResults.forEach(record => {
-        const userId = record.userId;
-        const userName = record.userName || 'Unknown';
-        const duration = record.totalDuration || 0;
-        const hours = duration / 3600000; // Convert ms to hours
-        
-        if (!userMap.has(userId)) {
-          userMap.set(userId, {
-            id: userId,
-            name: userName,
-            interactingHours: 0,
-            isSupervisor: userName.toLowerCase().includes('admin') || 
-                         userName.toLowerCase().includes('supervisor') ||
-                         userName.toLowerCase().includes('manager')
-          });
-        }
-        
-        const user = userMap.get(userId);
-        user.interactingHours += hours;
-      });
-      
-      return Array.from(userMap.values());
+      // Since CORS blocks direct API calls, use mock data instead
+      setTimeout(() => {
+        loadMockData();
+        addLog('Data Fetch', 'info', 'Using mock data due to CORS restrictions');
+      }, 2000);
     }
 
     // Calculate licensing recommendations
     function calculateLicensing() {
       if (userData.length === 0) {
-        alert('Please fetch data first');
+        alert('Please load data first');
         return;
       }
       
@@ -1197,7 +1216,7 @@
       
       // Analyze each user
       usersToAnalyze.forEach(user => {
-        if (user.isSupervisor) {
+        if (user.isSupervisor || user.status === 'Admin' || user.status === 'Supervisor') {
           user.recommendedLicense = 'Named';
           user.recommendedReason = 'Admin/Supervisor role';
         } else if (user.interactingHours === 0) {
@@ -1233,7 +1252,7 @@
       // Calculate cost comparisons
       const currentCost = totalUsers * 75; // Assuming all Named
       const recommendedCost = (namedUsers * 75) + (totalHours * 0.5);
-      const costSavings = ((currentCost - recommendedCost) / currentCost * 100).toFixed(1);
+      const costSavings = currentCost > 0 ? ((currentCost - recommendedCost) / currentCost * 100).toFixed(1) : 0;
       
       // Determine optimal model
       let optimalModel = 'Hybrid';
@@ -1264,7 +1283,9 @@
       renderUserTable();
       createCharts();
       
-      addApiLog('Analysis', 'success', `Calculated licensing for ${totalUsers} users`);
+      elements.btnExport.disabled = false;
+      
+      addLog('Analysis', 'success', `Calculated licensing for ${totalUsers} users`);
       alert('✅ Licensing calculation complete!');
     }
 
@@ -1290,8 +1311,8 @@
       
       // Update change indicators
       const activePercent = ((r.activeUsers / r.totalUsers) * 100).toFixed(1);
-      document.getElementById('activeChange').textContent = `${activePercent}% of total`;
-      document.getElementById('avgHoursText').textContent = `per active user`;
+      elements.activeChange.textContent = `${activePercent}% of total`;
+      elements.avgHoursText.textContent = `per active user`;
     }
 
     // Render user table
@@ -1306,7 +1327,8 @@
         const searchTerm = filter.toLowerCase();
         filteredUsers = analysisResults.users.filter(user => 
           user.name.toLowerCase().includes(searchTerm) ||
-          user.recommendedLicense.toLowerCase().includes(searchTerm)
+          user.recommendedLicense.toLowerCase().includes(searchTerm) ||
+          user.status.toLowerCase().includes(searchTerm)
         );
       }
       
@@ -1329,7 +1351,7 @@
             <span class="status-badge ${statusClass}">${user.recommendedLicense}</span>
             <div style="font-size: 12px; color: var(--text-light); margin-top: 4px;">${user.recommendedReason}</div>
           </td>
-          <td>${user.isSupervisor ? 'Admin/Supervisor' : 'Regular User'}</td>
+          <td>${user.status}</td>
           <td style="text-align: right;">$${user.estimatedCost.toFixed(2)}</td>
         `;
         
@@ -1360,7 +1382,7 @@
           datasets: [{
             data: [r.namedUsers, r.hiUsers, r.nologinUsers],
             backgroundColor: [
-              'rgba(0, 102, 204, 0.8)',
+              'rgba(99, 171, 143, 0.8)',
               'rgba(40, 167, 69, 0.8)',
               'rgba(108, 117, 125, 0.8)'
             ],
@@ -1430,8 +1452,8 @@
           datasets: [{
             label: 'Number of Users',
             data: Object.values(hourBuckets),
-            backgroundColor: 'rgba(0, 102, 204, 0.7)',
-            borderColor: 'rgba(0, 102, 204, 1)',
+            backgroundColor: 'rgba(99, 171, 143, 0.7)',
+            borderColor: 'rgba(99, 171, 143, 1)',
             borderWidth: 1
           }]
         },
@@ -1469,7 +1491,7 @@
                 .reduce((sum, u) => sum + u.interactingHours, 0)
             ],
             backgroundColor: [
-              'rgba(0, 102, 204, 0.8)',
+              'rgba(99, 171, 143, 0.8)',
               'rgba(40, 167, 69, 0.8)'
             ]
           }]
@@ -1491,7 +1513,7 @@
             ],
             backgroundColor: [
               'rgba(108, 117, 125, 0.7)',
-              'rgba(0, 102, 204, 0.7)',
+              'rgba(99, 171, 143, 0.7)',
               'rgba(40, 167, 69, 0.7)'
             ]
           }]
@@ -1520,10 +1542,10 @@
       }
       
       // Create CSV content
-      let csv = 'User ID,User Name,Interacting Hours,Recommended License,Reason,Is Supervisor,Estimated Cost\n';
+      let csv = 'User ID,User Name,Interacting Hours,Recommended License,Reason,Status,Estimated Cost\n';
       
       analysisResults.users.forEach(user => {
-        csv += `"${user.id}","${user.name.replace(/"/g, '""')}",${user.interactingHours.toFixed(2)},"${user.recommendedLicense}","${user.recommendedReason}",${user.isSupervisor},${user.estimatedCost.toFixed(2)}\n`;
+        csv += `"${user.id}","${user.name.replace(/"/g, '""')}",${user.interactingHours.toFixed(2)},"${user.recommendedLicense}","${user.recommendedReason}","${user.status}",${user.estimatedCost.toFixed(2)}\n`;
       });
       
       // Add summary section
@@ -1540,6 +1562,10 @@
       csv += `Current Cost (All Named),$${analysisResults.currentCost}\n`;
       csv += `Recommended Cost,$${analysisResults.recommendedCost}\n`;
       csv += `Cost Savings,${analysisResults.costSavings}%\n`;
+      csv += `\nBased on your analysis:\n`;
+      csv += `- Users with < ${analysisResults.threshold} hours: HI License\n`;
+      csv += `- Users with ≥ ${analysisResults.threshold} hours: Named License\n`;
+      csv += `- Admins/Supervisors: Named License (regardless of hours)\n`;
       
       // Create download link
       const blob = new Blob([csv], { type: 'text/csv' });
@@ -1554,18 +1580,35 @@
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
       
-      addApiLog('Export', 'success', 'Exported results to CSV');
+      addLog('Export', 'success', 'Exported results to CSV');
     }
 
     // Initialize the application
     function initializeApp() {
+      // Initialize dates
+      initializeDates();
+      
       // Set up event listeners
       elements.btnAuth.addEventListener('click', authenticate);
-      elements.btnFetchData.addEventListener('click', fetchInteractionData);
+      elements.btnFetchData.addEventListener('click', () => {
+        if (currentMode === 'mock') {
+          loadMockData();
+        } else {
+          fetchRealData();
+        }
+      });
       elements.btnCalculate.addEventListener('click', calculateLicensing);
       elements.btnExport.addEventListener('click', exportResults);
       elements.btnClearLogs.addEventListener('click', () => {
         elements.apiLogs.innerHTML = '';
+        addLog('Logs', 'info', 'Logs cleared');
+      });
+      
+      // Mode selector buttons
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          switchMode(this.dataset.mode);
+        });
       });
       
       // Date quick select buttons
@@ -1578,6 +1621,8 @@
           
           elements.dateTo.valueAsDate = toDate;
           elements.dateFrom.valueAsDate = fromDate;
+          
+          addLog('Date Range', 'info', `Set date range to last ${days} days`);
         });
       });
       
@@ -1602,14 +1647,13 @@
               content.classList.add('active');
             }
           });
+          
+          addLog('Navigation', 'info', `Switched to ${tabId} tab`);
         });
       });
       
-      // Initialize dates
-      initializeDates();
-      
       // Add welcome log
-      addApiLog('App Initialization', 'success', 'Hourly Billing Calculator ready');
+      addLog('App Initialization', 'success', 'Hourly Billing Calculator ready - Using Mock Data Mode');
     }
 
     // Start the app when page loads
