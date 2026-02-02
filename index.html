@@ -402,6 +402,33 @@
               </div>
             </div>
 
+            <!-- User Type Distribution -->
+            <div class="card" style="margin-top:20px;">
+              <h2>👥 User Type Distribution</h2>
+              <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
+                <div class="stat-card">
+                  <div class="stat-label">Agents</div>
+                  <div class="stat-value" id="statAgents">0</div>
+                  <div style="font-size:11px;color:var(--text-light);">Agent role users</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Supervisors</div>
+                  <div class="stat-value" id="statSupervisors">0</div>
+                  <div style="font-size:11px;color:var(--text-light);">Supervisor role users</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Admins</div>
+                  <div class="stat-value" id="statAdmins">0</div>
+                  <div style="font-size:11px;color:var(--text-light);">Admin role users</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Others</div>
+                  <div class="stat-value" id="statOthers">0</div>
+                  <div style="font-size:11px;color:var(--text-light);">Other role users</div>
+                </div>
+              </div>
+            </div>
+
             <!-- Hour Distribution -->
             <div class="card" style="margin-top:20px;">
               <h2>⏱️ Hour Distribution</h2>
@@ -437,6 +464,16 @@
                 <h2 style="margin:0;">👥 User Details</h2>
                 <div style="display:flex;gap:10px;align-items:center;">
                   <input type="text" id="userSearch" placeholder="🔍 Search users..." style="width:250px;padding:10px;">
+                  <select id="userFilter" style="width:150px;padding:10px;">
+                    <option value="all">All Users</option>
+                    <option value="agent">Agents Only</option>
+                    <option value="supervisor">Supervisors Only</option>
+                    <option value="admin">Admins Only</option>
+                    <option value="other">Others Only</option>
+                    <option value="named">Named License</option>
+                    <option value="hi">HI License</option>
+                    <option value="nologin">NOLOGIN</option>
+                  </select>
                   <div style="font-size:12px;color:var(--text-light);">
                     <span id="visibleCount">0</span>/<span id="totalCount">0</span> users
                   </div>
@@ -450,14 +487,15 @@
                       <th>User Name</th>
                       <th>Email</th>
                       <th>Team</th>
-                      <th>Role</th>
+                      <th>Role Type</th>
+                      <th>Last Login</th>
                       <th>Hours</th>
                       <th>License</th>
                       <th>Status</th>
                     </tr>
                   </thead>
                   <tbody id="usersTableBody">
-                    <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-light);">
+                    <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-light);">
                       No data loaded. Connect and fetch data first.
                     </td></tr>
                   </tbody>
@@ -493,6 +531,33 @@
                   <div style="margin-top:15px;font-size:12px;color:var(--text-light);">
                     Based on hour distribution and business rules
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Role-based Analysis -->
+            <div class="card" style="margin-top:20px;">
+              <h2>🎯 Role-based Analysis</h2>
+              <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+                <div class="stat-card">
+                  <div class="stat-label">Agent Named</div>
+                  <div class="stat-value" id="statAgentNamed">0</div>
+                  <div style="font-size:11px;color:var(--text-light);">Agents with Named</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Agent HI</div>
+                  <div class="stat-value" id="statAgentHI">0</div>
+                  <div style="font-size:11px;color:var(--text-light);">Agents with HI</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Supervisor Named</div>
+                  <div class="stat-value" id="statSupervisorNamed">0</div>
+                  <div style="font-size:11px;color:var(--text-light);">Supervisors with Named</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Admin Named</div>
+                  <div class="stat-value" id="statAdminNamed">0</div>
+                  <div style="font-size:11px;color:var(--text-light);">Admins with Named</div>
                 </div>
               </div>
             </div>
@@ -604,6 +669,14 @@
       statActiveUsers: document.getElementById('statActiveUsers'),
       statNamedUsers: document.getElementById('statNamedUsers'),
       statHiUsers: document.getElementById('statHiUsers'),
+      statAgents: document.getElementById('statAgents'),
+      statSupervisors: document.getElementById('statSupervisors'),
+      statAdmins: document.getElementById('statAdmins'),
+      statOthers: document.getElementById('statOthers'),
+      statAgentNamed: document.getElementById('statAgentNamed'),
+      statAgentHI: document.getElementById('statAgentHI'),
+      statSupervisorNamed: document.getElementById('statSupervisorNamed'),
+      statAdminNamed: document.getElementById('statAdminNamed'),
       totalCost: document.getElementById('totalCost'),
       savings: document.getElementById('savings'),
       licenseModel: document.getElementById('licenseModel'),
@@ -611,6 +684,7 @@
       // Tables
       usersTableBody: document.getElementById('usersTableBody'),
       userSearch: document.getElementById('userSearch'),
+      userFilter: document.getElementById('userFilter'),
       visibleCount: document.getElementById('visibleCount'),
       totalCount: document.getElementById('totalCount'),
       logsTableBody: document.getElementById('logsTableBody'),
@@ -634,7 +708,7 @@
     };
 
     // ==============================================
-    // AUTHENTICATION (SAME AS CONVERSATION EXPLORER)
+    // AUTHENTICATION
     // ==============================================
     function parseTokenFromHash() {
       const params = new URLSearchParams(location.hash.replace(/^#/, ''));
@@ -831,6 +905,35 @@
     }
 
     // ==============================================
+    // USER ROLE DETECTION
+    // ==============================================
+    function detectUserRole(roles) {
+      if (!roles || !Array.isArray(roles)) return 'other';
+      
+      const roleNames = roles.map(r => r.name.toLowerCase());
+      
+      // Check for admin roles first
+      const adminKeywords = ['admin', 'administrator', 'system administrator', 'org admin'];
+      if (roleNames.some(role => adminKeywords.some(keyword => role.includes(keyword)))) {
+        return 'admin';
+      }
+      
+      // Check for supervisor roles
+      const supervisorKeywords = ['supervisor', 'team lead', 'manager', 'director', 'lead'];
+      if (roleNames.some(role => supervisorKeywords.some(keyword => role.includes(keyword)))) {
+        return 'supervisor';
+      }
+      
+      // Check for agent roles
+      const agentKeywords = ['agent', 'user', 'employee', 'representative', 'customer service'];
+      if (roleNames.some(role => agentKeywords.some(keyword => role.includes(keyword)))) {
+        return 'agent';
+      }
+      
+      return 'other';
+    }
+
+    // ==============================================
     // DATA FETCHING
     // ==============================================
     async function fetchUserData() {
@@ -845,7 +948,7 @@
           throw new Error('Please select a date range');
         }
         
-        // First, get all users with expanded fields
+        // First, get all users with expanded fields including dateLastLogin
         updateLoadingProgress(20);
         logMessage('INFO', 'Fetching user list with expanded fields');
         
@@ -854,8 +957,8 @@
         const pageSize = 100;
         
         while (true) {
-          // Using the API format you mentioned: expanded fields for user details
-          const usersData = await apiCall(`/api/v2/users?pageSize=${pageSize}&pageNumber=${page}&expand=organization,presence,conversationSummary,routingStatus,authorization,locations,groups,skills,profiles,employerInfo,biography`);
+          // Updated API call with dateLastLogin in expand
+          const usersData = await apiCall(`/api/v2/users?pageSize=${pageSize}&pageNumber=${page}&expand=dateLastLogin,organization,presence,conversationSummary,routingStatus,authorization,locations,groups,skills,profiles,employerInfo,biography`);
           const users = usersData?.entities || [];
           allUsers = allUsers.concat(users);
           
@@ -869,7 +972,7 @@
         updateLoadingProgress(40);
         logMessage('INFO', `Loaded ${allUsers.length} users from API`);
         
-        // Process users with team information
+        // Process users with team information and role detection
         appState.userData = allUsers.map(user => {
           // Extract team information (first team name)
           const teamName = user.groups && user.groups.length > 0 
@@ -881,15 +984,15 @@
             ? user.authorization.roles.map(r => r.name).join(', ') 
             : 'No role';
           
-          // Determine if supervisor
-          const isSupervisor = user.authorization?.roles 
-            ? user.authorization.roles.some(role => 
-                role.name.toLowerCase().includes('admin') || 
-                role.name.toLowerCase().includes('supervisor') || 
-                role.name.toLowerCase().includes('manager') ||
-                role.name.toLowerCase().includes('director')
-              )
-            : false;
+          // Detect user type based on roles
+          const userType = detectUserRole(user.authorization?.roles);
+          
+          // Format last login date
+          let lastLogin = 'Never';
+          if (user.dateLastLogin) {
+            const loginDate = new Date(user.dateLastLogin);
+            lastLogin = loginDate.toLocaleDateString();
+          }
           
           return {
             id: user.id,
@@ -897,21 +1000,23 @@
             email: user.email || 'No email',
             team: teamName,
             role: roleNames,
+            userType: userType,
+            lastLogin: lastLogin,
+            rawLastLogin: user.dateLastLogin,
             interactingHours: 0, // Will be fetched separately
-            isSupervisor: isSupervisor,
-            status: user.presence?.presenceDefinition?.systemPresence || 'Unknown',
-            lastLogin: user.dateLastLogin || 'Never'
+            isSupervisor: userType === 'supervisor' || userType === 'admin',
+            status: user.presence?.presenceDefinition?.systemPresence || 'Unknown'
           };
         });
         
-        // Now fetch interaction data using a more efficient batch approach
+        // Now fetch interaction data
         updateLoadingProgress(50);
         logMessage('INFO', 'Fetching interaction data for all users');
         
         const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
         const userIds = allUsers.map(u => u.id);
         
-        // Create a single analytics job for all users (more efficient)
+        // Create a single analytics job for all users
         try {
           const jobBody = {
             interval: interval,
@@ -1007,6 +1112,10 @@
         }
         
         updateLoadingProgress(95);
+        
+        // Update user type statistics
+        updateUserTypeStats();
+        
         logMessage('SUCCESS', 'Data loaded successfully', `${appState.userData.length} users loaded`);
         
         // Update UI
@@ -1033,6 +1142,18 @@
       }
     }
 
+    function updateUserTypeStats() {
+      const agents = appState.userData.filter(u => u.userType === 'agent').length;
+      const supervisors = appState.userData.filter(u => u.userType === 'supervisor').length;
+      const admins = appState.userData.filter(u => u.userType === 'admin').length;
+      const others = appState.userData.filter(u => u.userType === 'other').length;
+      
+      el.statAgents.textContent = agents;
+      el.statSupervisors.textContent = supervisors;
+      el.statAdmins.textContent = admins;
+      el.statOthers.textContent = others;
+    }
+
     // ==============================================
     // ANALYSIS & CALCULATIONS
     // ==============================================
@@ -1053,7 +1174,7 @@
         updateProgress('Filtering users...', 30);
         let usersToAnalyze = appState.userData;
         if (!includeNologin) {
-          usersToAnalyze = appState.userData.filter(u => u.interactingHours > 0 || u.lastLogin !== 'Never');
+          usersToAnalyze = appState.userData.filter(u => u.interactingHours > 0 || u.rawLastLogin);
         }
         
         // Initialize recommendedLicense property for all users
@@ -1062,24 +1183,34 @@
           user.recommendedReason = 'No login activity';
         });
         
-        // Analyze each user
+        // Analyze each user based on user type and hours
         updateProgress('Applying business rules...', 50);
         usersToAnalyze.forEach(user => {
-          if (user.interactingHours === 0 && user.lastLogin === 'Never') {
+          // Check if user has never logged in
+          const hasNeverLoggedIn = !user.rawLastLogin && user.interactingHours === 0;
+          
+          if (hasNeverLoggedIn) {
             user.recommendedLicense = 'NOLOGIN';
             user.recommendedReason = 'Never logged in';
-          } else if (user.isSupervisor) {
+          } else if (user.userType === 'admin' || user.userType === 'supervisor') {
+            // Admins and Supervisors always get Named licenses
             user.recommendedLicense = 'Named';
-            user.recommendedReason = 'Admin/Supervisor role';
+            user.recommendedReason = `${user.userType === 'admin' ? 'Admin' : 'Supervisor'} role`;
           } else if (user.interactingHours > 0 && user.interactingHours < threshold) {
+            // Agents with hours below threshold get HI
             user.recommendedLicense = 'HI';
             user.recommendedReason = `Under ${threshold} hours (${user.interactingHours}h)`;
           } else if (user.interactingHours >= threshold) {
+            // Agents with hours above threshold get Named
             user.recommendedLicense = 'Named';
             user.recommendedReason = `Over ${threshold} hours (${user.interactingHours}h)`;
-          } else {
+          } else if (user.interactingHours === 0 && user.rawLastLogin) {
+            // Users who have logged in but have no interacting hours
             user.recommendedLicense = 'HI';
-            user.recommendedReason = 'Low activity user';
+            user.recommendedReason = 'Logged in but no interaction hours';
+          } else {
+            user.recommendedLicense = 'NOLOGIN';
+            user.recommendedReason = 'No activity detected';
           }
           
           // Cost calculation
@@ -1100,6 +1231,12 @@
         const hiUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'HI').length;
         const nologinUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'NOLOGIN').length;
         const totalHours = usersToAnalyze.reduce((sum, u) => sum + u.interactingHours, 0);
+        
+        // Role-based statistics
+        const agentNamed = usersToAnalyze.filter(u => u.userType === 'agent' && u.recommendedLicense === 'Named').length;
+        const agentHI = usersToAnalyze.filter(u => u.userType === 'agent' && u.recommendedLicense === 'HI').length;
+        const supervisorNamed = usersToAnalyze.filter(u => u.userType === 'supervisor' && u.recommendedLicense === 'Named').length;
+        const adminNamed = usersToAnalyze.filter(u => u.userType === 'admin' && u.recommendedLicense === 'Named').length;
         
         // Cost analysis
         const allNamedCost = totalUsers * 70;
@@ -1129,6 +1266,10 @@
           hybridCost: hybridCost.toFixed(0),
           savings,
           optimalModel,
+          agentNamed,
+          agentHI,
+          supervisorNamed,
+          adminNamed,
           users: usersToAnalyze
         };
         
@@ -1137,6 +1278,10 @@
         el.statActiveUsers.textContent = activeUsers;
         el.statNamedUsers.textContent = namedUsers;
         el.statHiUsers.textContent = hiUsers;
+        el.statAgentNamed.textContent = agentNamed;
+        el.statAgentHI.textContent = agentHI;
+        el.statSupervisorNamed.textContent = supervisorNamed;
+        el.statAdminNamed.textContent = adminNamed;
         el.totalCost.textContent = `$${parseFloat(hybridCost).toFixed(0)}`;
         el.savings.textContent = `${savings}% savings`;
         el.licenseModel.textContent = optimalModel;
@@ -1170,20 +1315,34 @@
     // ==============================================
     // UI RENDERING
     // ==============================================
-    function renderUserTable(searchTerm = '') {
+    function renderUserTable() {
       const tbody = el.usersTableBody;
       tbody.innerHTML = '';
       
+      const searchTerm = el.userSearch.value.toLowerCase();
+      const filterValue = el.userFilter.value;
+      
       let usersToDisplay = appState.userData || [];
+      
+      // Apply search filter
       if (searchTerm) {
-        const term = searchTerm.toLowerCase();
         usersToDisplay = usersToDisplay.filter(user =>
-          (user.name && user.name.toLowerCase().includes(term)) ||
-          (user.email && user.email.toLowerCase().includes(term)) ||
-          (user.team && user.team.toLowerCase().includes(term)) ||
-          (user.role && user.role.toLowerCase().includes(term)) ||
-          (user.recommendedLicense && user.recommendedLicense.toLowerCase().includes(term))
+          (user.name && user.name.toLowerCase().includes(searchTerm)) ||
+          (user.email && user.email.toLowerCase().includes(searchTerm)) ||
+          (user.team && user.team.toLowerCase().includes(searchTerm)) ||
+          (user.role && user.role.toLowerCase().includes(searchTerm)) ||
+          (user.userType && user.userType.toLowerCase().includes(searchTerm)) ||
+          (user.recommendedLicense && user.recommendedLicense.toLowerCase().includes(searchTerm))
         );
+      }
+      
+      // Apply type filter
+      if (filterValue !== 'all') {
+        if (filterValue === 'named' || filterValue === 'hi' || filterValue === 'nologin') {
+          usersToDisplay = usersToDisplay.filter(u => u.recommendedLicense === filterValue.toUpperCase());
+        } else {
+          usersToDisplay = usersToDisplay.filter(u => u.userType === filterValue);
+        }
       }
       
       el.visibleCount.textContent = usersToDisplay.length;
@@ -1191,8 +1350,8 @@
       if (usersToDisplay.length === 0) {
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td colspan="7" style="text-align:center;padding:40px;color:var(--text-light);">
-            ${appState.userData.length === 0 ? 'No data loaded. Connect and fetch data first.' : 'No users match your search.'}
+          <td colspan="8" style="text-align:center;padding:40px;color:var(--text-light);">
+            ${appState.userData.length === 0 ? 'No data loaded. Connect and fetch data first.' : 'No users match your search/filter.'}
           </td>
         `;
         tbody.appendChild(row);
@@ -1229,6 +1388,22 @@
           }
         }
         
+        // User type badge
+        let userTypeBadge = '';
+        switch(user.userType) {
+          case 'agent':
+            userTypeBadge = `<span class="status-badge" style="background:rgba(99,171,143,0.15);color:var(--primary-color);">Agent</span>`;
+            break;
+          case 'supervisor':
+            userTypeBadge = `<span class="status-badge" style="background:rgba(255,193,7,0.15);color:#d39e00;">Supervisor</span>`;
+            break;
+          case 'admin':
+            userTypeBadge = `<span class="status-badge" style="background:rgba(220,53,69,0.15);color:var(--danger);">Admin</span>`;
+            break;
+          default:
+            userTypeBadge = `<span class="status-badge" style="background:rgba(108,117,125,0.15);color:var(--text-light);">Other</span>`;
+        }
+        
         row.innerHTML = `
           <td>
             <div style="font-weight:600;">${user.name || 'Unknown'}</div>
@@ -1237,8 +1412,11 @@
           <td>${user.email || 'No email'}</td>
           <td>${user.team || 'Unassigned'}</td>
           <td>
-            ${user.role || 'No role'}
-            ${user.isSupervisor ? '<div style="font-size:10px;color:var(--warning);">Supervisor</div>' : ''}
+            ${userTypeBadge}
+            <div style="font-size:11px;color:var(--text-light);margin-top:4px;">${user.role?.substring(0, 30) || 'No role'}${user.role && user.role.length > 30 ? '...' : ''}</div>
+          </td>
+          <td style="font-size:12px;color:${user.lastLogin === 'Never' ? 'var(--text-light)' : 'var(--success)'}">
+            ${user.lastLogin}
           </td>
           <td style="text-align:center;font-weight:600;">
             ${(user.interactingHours || 0).toFixed(1)}
@@ -1388,11 +1566,18 @@
       csv += `Cost Savings,${results.savings}%\n`;
       csv += `Optimal Model,${results.optimalModel}\n\n`;
       
+      csv += 'ROLE-BASED ANALYSIS\n';
+      csv += 'Role Type,Metric,Value\n';
+      csv += `Agent,Named Users,${results.agentNamed}\n`;
+      csv += `Agent,HI Users,${results.agentHI}\n`;
+      csv += `Supervisor,Named Users,${results.supervisorNamed}\n`;
+      csv += `Admin,Named Users,${results.adminNamed}\n\n`;
+      
       csv += 'USER DETAILS\n';
-      csv += 'Name,Email,Team,Role,Hours,Recommended License,Reason,Estimated Cost\n';
+      csv += 'Name,Email,Team,Role Type,Roles,Last Login,Hours,Recommended License,Reason,Estimated Cost\n';
       
       results.users.forEach(user => {
-        csv += `"${user.name || ''}","${user.email || ''}","${user.team || ''}","${user.role || ''}",${user.interactingHours || 0},"${user.recommendedLicense || ''}","${user.recommendedReason || ''}",${(user.estimatedCost || 0).toFixed(2)}\n`;
+        csv += `"${user.name || ''}","${user.email || ''}","${user.team || ''}","${user.userType || ''}","${user.role || ''}","${user.lastLogin || 'Never'}",${user.interactingHours || 0},"${user.recommendedLicense || ''}","${user.recommendedReason || ''}",${(user.estimatedCost || 0).toFixed(2)}\n`;
       });
       
       // Download
@@ -1465,10 +1650,9 @@
         });
       });
       
-      // User search
-      el.userSearch.addEventListener('input', function() {
-        renderUserTable(this.value);
-      });
+      // User search and filter
+      el.userSearch.addEventListener('input', renderUserTable);
+      el.userFilter.addEventListener('change', renderUserTable);
       
       // Tab switching
       document.querySelectorAll('.tab').forEach(tab => {
