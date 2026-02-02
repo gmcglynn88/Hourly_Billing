@@ -1310,107 +1310,54 @@
           };
         });
 
-        // Now fetch interaction data
+        // Now fetch interaction data using Conversations Analytics API
         updateLoadingProgress(50);
-        logMessage('INFO', 'Fetching interaction data for all users');
+        logMessage('INFO', 'Fetching conversation talk time data for all users');
 
         const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
-        const userIds = allUsers.map(u => u.id);
 
-        // Create a single analytics job for all users
+        // Create user hours map
+        const userHoursMap = {};
+
         try {
-          const jobBody = {
+          // Use Conversations Analytics API to get actual talk time (tTalk)
+          const queryBody = {
             interval: interval,
-            presenceFilters: [{
-              type: "and",
-              clauses: [{
-                type: "or",
-                predicates: [{
-                  dimension: "systemPresence",
-                  operator: "matches",
-                  value: "AVAILABLE"
-                }, {
-                  dimension: "systemPresence",
-                  operator: "matches",
-                  value: "ON_QUEUE"
-                }]
-              }]
-            }],
-            routingStatusFilters: [{
-              type: "and",
-              predicates: [{
-                dimension: "routingStatus",
-                value: "INTERACTING"
-              }]
-            }],
-            userFilters: [{
-              type: "and",
-              predicates: userIds.map(userId => ({
-                dimension: "userId",
-                operator: "matches",
-                value: userId
-              }))
-            }]
+            groupBy: ["userId"],
+            metrics: ["tTalk"]  // This is the actual talk time metric
           };
 
           updateLoadingProgress(60);
-          const jobResponse = await apiCall('/api/v2/analytics/users/details/jobs', {
-            method: 'POST',
-            body: JSON.stringify(jobBody)
-          });
-
-          if (jobResponse.id) {
-            // Poll for job completion
-            let jobStatus = 'PENDING';
-            let attempts = 0;
-            const maxAttempts = 60; // 2 minutes max
-
-            while (jobStatus !== 'COMPLETED' && attempts < maxAttempts) {
-              await new Promise(resolve => setTimeout(resolve, 2000));
-              const statusResponse = await apiCall(`/api/v2/analytics/users/details/jobs/${jobResponse.id}`);
-              jobStatus = statusResponse.state;
-              attempts++;
-
-              updateLoadingProgress(60 + (attempts / maxAttempts * 30));
-
-              if (jobStatus === 'FAILED') {
-                throw new Error('Analytics job failed');
-              }
-
-              if (jobStatus === 'COMPLETED') {
-                break;
-              }
+          const analyticsResponse = await apiCall(
+            '/api/v2/analytics/conversations/aggregates/query', 
+            {
+              method: 'POST',
+              body: JSON.stringify(queryBody)
             }
+          );
 
-            if (jobStatus === 'COMPLETED') {
-              // Fetch results
-              updateLoadingProgress(90);
-              const resultsResponse = await apiCall(`/api/v2/analytics/users/details/jobs/${jobResponse.id}/results?pageSize=1000`);
-              const results = resultsResponse.results || [];
+          if (analyticsResponse.results) {
+            analyticsResponse.results.forEach(record => {
+              const userId = record.group.userId;
+              const tTalkData = record.data.find(d => d.metric === "tTalk");
+              const hours = (tTalkData?.stats?.sum || 0) / 3600000; // Convert ms to hours
+              userHoursMap[userId] = hours;
+            });
 
-              // Create a map of user hours
-              const userHoursMap = {};
-              results.forEach(record => {
-                const userId = record.userId;
-                const hours = (record.totalDuration || 0) / 3600000; // Convert ms to hours
-                if (!userHoursMap[userId]) {
-                  userHoursMap[userId] = 0;
-                }
-                userHoursMap[userId] += hours;
-              });
-
-              // Update user data with hours
-              appState.userData.forEach(user => {
-                user.interactingHours = parseFloat((userHoursMap[user.id] || 0).toFixed(2));
-              });
-
-              logMessage('INFO', 'Analytics job completed', `Processed ${results.length} interaction records`);
-            }
+            logMessage('INFO', 'Analytics query completed', `Processed ${analyticsResponse.results.length} user records`);
+          } else {
+            logMessage('WARN', 'No conversation data found', 'Using 0 hours for all users');
           }
         } catch (analyticsError) {
-          logMessage('WARN', 'Analytics job failed or timed out', 'Using fallback method - analysing user list only');
+          logMessage('WARN', 'Analytics query failed', 'Using fallback - analysing user list only');
+          console.warn('Analytics error:', analyticsError);
           // Continue with user list even if analytics fails
         }
+
+        // Update user data with hours
+        appState.userData.forEach(user => {
+          user.interactingHours = parseFloat((userHoursMap[user.id] || 0).toFixed(2));
+        });
 
         updateLoadingProgress(95);
 
