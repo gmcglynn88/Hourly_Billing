@@ -449,6 +449,7 @@
                     <tr>
                       <th>User Name</th>
                       <th>Email</th>
+                      <th>Team</th>
                       <th>Role</th>
                       <th>Hours</th>
                       <th>License</th>
@@ -456,7 +457,7 @@
                     </tr>
                   </thead>
                   <tbody id="usersTableBody">
-                    <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-light);">
+                    <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-light);">
                       No data loaded. Connect and fetch data first.
                     </td></tr>
                   </tbody>
@@ -814,6 +815,13 @@
         throw new Error(`Authentication error (${response.status}). Please refresh.`);
       }
       
+      if (response.status === 429) {
+        const retryAfter = response.headers.get('Retry-After') || 5;
+        logMessage('WARN', `Rate limit exceeded`, `Retrying after ${retryAfter} seconds`);
+        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+        return apiCall(path, options); // Retry
+      }
+      
       if (!response.ok) {
         const errorText = await response.text().catch(() => '');
         throw new Error(`API Error: ${response.status} ${response.statusText}${errorText ? ` - ${errorText.slice(0,200)}` : ''}`);
@@ -837,135 +845,169 @@
           throw new Error('Please select a date range');
         }
         
-        // First, get all users
+        // First, get all users with expanded fields
         updateLoadingProgress(20);
-        logMessage('INFO', 'Fetching user list');
+        logMessage('INFO', 'Fetching user list with expanded fields');
         
         let allUsers = [];
         let page = 1;
         const pageSize = 100;
         
         while (true) {
-          const usersData = await apiCall(`/api/v2/users?pageSize=${pageSize}&pageNumber=${page}&expand=presence,routingStatus,authorization`);
+          // Using the API format you mentioned: expanded fields for user details
+          const usersData = await apiCall(`/api/v2/users?pageSize=${pageSize}&pageNumber=${page}&expand=organization,presence,conversationSummary,routingStatus,authorization,locations,groups,skills,profiles,employerInfo,biography`);
           const users = usersData?.entities || [];
           allUsers = allUsers.concat(users);
           
           if (!usersData?.nextUri || users.length < pageSize) break;
           page++;
           
-          // Add small delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // Add delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
         
         updateLoadingProgress(40);
-        logMessage('INFO', `Loaded ${allUsers.length} users`);
+        logMessage('INFO', `Loaded ${allUsers.length} users from API`);
         
-        // Now fetch interaction data for each user
+        // Process users with team information
+        appState.userData = allUsers.map(user => {
+          // Extract team information (first team name)
+          const teamName = user.groups && user.groups.length > 0 
+            ? user.groups[0].name 
+            : 'Unassigned';
+          
+          // Get role names
+          const roleNames = user.authorization?.roles 
+            ? user.authorization.roles.map(r => r.name).join(', ') 
+            : 'No role';
+          
+          // Determine if supervisor
+          const isSupervisor = user.authorization?.roles 
+            ? user.authorization.roles.some(role => 
+                role.name.toLowerCase().includes('admin') || 
+                role.name.toLowerCase().includes('supervisor') || 
+                role.name.toLowerCase().includes('manager') ||
+                role.name.toLowerCase().includes('director')
+              )
+            : false;
+          
+          return {
+            id: user.id,
+            name: user.name || 'Unknown',
+            email: user.email || 'No email',
+            team: teamName,
+            role: roleNames,
+            interactingHours: 0, // Will be fetched separately
+            isSupervisor: isSupervisor,
+            status: user.presence?.presenceDefinition?.systemPresence || 'Unknown',
+            lastLogin: user.dateLastLogin || 'Never'
+          };
+        });
+        
+        // Now fetch interaction data using a more efficient batch approach
         updateLoadingProgress(50);
-        logMessage('INFO', 'Fetching interaction data');
+        logMessage('INFO', 'Fetching interaction data for all users');
         
         const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
-        appState.userData = [];
+        const userIds = allUsers.map(u => u.id);
         
-        // Process users in batches
-        const batchSize = 10;
-        for (let i = 0; i < allUsers.length; i += batchSize) {
-          const batch = allUsers.slice(i, i + batchSize);
-          const batchPromises = batch.map(async (user) => {
-            try {
-              // Create analytics job for this user
-              const jobBody = {
-                interval: interval,
-                presenceFilters: [{
-                  type: "and",
-                  clauses: [{
-                    type: "or",
-                    predicates: [{
-                      dimension: "systemPresence",
-                      operator: "matches",
-                      value: "e08eaf1b-ee47-4fa9-a231-1200e284798f"
-                    }]
-                  }]
-                }],
-                routingStatusFilters: [{
-                  type: "and",
-                  predicates: [{
-                    dimension: "routingStatus",
-                    value: "INTERACTING"
-                  }]
-                }],
-                userFilters: [{
-                  type: "and",
-                  predicates: [{
-                    dimension: "userId",
-                    operator: "matches",
-                    value: user.id
-                  }]
+        // Create a single analytics job for all users (more efficient)
+        try {
+          const jobBody = {
+            interval: interval,
+            presenceFilters: [{
+              type: "and",
+              clauses: [{
+                type: "or",
+                predicates: [{
+                  dimension: "systemPresence",
+                  operator: "matches",
+                  value: "AVAILABLE"
+                }, {
+                  dimension: "systemPresence",
+                  operator: "matches",
+                  value: "ON_QUEUE"
                 }]
-              };
-              
-              const jobResponse = await apiCall('/api/v2/analytics/users/details/jobs', {
-                method: 'POST',
-                body: JSON.stringify(jobBody)
-              });
-              
-              if (jobResponse.id) {
-                // Wait for job completion
-                let jobStatus = 'PENDING';
-                let attempts = 0;
-                
-                while (jobStatus !== 'COMPLETED' && attempts < 30) {
-                  await new Promise(resolve => setTimeout(resolve, 2000));
-                  const statusResponse = await apiCall(`/api/v2/analytics/users/details/jobs/${jobResponse.id}`);
-                  jobStatus = statusResponse.state;
-                  attempts++;
-                  
-                  if (jobStatus === 'FAILED') {
-                    throw new Error('Analytics job failed');
-                  }
-                }
-                
-                if (jobStatus === 'COMPLETED') {
-                  // Fetch results
-                  const resultsResponse = await apiCall(`/api/v2/analytics/users/details/jobs/${jobResponse.id}/results`);
-                  const results = resultsResponse.results || [];
-                  
-                  // Calculate total interacting hours
-                  const totalHours = results.reduce((sum, record) => {
-                    return sum + ((record.totalDuration || 0) / 3600000); // Convert ms to hours
-                  }, 0);
-                  
-                  return {
-                    id: user.id,
-                    name: user.name || 'Unknown',
-                    email: user.email || 'No email',
-                    role: user.authorization?.roles?.map(r => r.name).join(', ') || 'No role',
-                    team: user.team?.name || 'Unassigned',
-                    interactingHours: parseFloat(totalHours.toFixed(2)),
-                    isSupervisor: (user.authorization?.roles || []).some(role => 
-                      role.name.includes('Admin') || 
-                      role.name.includes('Supervisor') || 
-                      role.name.includes('Manager')
-                    ),
-                    status: user.presence?.presenceDefinition?.systemPresence || 'Unknown'
-                  };
-                }
-              }
-            } catch (error) {
-              console.error(`Error processing user ${user.id}:`, error);
-              return null;
-            }
+              }]
+            }],
+            routingStatusFilters: [{
+              type: "and",
+              predicates: [{
+                dimension: "routingStatus",
+                value: "INTERACTING"
+              }]
+            }],
+            userFilters: [{
+              type: "and",
+              predicates: userIds.map(userId => ({
+                dimension: "userId",
+                operator: "matches",
+                value: userId
+              }))
+            }]
+          };
+          
+          updateLoadingProgress(60);
+          const jobResponse = await apiCall('/api/v2/analytics/users/details/jobs', {
+            method: 'POST',
+            body: JSON.stringify(jobBody)
           });
           
-          const batchResults = await Promise.all(batchPromises);
-          appState.userData = appState.userData.concat(batchResults.filter(user => user !== null));
-          
-          updateLoadingProgress(50 + (i / allUsers.length * 40));
-          logMessage('INFO', `Processed ${Math.min(i + batchSize, allUsers.length)}/${allUsers.length} users`);
+          if (jobResponse.id) {
+            // Poll for job completion
+            let jobStatus = 'PENDING';
+            let attempts = 0;
+            const maxAttempts = 60; // 2 minutes max
+            
+            while (jobStatus !== 'COMPLETED' && attempts < maxAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              const statusResponse = await apiCall(`/api/v2/analytics/users/details/jobs/${jobResponse.id}`);
+              jobStatus = statusResponse.state;
+              attempts++;
+              
+              updateLoadingProgress(60 + (attempts / maxAttempts * 30));
+              
+              if (jobStatus === 'FAILED') {
+                throw new Error('Analytics job failed');
+              }
+              
+              if (jobStatus === 'COMPLETED') {
+                break;
+              }
+            }
+            
+            if (jobStatus === 'COMPLETED') {
+              // Fetch results
+              updateLoadingProgress(90);
+              const resultsResponse = await apiCall(`/api/v2/analytics/users/details/jobs/${jobResponse.id}/results?pageSize=1000`);
+              const results = resultsResponse.results || [];
+              
+              // Create a map of user hours
+              const userHoursMap = {};
+              results.forEach(record => {
+                const userId = record.userId;
+                const hours = (record.totalDuration || 0) / 3600000; // Convert ms to hours
+                if (!userHoursMap[userId]) {
+                  userHoursMap[userId] = 0;
+                }
+                userHoursMap[userId] += hours;
+              });
+              
+              // Update user data with hours
+              appState.userData.forEach(user => {
+                user.interactingHours = parseFloat((userHoursMap[user.id] || 0).toFixed(2));
+              });
+              
+              logMessage('INFO', 'Analytics job completed', `Processed ${results.length} interaction records`);
+            }
+          }
+        } catch (analyticsError) {
+          logMessage('WARN', 'Analytics job failed or timed out', 'Using fallback method - analyzing user list only');
+          // Continue with user list even if analytics fails
         }
         
         updateLoadingProgress(95);
-        logMessage('SUCCESS', 'Data loaded successfully', `${appState.userData.length} users with interaction data`);
+        logMessage('SUCCESS', 'Data loaded successfully', `${appState.userData.length} users loaded`);
         
         // Update UI
         el.statTotalUsers.textContent = appState.userData.length;
@@ -982,7 +1024,7 @@
         await new Promise(resolve => setTimeout(resolve, 500));
         
         setLoading(false);
-        showStatusMessage(`✅ Loaded ${appState.userData.length} users with interaction data`, 'success');
+        showStatusMessage(`✅ Loaded ${appState.userData.length} users`, 'success');
         
       } catch (error) {
         setLoading(false);
@@ -1011,24 +1053,33 @@
         updateProgress('Filtering users...', 30);
         let usersToAnalyze = appState.userData;
         if (!includeNologin) {
-          usersToAnalyze = appState.userData.filter(u => u.interactingHours > 0);
+          usersToAnalyze = appState.userData.filter(u => u.interactingHours > 0 || u.lastLogin !== 'Never');
         }
+        
+        // Initialize recommendedLicense property for all users
+        usersToAnalyze.forEach(user => {
+          user.recommendedLicense = 'NOLOGIN'; // Default
+          user.recommendedReason = 'No login activity';
+        });
         
         // Analyze each user
         updateProgress('Applying business rules...', 50);
         usersToAnalyze.forEach(user => {
-          if (user.interactingHours === 0) {
+          if (user.interactingHours === 0 && user.lastLogin === 'Never') {
             user.recommendedLicense = 'NOLOGIN';
-            user.recommendedReason = 'No login activity';
+            user.recommendedReason = 'Never logged in';
           } else if (user.isSupervisor) {
             user.recommendedLicense = 'Named';
             user.recommendedReason = 'Admin/Supervisor role';
-          } else if (user.interactingHours < threshold) {
+          } else if (user.interactingHours > 0 && user.interactingHours < threshold) {
             user.recommendedLicense = 'HI';
-            user.recommendedReason = `Under ${threshold} hours`;
-          } else {
+            user.recommendedReason = `Under ${threshold} hours (${user.interactingHours}h)`;
+          } else if (user.interactingHours >= threshold) {
             user.recommendedLicense = 'Named';
-            user.recommendedReason = `Over ${threshold} hours`;
+            user.recommendedReason = `Over ${threshold} hours (${user.interactingHours}h)`;
+          } else {
+            user.recommendedLicense = 'HI';
+            user.recommendedReason = 'Low activity user';
           }
           
           // Cost calculation
@@ -1086,7 +1137,7 @@
         el.statActiveUsers.textContent = activeUsers;
         el.statNamedUsers.textContent = namedUsers;
         el.statHiUsers.textContent = hiUsers;
-        el.totalCost.textContent = `$${hybridCost}`;
+        el.totalCost.textContent = `$${parseFloat(hybridCost).toFixed(0)}`;
         el.savings.textContent = `${savings}% savings`;
         el.licenseModel.textContent = optimalModel;
         
@@ -1123,19 +1174,30 @@
       const tbody = el.usersTableBody;
       tbody.innerHTML = '';
       
-      let usersToDisplay = appState.userData;
+      let usersToDisplay = appState.userData || [];
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
-        usersToDisplay = appState.userData.filter(user =>
-          user.name.toLowerCase().includes(term) ||
-          user.email.toLowerCase().includes(term) ||
-          user.team.toLowerCase().includes(term) ||
-          user.role.toLowerCase().includes(term) ||
+        usersToDisplay = usersToDisplay.filter(user =>
+          (user.name && user.name.toLowerCase().includes(term)) ||
+          (user.email && user.email.toLowerCase().includes(term)) ||
+          (user.team && user.team.toLowerCase().includes(term)) ||
+          (user.role && user.role.toLowerCase().includes(term)) ||
           (user.recommendedLicense && user.recommendedLicense.toLowerCase().includes(term))
         );
       }
       
       el.visibleCount.textContent = usersToDisplay.length;
+      
+      if (usersToDisplay.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td colspan="7" style="text-align:center;padding:40px;color:var(--text-light);">
+            ${appState.userData.length === 0 ? 'No data loaded. Connect and fetch data first.' : 'No users match your search.'}
+          </td>
+        `;
+        tbody.appendChild(row);
+        return;
+      }
       
       usersToDisplay.forEach(user => {
         const row = document.createElement('tr');
@@ -1158,25 +1220,33 @@
               licenseBadge = `<span class="status-badge ${badgeClass}">NOLOGIN</span>`;
               break;
           }
+        } else {
+          // If no recommended license yet, show based on hours
+          if (user.interactingHours === 0) {
+            licenseBadge = `<span class="status-badge status-nologin">NOLOGIN</span>`;
+          } else {
+            licenseBadge = `<span class="status-badge" style="background:rgba(108,117,125,0.15);color:var(--text-light);">Pending</span>`;
+          }
         }
         
         row.innerHTML = `
           <td>
-            <div style="font-weight:600;">${user.name}</div>
-            <div style="font-size:11px;color:var(--text-light);">ID: ${user.id}</div>
+            <div style="font-weight:600;">${user.name || 'Unknown'}</div>
+            <div style="font-size:11px;color:var(--text-light);">ID: ${user.id?.substring(0, 8)}...</div>
           </td>
-          <td>${user.email}</td>
+          <td>${user.email || 'No email'}</td>
+          <td>${user.team || 'Unassigned'}</td>
           <td>
-            ${user.role}
+            ${user.role || 'No role'}
             ${user.isSupervisor ? '<div style="font-size:10px;color:var(--warning);">Supervisor</div>' : ''}
           </td>
           <td style="text-align:center;font-weight:600;">
-            ${user.interactingHours.toFixed(1)}
+            ${(user.interactingHours || 0).toFixed(1)}
           </td>
           <td>${licenseBadge}</td>
           <td>
-            <span style="font-size:11px;color:${user.status === 'Available' ? 'var(--success)' : 'var(--text-light)'}">
-              ${user.status}
+            <span style="font-size:11px;color:${user.status === 'AVAILABLE' ? 'var(--success)' : 'var(--text-light)'}">
+              ${user.status || 'Unknown'}
             </span>
           </td>
         `;
@@ -1201,8 +1271,8 @@
         '100+h': 0
       };
       
-      appState.userData.forEach(user => {
-        const hours = user.interactingHours;
+      (appState.userData || []).forEach(user => {
+        const hours = user.interactingHours || 0;
         if (hours === 0) buckets['0h']++;
         else if (hours <= 10) buckets['1-10h']++;
         else if (hours <= 20) buckets['11-20h']++;
@@ -1271,6 +1341,17 @@
                 padding: 20,
                 usePointStyle: true
               }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.raw || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = Math.round((value / total) * 100);
+                  return `${label}: ${value} users (${percentage}%)`;
+                }
+              }
             }
           }
         }
@@ -1291,7 +1372,8 @@
       // Create CSV content
       let csv = 'Genesys Cloud Hourly Billing Analysis Report\n';
       csv += `Generated: ${new Date().toLocaleString()}\n`;
-      csv += `Period: ${el.dateFrom.value} to ${el.dateTo.value}\n\n`;
+      csv += `Period: ${el.dateFrom.value} to ${el.dateTo.value}\n`;
+      csv += `HI Threshold: ${results.threshold} hours\n\n`;
       
       csv += 'SUMMARY\n';
       csv += 'Metric,Value\n';
@@ -1301,7 +1383,6 @@
       csv += `HI Users,${results.hiUsers}\n`;
       csv += `NOLOGIN Users,${results.nologinUsers}\n`;
       csv += `Total Hours,${results.totalHours}\n`;
-      csv += `HI Threshold,${results.threshold} hours\n`;
       csv += `All Named Cost,$${results.allNamedCost}\n`;
       csv += `Hybrid Cost,$${results.hybridCost}\n`;
       csv += `Cost Savings,${results.savings}%\n`;
@@ -1311,7 +1392,7 @@
       csv += 'Name,Email,Team,Role,Hours,Recommended License,Reason,Estimated Cost\n';
       
       results.users.forEach(user => {
-        csv += `"${user.name}","${user.email}","${user.team}","${user.role}",${user.interactingHours},"${user.recommendedLicense}","${user.recommendedReason}",${user.estimatedCost.toFixed(2)}\n`;
+        csv += `"${user.name || ''}","${user.email || ''}","${user.team || ''}","${user.role || ''}",${user.interactingHours || 0},"${user.recommendedLicense || ''}","${user.recommendedReason || ''}",${(user.estimatedCost || 0).toFixed(2)}\n`;
       });
       
       // Download
