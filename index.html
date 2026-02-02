@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -57,7 +57,7 @@
       cursor:pointer;transition:background .2s;border:none;
       display:inline-flex;align-items:center;justify-content:center;gap:8px;
     }
-    
+
     button:hover{background:var(--secondary-color)}
     button:disabled{background:var(--text-light);cursor:not-allowed}
     .btn-block{width:100%;padding:12px}
@@ -254,10 +254,10 @@
       .main-grid{grid-template-columns:1fr}
       .status-container{max-width:300px}
     }
-    
+
     /* Auto-auth specific styles */
     .auto-auth-message {
-      text-align: center;
+      text-align: centre;
       padding: 20px;
       background: rgba(99, 171, 143, 0.1);
       border-radius: 8px;
@@ -276,7 +276,8 @@
           <div class="spinner" style="width:40px;height:40px;border-width:3px;"></div>
           <p style="margin-top:15px;font-size:14px;">Attempting automatic authentication...</p>
         </div>
-        
+
+        <!-- Kept in the DOM but never shown/used when auto-auth is enabled -->
         <div id="manualAuthSection" style="display:none;margin-top:20px;">
           <div class="form-group">
             <label for="environment">Environment</label>
@@ -290,7 +291,7 @@
               <option value="https://api.euw2.pure.cloud">EU West (Frankfurt) - euw2.pure.cloud</option>
             </select>
           </div>
-          
+
           <button id="btnAuthenticate" class="btn btn-block">
             <span>🔗 Sign in to Genesys Cloud</span>
           </button>
@@ -307,7 +308,7 @@
     <div class="container">
       <header>
         <h1>📊 Genesys Cloud - Hourly Billing Calculator</h1>
-        <p class="subtitle">Calculate optimal license distribution based on user interaction data</p>
+        <p class="subtitle">Calculate optimal licence distribution based on user interaction data</p>
       </header>
 
       <div class="main-grid">
@@ -358,7 +359,7 @@
               <label for="thresholdHours">HI Threshold (hours/month)</label>
               <input type="number" id="thresholdHours" value="40" min="1" max="200">
               <div style="font-size:12px;color:var(--text-light);margin-top:5px;">
-                Users below this threshold get HI licenses
+                Users below this threshold get HI licences
               </div>
             </div>
             <div class="form-group">
@@ -371,10 +372,10 @@
             <div style="background:rgba(99,171,143,0.05);padding:12px;border-radius:6px;margin-top:10px;">
               <div style="font-size:12px;color:var(--primary-color);font-weight:600;margin-bottom:5px;">📋 Business Logic:</div>
               <div style="font-size:11px;color:var(--text-light);">
-                • Interacting time > 0 but < threshold = HI License<br>
-                • Interacting time ≥ threshold = Named License<br>
+                • Interacting time &gt; 0 but &lt; threshold = HI Licence<br>
+                • Interacting time ≥ threshold = Named Licence<br>
                 • Admins/Supervisors = Named (always)<br>
-                • NOLOGIN = No license consumption
+                • NOLOGIN = No licence consumption
               </div>
             </div>
           </div>
@@ -387,7 +388,7 @@
             </button>
             <div style="height:12px;"></div>
             <button id="btnAnalyze" class="btn btn-success btn-block" disabled>
-              <span>🧮 Analyze & Calculate</span>
+              <span>🧮 Analyse & Calculate</span>
             </button>
             <div style="height:12px;"></div>
             <button id="btnExport" class="btn btn-secondary btn-block" disabled>
@@ -466,9 +467,7 @@
             <!-- Hour Distribution -->
             <div class="card" style="margin-top:20px;">
               <h2>⏱️ Hour Distribution</h2>
-              <div class="bucket-container" id="hourBuckets">
-                <!-- Hour buckets will be populated here -->
-              </div>
+              <div class="bucket-container" id="hourBuckets"></div>
             </div>
 
             <!-- Progress Display -->
@@ -476,7 +475,7 @@
               <h2>📈 Analysis Progress</h2>
               <div class="progress-container">
                 <div class="progress-text">
-                  <span id="progressLabel">Ready to analyze</span>
+                  <span id="progressLabel">Ready to analyse</span>
                   <span id="progressPercent">0%</span>
                 </div>
                 <div class="progress-bar">
@@ -504,8 +503,8 @@
                     <option value="supervisor">Supervisors Only</option>
                     <option value="admin">Admins Only</option>
                     <option value="other">Others Only</option>
-                    <option value="named">Named License</option>
-                    <option value="hi">HI License</option>
+                    <option value="named">Named Licence</option>
+                    <option value="hi">HI Licence</option>
                     <option value="nologin">NOLOGIN</option>
                   </select>
                   <div style="font-size:12px;color:var(--text-light);">
@@ -513,7 +512,7 @@
                   </div>
                 </div>
               </div>
-              
+
               <div class="table-container">
                 <table>
                   <thead>
@@ -524,7 +523,7 @@
                       <th>Role Type</th>
                       <th>Last Login</th>
                       <th>Hours</th>
-                      <th>License</th>
+                      <th>Licence</th>
                       <th>Status</th>
                     </tr>
                   </thead>
@@ -541,12 +540,12 @@
           <!-- Analysis Tab -->
           <div id="tab-analysis" class="tab-content">
             <div class="card">
-              <h2>📊 License Distribution</h2>
+              <h2>📊 Licence Distribution</h2>
               <div style="height:300px;position:relative;margin-top:20px;">
                 <canvas id="licenseChart"></canvas>
               </div>
             </div>
-            
+
             <div class="stats-grid" style="margin-top:20px;">
               <div class="card">
                 <h3 style="margin:0 0 15px;">💰 Cost Analysis</h3>
@@ -556,7 +555,7 @@
                   <div style="margin-top:15px;font-size:12px;color:var(--success);" id="savings">0% savings</div>
                 </div>
               </div>
-              
+
               <div class="card">
                 <h3 style="margin:0 0 15px;">📋 Recommendation</h3>
                 <div style="text-align:center;padding:20px;">
@@ -607,7 +606,7 @@
                   <button id="btnCopyLogs" class="btn" style="padding:8px 16px;">Copy Logs</button>
                 </div>
               </div>
-              
+
               <div class="table-container" style="max-height:400px;">
                 <table>
                   <thead>
@@ -622,7 +621,7 @@
                     <tr>
                       <td>--:--:--</td>
                       <td>🔵 INFO</td>
-                      <td>System initialized</td>
+                      <td>System initialised</td>
                       <td>Ready for connection</td>
                     </tr>
                   </tbody>
@@ -654,11 +653,12 @@
     // OAuth Configuration
     // ==============================================
     const CONFIG = {
-      clientId: 'd968eca4-cdb7-4b90-91b1-4628b5bb679e',  // Your OAuth Client ID
+      clientId: 'd968eca4-cdb7-4b90-91b1-4628b5bb679e',
       redirectUri: 'https://gmcglynn88.github.io/Hourly_Billing/',
-      environment: 'https://api.euw2.pure.cloud'  // Default environment
+      environment: 'https://api.euw2.pure.cloud',  // Locked to London
+      autoAuth: true  // Force auto-authentication
     };
-    
+
     // Storage keys for auto-authentication
     const STORAGE_KEYS = {
       ENVIRONMENT: 'gc_environment',
@@ -667,7 +667,7 @@
       REFRESH_TOKEN: 'gc_refresh_token',
       AUTO_AUTH_ATTEMPTED: 'gc_auto_auth_attempted'
     };
-    
+
     let CURRENT_CONFIG = {
       environment: '',
       token: null,
@@ -699,25 +699,25 @@
       manualAuthSection: document.getElementById('manualAuthSection'),
       btnDisconnect: document.getElementById('btnDisconnect'),
       envDisplay: document.getElementById('envDisplay'),
-      
+
       // Connection
       statusIndicator: document.getElementById('statusIndicator'),
       statusText: document.getElementById('statusText'),
       mainContent: document.getElementById('mainContent'),
-      
+
       // Actions
       btnFetchData: document.getElementById('btnFetchData'),
       btnAnalyze: document.getElementById('btnAnalyze'),
       btnExport: document.getElementById('btnExport'),
       btnReset: document.getElementById('btnReset'),
       btnRunAnalysis: document.getElementById('btnRunAnalysis'),
-      
+
       // Date/Params
       dateFrom: document.getElementById('dateFrom'),
       dateTo: document.getElementById('dateTo'),
       thresholdHours: document.getElementById('thresholdHours'),
       includeNologin: document.getElementById('includeNologin'),
-      
+
       // Stats Display
       statTotalUsers: document.getElementById('statTotalUsers'),
       statActiveUsers: document.getElementById('statActiveUsers'),
@@ -734,7 +734,7 @@
       totalCost: document.getElementById('totalCost'),
       savings: document.getElementById('savings'),
       licenseModel: document.getElementById('licenseModel'),
-      
+
       // Tables
       usersTableBody: document.getElementById('usersTableBody'),
       userSearch: document.getElementById('userSearch'),
@@ -744,19 +744,19 @@
       logsTableBody: document.getElementById('logsTableBody'),
       btnClearLogs: document.getElementById('btnClearLogs'),
       btnCopyLogs: document.getElementById('btnCopyLogs'),
-      
+
       // Progress
       progressLabel: document.getElementById('progressLabel'),
       progressPercent: document.getElementById('progressPercent'),
       progressFill: document.getElementById('progressFill'),
       hourBuckets: document.getElementById('hourBuckets'),
-      
+
       // Loading
       loadingOverlay: document.getElementById('loadingOverlay'),
       loadingText: document.getElementById('loadingText'),
       loadingSubtext: document.getElementById('loadingSubtext'),
       loadingProgressFill: document.getElementById('loadingProgressFill'),
-      
+
       // Status Container
       statusContainer: document.getElementById('statusContainer')
     };
@@ -770,20 +770,20 @@
         const tokenExpiry = localStorage.getItem(STORAGE_KEYS.TOKEN_EXPIRY);
         const environment = localStorage.getItem(STORAGE_KEYS.ENVIRONMENT);
         const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
-        
+
         if (token && tokenExpiry && environment) {
           CURRENT_CONFIG = {
             token,
-            tokenExpiry: parseInt(tokenExpiry),
+            tokenExpiry: parseInt(tokenExpiry, 10),
             environment,
             refreshToken
           };
-          
+
           // Check if token is still valid (with 5-minute buffer)
           if (Date.now() < CURRENT_CONFIG.tokenExpiry - (5 * 60 * 1000)) {
             return true;
           }
-          
+
           // Token expired, try to refresh if we have refresh token
           if (refreshToken) {
             return false; // Will trigger refresh
@@ -792,29 +792,29 @@
       } catch (e) {
         console.warn('Failed to load stored credentials:', e);
       }
-      
+
       return false;
     }
 
     function saveCredentials(token, expiresIn, environment, refreshToken = null) {
       try {
-        const tokenExpiry = Date.now() + (parseInt(expiresIn) * 1000);
-        
+        const tokenExpiry = Date.now() + (parseInt(expiresIn, 10) * 1000);
+
         CURRENT_CONFIG = {
           token,
           tokenExpiry,
           environment,
           refreshToken
         };
-        
+
         localStorage.setItem(STORAGE_KEYS.TOKEN, token);
         localStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRY, tokenExpiry.toString());
         localStorage.setItem(STORAGE_KEYS.ENVIRONMENT, environment);
-        
+
         if (refreshToken) {
           localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
         }
-        
+
         return true;
       } catch (e) {
         console.error('Failed to save credentials:', e);
@@ -829,7 +829,7 @@
         localStorage.removeItem(STORAGE_KEYS.ENVIRONMENT);
         localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
         localStorage.removeItem(STORAGE_KEYS.AUTO_AUTH_ATTEMPTED);
-        
+
         CURRENT_CONFIG = {
           environment: '',
           token: null,
@@ -845,7 +845,7 @@
       if (!CURRENT_CONFIG.refreshToken || !CURRENT_CONFIG.environment) {
         return false;
       }
-      
+
       try {
         const loginHost = getLoginHost(CURRENT_CONFIG.environment);
         const response = await fetch(`${loginHost}/oauth/token`, {
@@ -859,7 +859,7 @@
             refresh_token: CURRENT_CONFIG.refreshToken
           })
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           saveCredentials(
@@ -868,14 +868,14 @@
             CURRENT_CONFIG.environment,
             data.refresh_token || CURRENT_CONFIG.refreshToken
           );
-          
+
           logMessage('SUCCESS', 'Token refreshed successfully');
           return true;
         }
       } catch (error) {
         console.warn('Token refresh failed:', error);
       }
-      
+
       return false;
     }
 
@@ -903,40 +903,42 @@
       return `${loginHost}/oauth/authorize?client_id=${encodeURIComponent(CONFIG.clientId)}&response_type=token&redirect_uri=${encodeURIComponent(CONFIG.redirectUri)}&scope=offline_access`;
     }
 
+    // ✅ UPDATED initAuth() (locked to London + auto-auth)
     async function initAuth() {
       // Show auth container while we check
       el.authContainer.style.display = 'block';
-      
+
       // Check if we have a token in the URL hash (returning from OAuth)
       const { token, refreshToken, error, errorDescription, expiresIn } = parseTokenFromHash();
-      
+
       // Clear hash from URL
       if (window.location.hash) {
         history.replaceState(null, '', window.location.pathname + window.location.search);
       }
-      
+
       if (token) {
-        // We just returned from OAuth with a token
-        const environment = localStorage.getItem(STORAGE_KEYS.ENVIRONMENT) || CONFIG.environment;
-        
-        if (saveCredentials(token, expiresIn || '3600', environment, refreshToken)) {
-          logMessage('SUCCESS', 'Authentication successful', `Connected to ${environment}`);
+        // We just returned from OAuth with a token - always use London region
+        if (saveCredentials(token, expiresIn || '3600', CONFIG.environment, refreshToken)) {
+          logMessage('SUCCESS', 'Authentication successful', `Connected to ${CONFIG.environment}`);
           showStatusMessage('✅ Connected to Genesys Cloud', 'success');
           showMainApp();
           return;
         }
       }
-      
+
       if (error) {
         logMessage('ERROR', 'Authentication failed', `${error}: ${errorDescription}`);
         showStatusMessage(`❌ Authentication failed: ${error}`, 'error');
-        showManualAuth();
+        // Auto-retry authentication after showing error
+        setTimeout(() => {
+          authenticate();
+        }, 2000);
         return;
       }
-      
+
       // Try to auto-authenticate with stored credentials
       const hasValidToken = loadStoredCredentials();
-      
+
       if (hasValidToken) {
         // We have a valid stored token
         logMessage('INFO', 'Auto-authentication successful', 'Using stored credentials');
@@ -945,7 +947,7 @@
         }, 500);
         return;
       }
-      
+
       // Try to refresh token
       const refreshSuccess = await attemptTokenRefresh();
       if (refreshSuccess) {
@@ -955,31 +957,32 @@
         }, 500);
         return;
       }
-      
-      // No valid token, show manual auth
-      logMessage('INFO', 'No valid credentials found', 'Please sign in manually');
+
+      // No valid credentials - auto-redirect to OAuth
+      logMessage('INFO', 'No valid credentials found', 'Redirecting to authentication...');
       setTimeout(() => {
-        showManualAuth();
+        authenticate();
+      }, 1500);
+    }
+
+    // ✅ UPDATED showManualAuth() (never shows manual section)
+    function showManualAuth() {
+      // Don't show manual auth section - just auto-authenticate
+      logMessage('INFO', 'Initiating automatic authentication', 'Redirecting to Genesys Cloud...');
+      setTimeout(() => {
+        authenticate();
       }, 1000);
     }
 
-    function showManualAuth() {
-      el.manualAuthSection.style.display = 'block';
-      
-      // Set default environment
-      const storedEnv = localStorage.getItem(STORAGE_KEYS.ENVIRONMENT);
-      if (storedEnv) {
-        el.environment.value = storedEnv;
-      }
-    }
-
+    // ✅ UPDATED authenticate() (always London)
     function authenticate() {
-      const environment = el.environment.value || CONFIG.environment;
-      
+      // Always use London region
+      const environment = CONFIG.environment;
+
       // Store environment in localStorage
       localStorage.setItem(STORAGE_KEYS.ENVIRONMENT, environment);
       CURRENT_CONFIG.environment = environment;
-      
+
       // Redirect to Genesys Cloud for authentication
       window.location.href = authUrl(environment);
     }
@@ -988,24 +991,24 @@
       if (!CURRENT_CONFIG.token || !CURRENT_CONFIG.tokenExpiry) {
         return false;
       }
-      
+
       // Check if token expires in less than 5 minutes
       if (Date.now() > CURRENT_CONFIG.tokenExpiry - (5 * 60 * 1000)) {
         logMessage('WARN', 'Token expired or about to expire', 'Need to refresh authentication');
         return false;
       }
-      
+
       return true;
     }
 
     function showMainApp() {
       el.authContainer.style.display = 'none';
       el.mainContent.style.display = 'block';
-      
-      // Update environment display
-      const envName = getEnvironmentName(CURRENT_CONFIG.environment);
+
+      // ✅ UPDATED environment display (fixed to London)
+      const envName = 'EU West (London) - euw2.pure.cloud';
       el.envDisplay.value = envName;
-      
+
       updateConnectionStatus(true, 'Connected ✓');
       initializeApp();
     }
@@ -1014,7 +1017,7 @@
       if (confirm('Disconnect from Genesys Cloud? This will clear all stored credentials.')) {
         // Clear all data
         clearCredentials();
-        
+
         appState = {
           isConnected: false,
           userData: [],
@@ -1024,14 +1027,18 @@
           logs: [],
           chartInstances: {}
         };
-        
+
         // Reset UI
         el.mainContent.style.display = 'none';
         el.authContainer.style.display = 'block';
-        el.manualAuthSection.style.display = 'block';
-        
+
         updateConnectionStatus(false, 'Not Connected');
         logMessage('INFO', 'Disconnected from Genesys Cloud');
+
+        // Auto-start auth again
+        setTimeout(() => {
+          initAuth();
+        }, 500);
       }
     }
 
@@ -1044,13 +1051,13 @@
         'https://api.cac1.pure.cloud': 'Canada - cac1.pure.cloud',
         'https://api.apne2.pure.cloud': 'Australia - apne2.pure.cloud'
       };
-      
+
       return envMap[url] || url;
     }
 
     function updateConnectionStatus(connected, message = '') {
       appState.isConnected = connected;
-      
+
       if (connected) {
         el.statusIndicator.style.background = 'var(--success)';
         el.statusText.textContent = message || 'Connected ✓';
@@ -1091,46 +1098,46 @@
       const timestamp = new Date().toLocaleTimeString();
       const logEntry = { timestamp, level, message, details };
       appState.logs.unshift(logEntry);
-      
+
       // Update logs table
       const row = document.createElement('tr');
-      const levelIcon = level === 'ERROR' ? '🔴' : 
-                      level === 'WARN' ? '🟡' : 
+      const levelIcon = level === 'ERROR' ? '🔴' :
+                      level === 'WARN' ? '🟡' :
                       level === 'SUCCESS' ? '✅' : '🔵';
-      
+
       row.innerHTML = `
         <td>${timestamp}</td>
         <td>${levelIcon} ${level}</td>
         <td>${message}</td>
         <td>${details}</td>
       `;
-      
+
       el.logsTableBody.prepend(row);
-      
+
       // Keep only last 50 logs
       if (el.logsTableBody.children.length > 50) {
         el.logsTableBody.removeChild(el.logsTableBody.lastChild);
       }
-      
+
       // Show important messages in status container
       if (level === 'ERROR' || level === 'SUCCESS' || level === 'WARN') {
         showStatusMessage(message, level.toLowerCase());
       }
-      
+
       console.log(`[${level}] ${message}`, details);
     }
 
     function showStatusMessage(message, type = 'info') {
       const msgDiv = document.createElement('div');
       msgDiv.className = 'status-message';
-      
-      const icon = type === 'success' ? '✅' : 
-                  type === 'error' ? '❌' : 
+
+      const icon = type === 'success' ? '✅' :
+                  type === 'error' ? '❌' :
                   type === 'warn' ? '⚠️' : '💡';
-      const color = type === 'success' ? 'var(--success)' : 
-                   type === 'error' ? 'var(--danger)' : 
+      const color = type === 'success' ? 'var(--success)' :
+                   type === 'error' ? 'var(--danger)' :
                    type === 'warn' ? 'var(--warning)' : 'var(--info)';
-      
+
       msgDiv.style.borderLeftColor = color;
       msgDiv.innerHTML = `
         <span style="font-size:20px;">${icon}</span>
@@ -1139,9 +1146,9 @@
           <div style="font-size:12px;color:var(--text-light);">${new Date().toLocaleTimeString()}</div>
         </div>
       `;
-      
+
       el.statusContainer.appendChild(msgDiv);
-      
+
       // Auto-remove after 5 seconds
       setTimeout(() => {
         if (msgDiv.parentNode) {
@@ -1164,11 +1171,11 @@
           throw new Error('Authentication token expired. Please reconnect.');
         }
       }
-      
+
       if (!CURRENT_CONFIG.token) throw new Error('Not authenticated');
-      
+
       const url = `${CURRENT_CONFIG.environment}${path}`;
-      
+
       const response = await fetch(url, {
         ...options,
         headers: {
@@ -1177,23 +1184,23 @@
           ...options.headers
         }
       });
-      
+
       if (response.status === 401 || response.status === 403) {
         throw new Error(`Authentication error (${response.status}). Please reconnect.`);
       }
-      
+
       if (response.status === 429) {
         const retryAfter = response.headers.get('Retry-After') || 5;
         logMessage('WARN', `Rate limit exceeded`, `Retrying after ${retryAfter} seconds`);
         await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
         return apiCall(path, options); // Retry
       }
-      
+
       if (!response.ok) {
         const errorText = await response.text().catch(() => '');
         throw new Error(`API Error: ${response.status} ${response.statusText}${errorText ? ` - ${errorText.slice(0,200)}` : ''}`);
       }
-      
+
       return response.json();
     }
 
@@ -1202,27 +1209,27 @@
     // ==============================================
     function detectUserRole(roles) {
       if (!roles || !Array.isArray(roles)) return 'other';
-      
+
       const roleNames = roles.map(r => r.name.toLowerCase());
-      
+
       // Check for admin roles first
       const adminKeywords = ['admin', 'administrator', 'system administrator', 'org admin'];
       if (roleNames.some(role => adminKeywords.some(keyword => role.includes(keyword)))) {
         return 'admin';
       }
-      
+
       // Check for supervisor roles
       const supervisorKeywords = ['supervisor', 'team lead', 'manager', 'director', 'lead'];
       if (roleNames.some(role => supervisorKeywords.some(keyword => role.includes(keyword)))) {
         return 'supervisor';
       }
-      
+
       // Check for agent roles
       const agentKeywords = ['agent', 'user', 'employee', 'representative', 'customer service'];
       if (roleNames.some(role => agentKeywords.some(keyword => role.includes(keyword)))) {
         return 'agent';
       }
-      
+
       return 'other';
     }
 
@@ -1232,62 +1239,62 @@
     async function fetchUserData() {
       setLoading(true, 'Fetching User Data', 'Retrieving user interaction data from Genesys Cloud...');
       updateLoadingProgress(10);
-      
+
       try {
         const dateFrom = el.dateFrom.value;
         const dateTo = el.dateTo.value;
-        
+
         if (!dateFrom || !dateTo) {
           throw new Error('Please select a date range');
         }
-        
+
         // First, get all users with expanded fields including dateLastLogin
         updateLoadingProgress(20);
         logMessage('INFO', 'Fetching user list with expanded fields');
-        
+
         let allUsers = [];
         let page = 1;
         const pageSize = 100;
-        
+
         while (true) {
           // Updated API call with dateLastLogin in expand
           const usersData = await apiCall(`/api/v2/users?pageSize=${pageSize}&pageNumber=${page}&expand=dateLastLogin,organization,presence,conversationSummary,routingStatus,authorization,locations,groups,skills,profiles,employerInfo,biography`);
           const users = usersData?.entities || [];
           allUsers = allUsers.concat(users);
-          
+
           if (!usersData?.nextUri || users.length < pageSize) break;
           page++;
-          
+
           // Add delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 200));
           updateLoadingProgress(20 + (page * 10));
         }
-        
+
         updateLoadingProgress(40);
         logMessage('INFO', `Loaded ${allUsers.length} users from API`);
-        
+
         // Process users with team information and role detection
         appState.userData = allUsers.map(user => {
           // Extract team information (first team name)
-          const teamName = user.groups && user.groups.length > 0 
-            ? user.groups[0].name 
+          const teamName = user.groups && user.groups.length > 0
+            ? user.groups[0].name
             : 'Unassigned';
-          
+
           // Get role names
-          const roleNames = user.authorization?.roles 
-            ? user.authorization.roles.map(r => r.name).join(', ') 
+          const roleNames = user.authorization?.roles
+            ? user.authorization.roles.map(r => r.name).join(', ')
             : 'No role';
-          
+
           // Detect user type based on roles
           const userType = detectUserRole(user.authorization?.roles);
-          
+
           // Format last login date
           let lastLogin = 'Never';
           if (user.dateLastLogin) {
             const loginDate = new Date(user.dateLastLogin);
             lastLogin = loginDate.toLocaleDateString();
           }
-          
+
           return {
             id: user.id,
             name: user.name || 'Unknown',
@@ -1302,14 +1309,14 @@
             status: user.presence?.presenceDefinition?.systemPresence || 'Unknown'
           };
         });
-        
+
         // Now fetch interaction data
         updateLoadingProgress(50);
         logMessage('INFO', 'Fetching interaction data for all users');
-        
+
         const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
         const userIds = allUsers.map(u => u.id);
-        
+
         // Create a single analytics job for all users
         try {
           const jobBody = {
@@ -1345,42 +1352,42 @@
               }))
             }]
           };
-          
+
           updateLoadingProgress(60);
           const jobResponse = await apiCall('/api/v2/analytics/users/details/jobs', {
             method: 'POST',
             body: JSON.stringify(jobBody)
           });
-          
+
           if (jobResponse.id) {
             // Poll for job completion
             let jobStatus = 'PENDING';
             let attempts = 0;
             const maxAttempts = 60; // 2 minutes max
-            
+
             while (jobStatus !== 'COMPLETED' && attempts < maxAttempts) {
               await new Promise(resolve => setTimeout(resolve, 2000));
               const statusResponse = await apiCall(`/api/v2/analytics/users/details/jobs/${jobResponse.id}`);
               jobStatus = statusResponse.state;
               attempts++;
-              
+
               updateLoadingProgress(60 + (attempts / maxAttempts * 30));
-              
+
               if (jobStatus === 'FAILED') {
                 throw new Error('Analytics job failed');
               }
-              
+
               if (jobStatus === 'COMPLETED') {
                 break;
               }
             }
-            
+
             if (jobStatus === 'COMPLETED') {
               // Fetch results
               updateLoadingProgress(90);
               const resultsResponse = await apiCall(`/api/v2/analytics/users/details/jobs/${jobResponse.id}/results?pageSize=1000`);
               const results = resultsResponse.results || [];
-              
+
               // Create a map of user hours
               const userHoursMap = {};
               results.forEach(record => {
@@ -1391,44 +1398,44 @@
                 }
                 userHoursMap[userId] += hours;
               });
-              
+
               // Update user data with hours
               appState.userData.forEach(user => {
                 user.interactingHours = parseFloat((userHoursMap[user.id] || 0).toFixed(2));
               });
-              
+
               logMessage('INFO', 'Analytics job completed', `Processed ${results.length} interaction records`);
             }
           }
         } catch (analyticsError) {
-          logMessage('WARN', 'Analytics job failed or timed out', 'Using fallback method - analyzing user list only');
+          logMessage('WARN', 'Analytics job failed or timed out', 'Using fallback method - analysing user list only');
           // Continue with user list even if analytics fails
         }
-        
+
         updateLoadingProgress(95);
-        
+
         // Update user type statistics
         updateUserTypeStats();
-        
+
         logMessage('SUCCESS', 'Data loaded successfully', `${appState.userData.length} users loaded`);
-        
+
         // Update UI
         el.statTotalUsers.textContent = appState.userData.length;
         el.totalCount.textContent = appState.userData.length;
         el.visibleCount.textContent = appState.userData.length;
         el.btnAnalyze.disabled = false;
         el.btnRunAnalysis.disabled = false;
-        
+
         // Display initial user table
         renderUserTable();
         updateHourBuckets();
-        
+
         updateLoadingProgress(100);
         await new Promise(resolve => setTimeout(resolve, 500));
-        
+
         setLoading(false);
         showStatusMessage(`✅ Loaded ${appState.userData.length} users`, 'success');
-        
+
       } catch (error) {
         setLoading(false);
         logMessage('ERROR', 'Failed to fetch data', error.message);
@@ -1441,7 +1448,7 @@
       const supervisors = appState.userData.filter(u => u.userType === 'supervisor').length;
       const admins = appState.userData.filter(u => u.userType === 'admin').length;
       const others = appState.userData.filter(u => u.userType === 'other').length;
-      
+
       el.statAgents.textContent = agents;
       el.statSupervisors.textContent = supervisors;
       el.statAdmins.textContent = admins;
@@ -1453,41 +1460,41 @@
     // ==============================================
     async function runAnalysis() {
       if (appState.isAnalyzing) return;
-      
+
       appState.isAnalyzing = true;
       el.btnRunAnalysis.disabled = true;
-      el.btnRunAnalysis.innerHTML = '<span>⏳ Analyzing...</span>';
-      
+      el.btnRunAnalysis.innerHTML = '<span>⏳ Analysing...</span>';
+
       updateProgress('Starting analysis...', 10);
-      
+
       try {
         const threshold = parseFloat(el.thresholdHours.value);
         const includeNologin = el.includeNologin.value === 'true';
-        
+
         // Filter users
         updateProgress('Filtering users...', 30);
         let usersToAnalyze = appState.userData;
         if (!includeNologin) {
           usersToAnalyze = appState.userData.filter(u => u.interactingHours > 0 || u.rawLastLogin);
         }
-        
-        // Initialize recommendedLicense property for all users
+
+        // Initialise recommendedLicence property for all users
         usersToAnalyze.forEach(user => {
           user.recommendedLicense = 'NOLOGIN'; // Default
           user.recommendedReason = 'No login activity';
         });
-        
-        // Analyze each user based on user type and hours
+
+        // Analyse each user based on user type and hours
         updateProgress('Applying business rules...', 50);
         usersToAnalyze.forEach(user => {
           // Check if user has never logged in
           const hasNeverLoggedIn = !user.rawLastLogin && user.interactingHours === 0;
-          
+
           if (hasNeverLoggedIn) {
             user.recommendedLicense = 'NOLOGIN';
             user.recommendedReason = 'Never logged in';
           } else if (user.userType === 'admin' || user.userType === 'supervisor') {
-            // Admins and Supervisors always get Named licenses
+            // Admins and Supervisors always get Named licences
             user.recommendedLicense = 'Named';
             user.recommendedReason = `${user.userType === 'admin' ? 'Admin' : 'Supervisor'} role`;
           } else if (user.interactingHours > 0 && user.interactingHours < threshold) {
@@ -1506,7 +1513,7 @@
             user.recommendedLicense = 'NOLOGIN';
             user.recommendedReason = 'No activity detected';
           }
-          
+
           // Cost calculation
           if (user.recommendedLicense === 'HI') {
             user.estimatedCost = user.interactingHours * 0.45;
@@ -1516,7 +1523,7 @@
             user.estimatedCost = 0;
           }
         });
-        
+
         // Calculate statistics
         updateProgress('Calculating statistics...', 70);
         const totalUsers = usersToAnalyze.length;
@@ -1525,13 +1532,13 @@
         const hiUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'HI').length;
         const nologinUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'NOLOGIN').length;
         const totalHours = usersToAnalyze.reduce((sum, u) => sum + u.interactingHours, 0);
-        
+
         // Role-based statistics
         const agentNamed = usersToAnalyze.filter(u => u.userType === 'agent' && u.recommendedLicense === 'Named').length;
         const agentHI = usersToAnalyze.filter(u => u.userType === 'agent' && u.recommendedLicense === 'HI').length;
         const supervisorNamed = usersToAnalyze.filter(u => u.userType === 'supervisor' && u.recommendedLicense === 'Named').length;
         const adminNamed = usersToAnalyze.filter(u => u.userType === 'admin' && u.recommendedLicense === 'Named').length;
-        
+
         // Cost analysis
         const allNamedCost = totalUsers * 70;
         const hiHours = usersToAnalyze
@@ -1539,14 +1546,14 @@
           .reduce((sum, u) => sum + u.interactingHours, 0);
         const hybridCost = (namedUsers * 70) + (hiHours * 0.45);
         const savings = allNamedCost > 0 ? ((allNamedCost - hybridCost) / allNamedCost * 100).toFixed(1) : 0;
-        
+
         // Determine optimal model
         let optimalModel = 'Hybrid';
         if (hiUsers / totalUsers > 0.7) optimalModel = 'Mostly HI';
         else if (namedUsers / totalUsers > 0.7) optimalModel = 'Mostly Named';
         else if (hiUsers === 0) optimalModel = 'All Named';
         else if (namedUsers === 0) optimalModel = 'All HI';
-        
+
         // Store results
         appState.analysisResults = {
           totalUsers,
@@ -1566,7 +1573,7 @@
           adminNamed,
           users: usersToAnalyze
         };
-        
+
         // Update UI
         updateProgress('Updating display...', 90);
         el.statActiveUsers.textContent = activeUsers;
@@ -1579,22 +1586,22 @@
         el.totalCost.textContent = `$${parseFloat(hybridCost).toFixed(0)}`;
         el.savings.textContent = `${savings}% savings`;
         el.licenseModel.textContent = optimalModel;
-        
+
         // Update user table with recommendations
         renderUserTable();
-        
+
         // Create chart
-        updateProgress('Creating visualization...', 95);
+        updateProgress('Creating visualisation...', 95);
         createLicenseChart();
-        
+
         updateProgress('Analysis complete!', 100);
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
         logMessage('SUCCESS', 'Analysis complete', `${namedUsers} Named, ${hiUsers} HI users`);
         showStatusMessage(`✅ Analysis complete: ${savings}% cost savings`, 'success');
-        
+
         el.btnExport.disabled = false;
-        
+
       } catch (error) {
         logMessage('ERROR', 'Analysis failed', error.message);
         showStatusMessage('❌ Analysis failed', 'error');
@@ -1602,7 +1609,7 @@
         appState.isAnalyzing = false;
         el.btnRunAnalysis.disabled = false;
         el.btnRunAnalysis.innerHTML = '<span>▶️ Run Analysis</span>';
-        updateProgress('Ready to analyze', 0);
+        updateProgress('Ready to analyse', 0);
       }
     }
 
@@ -1612,12 +1619,12 @@
     function renderUserTable() {
       const tbody = el.usersTableBody;
       tbody.innerHTML = '';
-      
+
       const searchTerm = el.userSearch.value.toLowerCase();
       const filterValue = el.userFilter.value;
-      
+
       let usersToDisplay = appState.userData || [];
-      
+
       // Apply search filter
       if (searchTerm) {
         usersToDisplay = usersToDisplay.filter(user =>
@@ -1629,7 +1636,7 @@
           (user.recommendedLicense && user.recommendedLicense.toLowerCase().includes(searchTerm))
         );
       }
-      
+
       // Apply type filter
       if (filterValue !== 'all') {
         if (filterValue === 'named' || filterValue === 'hi' || filterValue === 'nologin') {
@@ -1638,9 +1645,9 @@
           usersToDisplay = usersToDisplay.filter(u => u.userType === filterValue);
         }
       }
-      
+
       el.visibleCount.textContent = usersToDisplay.length;
-      
+
       if (usersToDisplay.length === 0) {
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -1651,13 +1658,13 @@
         tbody.appendChild(row);
         return;
       }
-      
+
       usersToDisplay.forEach(user => {
         const row = document.createElement('tr');
-        
+
         let licenseBadge = '';
         let badgeClass = '';
-        
+
         if (user.recommendedLicense) {
           switch(user.recommendedLicense) {
             case 'Named':
@@ -1674,14 +1681,14 @@
               break;
           }
         } else {
-          // If no recommended license yet, show based on hours
+          // If no recommended licence yet, show based on hours
           if (user.interactingHours === 0) {
             licenseBadge = `<span class="status-badge status-nologin">NOLOGIN</span>`;
           } else {
             licenseBadge = `<span class="status-badge" style="background:rgba(108,117,125,0.15);color:var(--text-light);">Pending</span>`;
           }
         }
-        
+
         // User type badge
         let userTypeBadge = '';
         switch(user.userType) {
@@ -1697,7 +1704,7 @@
           default:
             userTypeBadge = `<span class="status-badge" style="background:rgba(108,117,125,0.15);color:var(--text-light);">Other</span>`;
         }
-        
+
         row.innerHTML = `
           <td>
             <div style="font-weight:600;">${user.name || 'Unknown'}</div>
@@ -1722,7 +1729,7 @@
             </span>
           </td>
         `;
-        
+
         tbody.appendChild(row);
       });
     }
@@ -1742,7 +1749,7 @@
         '91-100h': 0,
         '100+h': 0
       };
-      
+
       (appState.userData || []).forEach(user => {
         const hours = user.interactingHours || 0;
         if (hours === 0) buckets['0h']++;
@@ -1758,9 +1765,9 @@
         else if (hours <= 100) buckets['91-100h']++;
         else buckets['100+h']++;
       });
-      
+
       el.hourBuckets.innerHTML = '';
-      
+
       Object.entries(buckets).forEach(([label, count]) => {
         const card = document.createElement('div');
         card.className = 'bucket-card';
@@ -1774,14 +1781,14 @@
 
     function createLicenseChart() {
       const ctx = document.getElementById('licenseChart').getContext('2d');
-      
+
       // Destroy existing chart
       if (appState.chartInstances.license) {
         appState.chartInstances.license.destroy();
       }
-      
+
       if (!appState.analysisResults) return;
-      
+
       const data = {
         labels: ['Named Users', 'HI Users', 'NOLOGIN Users'],
         datasets: [{
@@ -1799,7 +1806,7 @@
           borderColor: '#fff'
         }]
       };
-      
+
       appState.chartInstances.license = new Chart(ctx, {
         type: 'doughnut',
         data: data,
@@ -1838,15 +1845,15 @@
         showStatusMessage('Please run analysis first', 'warn');
         return;
       }
-      
+
       const results = appState.analysisResults;
-      
+
       // Create CSV content
       let csv = 'Genesys Cloud Hourly Billing Analysis Report\n';
       csv += `Generated: ${new Date().toLocaleString()}\n`;
       csv += `Period: ${el.dateFrom.value} to ${el.dateTo.value}\n`;
       csv += `HI Threshold: ${results.threshold} hours\n\n`;
-      
+
       csv += 'SUMMARY\n';
       csv += 'Metric,Value\n';
       csv += `Total Users,${results.totalUsers}\n`;
@@ -1859,34 +1866,34 @@
       csv += `Hybrid Cost,$${results.hybridCost}\n`;
       csv += `Cost Savings,${results.savings}%\n`;
       csv += `Optimal Model,${results.optimalModel}\n\n`;
-      
+
       csv += 'ROLE-BASED ANALYSIS\n';
       csv += 'Role Type,Metric,Value\n';
       csv += `Agent,Named Users,${results.agentNamed}\n`;
       csv += `Agent,HI Users,${results.agentHI}\n`;
       csv += `Supervisor,Named Users,${results.supervisorNamed}\n`;
       csv += `Admin,Named Users,${results.adminNamed}\n\n`;
-      
+
       csv += 'USER DETAILS\n';
-      csv += 'Name,Email,Team,Role Type,Roles,Last Login,Hours,Recommended License,Reason,Estimated Cost\n';
-      
+      csv += 'Name,Email,Team,Role Type,Roles,Last Login,Hours,Recommended Licence,Reason,Estimated Cost\n';
+
       results.users.forEach(user => {
         csv += `"${user.name || ''}","${user.email || ''}","${user.team || ''}","${user.userType || ''}","${user.role || ''}","${user.lastLogin || 'Never'}",${user.interactingHours || 0},"${user.recommendedLicense || ''}","${user.recommendedReason || ''}",${(user.estimatedCost || 0).toFixed(2)}\n`;
       });
-      
+
       // Download
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       const dateStr = new Date().toISOString().split('T')[0];
-      
+
       a.href = url;
       a.download = `genesys_billing_analysis_${dateStr}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      
+
       logMessage('SUCCESS', 'Report exported', 'CSV file downloaded');
       showStatusMessage('✅ Report exported to CSV', 'success');
     }
@@ -1899,7 +1906,7 @@
         // Clear data but keep connection
         appState.userData = [];
         appState.analysisResults = null;
-        
+
         // Reset UI
         el.statTotalUsers.textContent = '0';
         el.statActiveUsers.textContent = '0';
@@ -1921,60 +1928,62 @@
         el.btnAnalyze.disabled = true;
         el.btnRunAnalysis.disabled = true;
         el.btnExport.disabled = true;
-        
+
         // Clear tables
         el.usersTableBody.innerHTML = `
           <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-light);">
             No data loaded. Connect and fetch data first.
           </td></tr>
         `;
-        
+
         // Clear hour buckets
         el.hourBuckets.innerHTML = '';
-        
+
         // Destroy chart
         if (appState.chartInstances.license) {
           appState.chartInstances.license.destroy();
         }
-        
+
         logMessage('INFO', 'Application reset', 'All data cleared');
         showStatusMessage('🔄 Application reset', 'info');
       }
     }
 
     // ==============================================
-    // INITIALIZATION
+    // INITIALISATION
     // ==============================================
     function initializeApp() {
       // Set default dates
       const today = new Date();
       const lastMonth = new Date();
       lastMonth.setMonth(today.getMonth() - 1);
-      
+
       el.dateTo.valueAsDate = today;
       el.dateFrom.valueAsDate = lastMonth;
-      
+
       // Set max dates
       const todayStr = today.toISOString().split('T')[0];
       el.dateTo.max = todayStr;
       el.dateFrom.max = todayStr;
-      
+
       // Event Listeners
-      el.btnAuthenticate.addEventListener('click', authenticate);
+      // (Authenticate button is not used in auto-auth mode, but harmless if kept)
+      if (el.btnAuthenticate) el.btnAuthenticate.addEventListener('click', authenticate);
+
       el.btnDisconnect.addEventListener('click', disconnect);
       el.btnFetchData.addEventListener('click', fetchUserData);
       el.btnRunAnalysis.addEventListener('click', runAnalysis);
       el.btnAnalyze.addEventListener('click', runAnalysis);
       el.btnExport.addEventListener('click', exportReport);
       el.btnReset.addEventListener('click', resetApplication);
-      
+
       // Quick date buttons
       document.querySelectorAll('.quick-select-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-          const days = parseInt(this.dataset.days);
+          const days = parseInt(this.dataset.days, 10);
           const toDate = new Date();
           const fromDate = new Date();
-          
+
           if (days === 0) {
             el.dateTo.valueAsDate = toDate;
             el.dateFrom.valueAsDate = toDate;
@@ -1983,25 +1992,25 @@
             el.dateTo.valueAsDate = toDate;
             el.dateFrom.valueAsDate = fromDate;
           }
-          
+
           logMessage('INFO', 'Date range updated', `Last ${days === 0 ? 'today' : days + ' days'}`);
         });
       });
-      
+
       // User search and filter
       el.userSearch.addEventListener('input', renderUserTable);
       el.userFilter.addEventListener('change', renderUserTable);
-      
+
       // Tab switching
       document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', function() {
           const tabId = this.dataset.tab;
           appState.currentTab = tabId;
-          
+
           // Update active tab
           document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
           this.classList.add('active');
-          
+
           // Show active content
           document.querySelectorAll('.tab-content').forEach(content => {
             content.classList.remove('active');
@@ -2009,37 +2018,36 @@
               content.classList.add('active');
             }
           });
-          
+
           logMessage('INFO', 'Tab switched', tabId);
         });
       });
-      
+
       // Logs buttons
       el.btnClearLogs.addEventListener('click', () => {
         el.logsTableBody.innerHTML = '';
         appState.logs = [];
         logMessage('INFO', 'Logs cleared');
       });
-      
+
       el.btnCopyLogs.addEventListener('click', () => {
-        const logText = appState.logs.map(log => 
+        const logText = appState.logs.map(log =>
           `${log.timestamp} [${log.level}] ${log.message} ${log.details ? '- ' + log.details : ''}`
         ).join('\n');
-        
+
         navigator.clipboard.writeText(logText).then(() => {
           showStatusMessage('Logs copied to clipboard', 'success');
         });
       });
-      
+
       // Initial log
-      logMessage('INFO', 'Hourly Billing Calculator initialized', 'Ready for authentication');
+      logMessage('INFO', 'Hourly Billing Calculator initialised', 'Ready for authentication');
     }
 
     // ==============================================
     // START APPLICATION
     // ==============================================
     document.addEventListener('DOMContentLoaded', function() {
-      // Initialize auto-authentication
       initAuth();
     });
   </script>
