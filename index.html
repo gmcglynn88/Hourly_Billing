@@ -10,71 +10,49 @@
       --light-bg:#F8F9FA; --card-bg:#FFFFFF; --text-color:#2C3E50; --text-light:#6C757D;
       --pill:#e9f6f0; --filter-bg:#f0f7f3; --warning:#ffc107; --danger:#dc3545;
       --success:#28a745; --info:#17a2b8;
-      
-      /* Status colors */
-      --status-onqueue: #b3e0ff;
-      --status-offqueue: #d2b48c;
-      --status-available: #c3e6cb;
-      --status-offline: #e2e3e5;
-      --status-unavailable: #d6d8db;
-      --status-busy: #f5c6cb;
-      --status-meetings: #f8d7da;
-      --status-breaks: #ffeaa7;
-      --status-meal: #ffcc99;
-      --status-away: #ffc107;
-      --status-training: #c3e6cb;
     }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
+    body{
       font-family:'Aptos','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
       margin:20px;padding:20px;max-width:1800px;
       background:var(--light-bg);color:var(--text-color);
-      line-height: 1.6;
-      min-height: 100vh;
+      line-height:1.6;
     }
 
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
+    .container{
+      max-width:1400px;
+      margin:0 auto;
     }
 
-    header {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 24px 32px;
-      margin-bottom: 24px;
+    header{
+      background:var(--card-bg);
+      border-radius:12px;
+      padding:24px 32px;
+      margin-bottom:24px;
       box-shadow:0 1px 3px rgba(0,0,0,.1);
-      border-left: 5px solid var(--primary-color);
+      border-left:5px solid var(--primary-color);
       border:1px solid var(--border-color);
     }
 
-    h1 {
-      color: var(--text-color);
-      margin-bottom: 8px;
-      font-size: 28px;
+    h1{
+      color:var(--text-color);
+      margin-bottom:8px;
+      font-size:28px;
     }
 
-    .subtitle {
-      color: var(--text-light);
-      font-size: 16px;
+    .subtitle{
+      color:var(--text-light);
+      font-size:16px;
     }
 
-    .main-grid {
-      display: grid;
-      grid-template-columns: 350px 1fr;
-      gap: 24px;
+    .main-grid{
+      display:grid;
+      grid-template-columns:350px 1fr;
+      gap:24px;
     }
 
-    @media (max-width: 1024px) {
-      .main-grid {
-        grid-template-columns: 1fr;
-      }
+    @media (max-width:1024px){
+      .main-grid{grid-template-columns:1fr}
     }
 
     /* Card Styling */
@@ -87,27 +65,27 @@
       box-shadow:0 1px 3px rgba(0,0,0,.1);
     }
 
-    .card h2 {
-      color: var(--primary-color);
-      margin-bottom: 20px;
-      font-size: 20px;
-      padding-bottom: 12px;
-      border-bottom: 2px solid var(--light-bg);
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    .card h2{
+      color:var(--primary-color);
+      margin-bottom:20px;
+      font-size:20px;
+      padding-bottom:12px;
+      border-bottom:2px solid var(--light-bg);
+      display:flex;
+      align-items:center;
+      gap:10px;
     }
 
     /* Form Controls */
-    .form-group {
-      margin-bottom: 20px;
+    .form-group{
+      margin-bottom:20px;
     }
 
     label{
       display:block;
       font-weight:600;
       margin-bottom:6px;
-      color: var(--text-color);
+      color:var(--text-color);
     }
 
     select,input,button{
@@ -116,7 +94,7 @@
       border-radius:6px;
       background:var(--card-bg);
       font-size:14px;
-      width: 100%;
+      width:100%;
     }
 
     button{
@@ -125,450 +103,345 @@
       font-weight:600;
       cursor:pointer;
       transition:background .2s;
-      border: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      border:none;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
     }
     
-    button:hover{
-      background:var(--secondary-color);
-    }
-    
+    button:hover{background:var(--secondary-color)}
     button:disabled{
       background:var(--text-light);
       cursor:not-allowed;
     }
 
-    .btn-block {
-      width: 100%;
-      padding: 12px;
-    }
-
-    /* Date Range */
-    .date-range {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+    .btn-block{
+      width:100%;
+      padding:12px;
     }
 
     /* Auth Section */
-    .auth-section {
-      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-      color: white;
-      padding: 24px;
-      border-radius: 12px;
-      margin-bottom: 16px;
+    .auth-section{
+      background:linear-gradient(135deg,var(--primary-color),var(--secondary-color));
+      color:white;
+      padding:24px;
+      border-radius:12px;
+      margin-bottom:16px;
     }
 
-    .auth-section h3 {
-      margin-bottom: 16px;
-      font-size: 20px;
-      color: white;
+    .auth-section h3{
+      margin-bottom:16px;
+      font-size:20px;
+      color:white;
     }
 
-    .auth-section p {
-      margin-bottom: 24px;
-      opacity: 0.9;
+    .auth-section p{
+      margin-bottom:24px;
+      opacity:0.9;
     }
 
-    /* Results Section */
-    .results-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-top: 20px;
+    /* Results Grid */
+    .results-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+      gap:16px;
+      margin-top:20px;
     }
 
-    .stat-card {
-      background: var(--pill);
-      border-radius: 12px;
-      padding: 20px;
-      text-align: center;
-      border: 1px solid var(--border-color);
+    .stat-card{
+      background:var(--pill);
+      border-radius:12px;
+      padding:20px;
+      text-align:center;
+      border:1px solid var(--border-color);
     }
 
-    .stat-value {
-      font-size: 36px;
-      font-weight: 700;
-      color: var(--primary-color);
-      margin: 10px 0;
+    .stat-value{
+      font-size:36px;
+      font-weight:700;
+      color:var(--primary-color);
+      margin:10px 0;
     }
 
-    .stat-label {
-      font-size: 14px;
-      color: var(--text-light);
-      text-transform: uppercase;
-      letter-spacing: 1px;
+    .stat-label{
+      font-size:14px;
+      color:var(--text-light);
+      text-transform:uppercase;
+      letter-spacing:1px;
     }
 
     /* License Summary */
-    .license-summary {
-      background: linear-gradient(135deg, #e8f6f0 0%, #d4f2e4 100%);
-      border-left: 4px solid var(--primary-color);
+    .license-summary{
+      background:linear-gradient(135deg,#e8f6f0 0%,#d4f2e4 100%);
+      border-left:4px solid var(--primary-color);
     }
 
-    .license-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px 0;
-      border-bottom: 1px solid rgba(0,0,0,0.1);
+    .license-item{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:16px 0;
+      border-bottom:1px solid rgba(0,0,0,0.1);
     }
 
-    .license-item:last-child {
-      border-bottom: none;
-    }
+    .license-item:last-child{border-bottom:none}
 
-    .license-name {
-      font-weight: 600;
-    }
-
-    .license-count {
-      font-size: 24px;
-      font-weight: 700;
-      color: var(--primary-color);
+    .license-name{font-weight:600}
+    .license-count{
+      font-size:24px;
+      font-weight:700;
+      color:var(--primary-color);
     }
 
     /* Badge Styling */
-    .badge {
-      display: inline-block;
-      padding: 4px 12px;
-      font-size: 12px;
-      font-weight: 600;
-      border-radius: 20px;
-      margin-left: 8px;
+    .badge{
+      display:inline-block;
+      padding:4px 12px;
+      font-size:12px;
+      font-weight:600;
+      border-radius:20px;
+      margin-left:8px;
     }
 
-    .badge-primary {
-      background: var(--primary-color);
-      color: white;
-    }
-
-    .badge-success {
-      background: var(--success);
-      color: white;
-    }
-
-    .badge-warning {
-      background: var(--warning);
-      color: black;
-    }
-
-    .badge-info {
-      background: var(--info);
-      color: white;
-    }
+    .badge-primary{background:var(--primary-color);color:white}
+    .badge-success{background:var(--success);color:white}
+    .badge-warning{background:var(--warning);color:black}
+    .badge-info{background:var(--info);color:white}
 
     /* Data Table */
-    .table-container {
-      overflow-x: auto;
-      margin-top: 20px;
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-      background: var(--card-bg);
-      position: relative;
+    .table-container{
+      overflow-x:auto;
+      margin-top:20px;
+      border-radius:8px;
+      border:1px solid var(--border-color);
+      background:var(--card-bg);
+      position:relative;
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
+    table{
+      width:100%;
+      border-collapse:collapse;
     }
 
-    th {
-      background-color: var(--primary-color);
-      color: white;
-      font-weight: 600;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      white-space: nowrap;
-      padding: 16px;
-      text-align: left;
+    th{
+      background-color:var(--primary-color);
+      color:white;
+      font-weight:600;
+      position:sticky;
+      top:0;
+      z-index:10;
+      white-space:nowrap;
+      padding:16px;
+      text-align:left;
     }
 
-    td {
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--border-color);
+    td{
+      padding:14px 16px;
+      border-bottom:1px solid var(--border-color);
     }
 
-    tr:hover {
-      background-color: var(--pill);
-    }
+    tr:hover{background-color:var(--pill)}
 
     /* Status Badges */
-    .status-badge {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
+    .status-badge{
+      display:inline-block;
+      padding:4px 12px;
+      border-radius:20px;
+      font-size:12px;
+      font-weight:600;
+      text-transform:uppercase;
     }
 
-    .status-named {
-      background: rgba(0, 102, 204, 0.1);
-      color: var(--primary-color);
-    }
-
-    .status-hi {
-      background: rgba(40, 167, 69, 0.1);
-      color: var(--success);
-    }
-
-    .status-supervisor {
-      background: rgba(255, 193, 7, 0.1);
-      color: #d39e00;
-    }
+    .status-named{background:rgba(99,171,143,0.1);color:var(--primary-color)}
+    .status-hi{background:rgba(40,167,69,0.1);color:var(--success)}
+    .status-supervisor{background:rgba(255,193,7,0.1);color:#d39e00}
+    .status-nologin{background:rgba(108,117,125,0.1);color:var(--text-light)}
 
     /* Tabs */
-    .tabs {
-      display: flex;
-      border-bottom: 2px solid var(--border-color);
-      margin-bottom: 24px;
+    .tabs{
+      display:flex;
+      border-bottom:2px solid var(--border-color);
+      margin-bottom:24px;
     }
 
-    .tab {
-      padding: 12px 24px;
-      background: none;
-      border: none;
-      border-bottom: 2px solid transparent;
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text-light);
-      cursor: pointer;
-      transition: all 0.3s;
+    .tab{
+      padding:12px 24px;
+      background:none;
+      border:none;
+      border-bottom:2px solid transparent;
+      font-size:15px;
+      font-weight:600;
+      color:var(--text-light);
+      cursor:pointer;
+      transition:all 0.3s;
     }
 
-    .tab:hover {
-      color: var(--primary-color);
+    .tab:hover{color:var(--primary-color)}
+    .tab.active{
+      color:var(--primary-color);
+      border-bottom-color:var(--primary-color);
     }
 
-    .tab.active {
-      color: var(--primary-color);
-      border-bottom-color: var(--primary-color);
-    }
-
-    .tab-content {
-      display: none;
-    }
-
-    .tab-content.active {
-      display: block;
-    }
+    .tab-content{display:none}
+    .tab-content.active{display:block}
 
     /* Alerts */
-    .alert {
-      padding: 16px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
+    .alert{
+      padding:16px;
+      border-radius:8px;
+      margin-bottom:20px;
+      display:flex;
+      align-items:center;
+      gap:12px;
     }
 
-    .alert-info {
-      background: rgba(99, 171, 143, 0.1);
-      border-left: 4px solid var(--primary-color);
-      color: var(--text-color);
+    .alert-info{
+      background:rgba(99,171,143,0.1);
+      border-left:4px solid var(--primary-color);
+      color:var(--text-color);
     }
 
-    .alert-success {
-      background: rgba(40, 167, 69, 0.1);
-      border-left: 4px solid var(--success);
-      color: var(--success);
+    .alert-success{
+      background:rgba(40,167,69,0.1);
+      border-left:4px solid var(--success);
+      color:var(--success);
     }
 
-    .alert-warning {
-      background: rgba(255, 193, 7, 0.1);
-      border-left: 4px solid var(--warning);
-      color: #856404;
+    .alert-warning{
+      background:rgba(255,193,7,0.1);
+      border-left:4px solid var(--warning);
+      color:#856404;
     }
 
-    .alert-danger {
-      background: rgba(220, 53, 69, 0.1);
-      border-left: 4px solid var(--danger);
-      color: var(--danger);
+    .alert-danger{
+      background:rgba(220,53,69,0.1);
+      border-left:4px solid var(--danger);
+      color:var(--danger);
     }
 
     /* Loading States */
-    .loading {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 3px solid rgba(99, 171, 143, 0.3);
-      border-radius: 50%;
-      border-top-color: var(--primary-color);
-      animation: spin 1s ease-in-out infinite;
+    .loading{
+      display:inline-block;
+      width:20px;
+      height:20px;
+      border:3px solid rgba(99,171,143,0.3);
+      border-radius:50%;
+      border-top-color:var(--primary-color);
+      animation:spin 1s ease-in-out infinite;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .loading-overlay{
+      position:fixed;
+      top:0;
+      left:0;
+      right:0;
+      bottom:0;
+      background:rgba(255,255,255,0.9);
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      z-index:1000;
+      display:none;
     }
 
-    .loading-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(255, 255, 255, 0.9);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-      display: none;
-    }
+    .loading-overlay.active{display:flex}
 
-    .loading-overlay.active {
-      display: flex;
-    }
-
-    .spinner {
-      width: 50px;
-      height: 50px;
-      border: 5px solid var(--light-bg);
-      border-top: 5px solid var(--primary-color);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 20px;
+    .spinner{
+      width:50px;
+      height:50px;
+      border:5px solid var(--light-bg);
+      border-top:5px solid var(--primary-color);
+      border-radius:50%;
+      animation:spin 1s linear infinite;
+      margin-bottom:20px;
     }
 
     /* Action Buttons */
-    .action-buttons {
-      display: flex;
-      gap: 8px;
-      margin-top: 10px;
-      flex-wrap: wrap;
+    .action-buttons{
+      display:flex;
+      gap:8px;
+      margin-top:10px;
+      flex-wrap:wrap;
     }
 
-    .action-btn {
-      padding: 8px 16px;
-      font-size: 14px;
-      border-radius: 6px;
+    .action-btn{
+      padding:8px 16px;
+      font-size:14px;
+      border-radius:6px;
     }
 
-    .export-btn {
-      background: var(--text-light);
-    }
-
-    .export-btn:hover {
-      background: #5a6268;
-    }
+    .export-btn{background:var(--text-light)}
+    .export-btn:hover{background:#5a6268}
 
     /* Mode Selector */
-    .mode-selector {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 20px;
+    .mode-selector{
+      display:flex;
+      gap:8px;
+      margin-bottom:20px;
     }
 
-    .mode-btn {
-      flex: 1;
-      padding: 12px;
-      text-align: center;
-      background: var(--light-bg);
-      border: 2px solid var(--border-color);
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.3s;
+    .mode-btn{
+      flex:1;
+      padding:12px;
+      text-align:center;
+      background:var(--light-bg);
+      border:2px solid var(--border-color);
+      border-radius:8px;
+      cursor:pointer;
+      transition:all 0.3s;
+      font-weight:600;
     }
 
-    .mode-btn.active {
-      background: var(--primary-color);
-      color: white;
-      border-color: var(--primary-color);
+    .mode-btn.active{
+      background:var(--primary-color);
+      color:white;
+      border-color:var(--primary-color);
     }
 
     /* Charts */
-    .chart-container {
-      height: 300px;
-      margin-top: 20px;
-      position: relative;
+    .chart-container{
+      height:300px;
+      margin-top:20px;
+      position:relative;
     }
 
-    /* Responsive Design */
-    @media (max-width: 768px) {
-      body {
-        margin: 10px;
-        padding: 10px;
-      }
-
-      .card {
-        padding: 16px;
-      }
-
-      header {
-        padding: 16px;
-      }
-
-      h1 {
-        font-size: 24px;
-      }
-
-      .btn-block {
-        padding: 10px 16px;
-        font-size: 14px;
-      }
-
-      .stat-value {
-        font-size: 28px;
-      }
-
-      .main-grid {
-        grid-template-columns: 1fr;
-      }
+    /* Quick Select Buttons */
+    .quick-select-buttons{
+      display:flex;
+      gap:8px;
+      margin-top:8px;
     }
 
-    /* Tooltips */
-    .tooltip {
-      position: relative;
-      display: inline-block;
+    .quick-select-btn{
+      flex:1;
+      padding:8px;
+      background:var(--light-bg);
+      border:1px solid var(--border-color);
+      border-radius:6px;
+      cursor:pointer;
+      font-size:12px;
+      font-weight:600;
+      transition:all 0.3s;
     }
 
-    .tooltip .tooltip-text {
-      visibility: hidden;
-      width: 200px;
-      background: var(--text-color);
-      color: white;
-      text-align: center;
-      padding: 8px;
-      border-radius: 4px;
-      position: absolute;
-      z-index: 1;
-      bottom: 125%;
-      left: 50%;
-      transform: translateX(-50%);
-      opacity: 0;
-      transition: opacity 0.3s;
-      font-size: 12px;
-      font-weight: normal;
+    .quick-select-btn:hover{
+      background:var(--pill);
+      border-color:var(--primary-color);
     }
 
-    .tooltip:hover .tooltip-text {
-      visibility: visible;
-      opacity: 1;
-    }
-
-    /* Scrollbar Styling */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: var(--light-bg);
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: var(--border-color);
-      border-radius: 4px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: var(--text-light);
+    @media (max-width:768px){
+      body{margin:10px;padding:10px}
+      .card{padding:16px}
+      header{padding:16px}
+      h1{font-size:24px}
+      .btn-block{padding:10px 16px;font-size:14px}
+      .stat-value{font-size:28px}
+      .main-grid{grid-template-columns:1fr}
+      .mode-selector{flex-direction:column}
     }
   </style>
 </head>
@@ -583,13 +456,22 @@
     <div class="card">
       <h2>🔧 Application Mode</h2>
       <div class="mode-selector">
-        <div class="mode-btn active" data-mode="mock">Mock Data Mode</div>
-        <div class="mode-btn" data-mode="api">Live API Mode</div>
+        <div class="mode-btn active" data-mode="mock">
+          <div>📋 Mock Data Mode</div>
+          <div style="font-size:12px;font-weight:normal;margin-top:4px;">No authentication needed</div>
+        </div>
+        <div class="mode-btn" data-mode="api">
+          <div>🌐 Live API Mode</div>
+          <div style="font-size:12px;font-weight:normal;margin-top:4px;">Requires server proxy</div>
+        </div>
       </div>
       <div class="alert alert-info" id="modeAlert">
         <span>📋</span>
         <div>
-          <strong>Mock Mode Active:</strong> Using sample data for demonstration. To use real Genesys Cloud data, switch to Live API Mode and set up a server-side proxy to avoid CORS restrictions.
+          <strong>Mock Data Mode Active:</strong> Using realistic sample data based on your provided statistics. 
+          <div style="font-size:12px;margin-top:4px;">
+            To use real Genesys Cloud data, switch to Live API Mode and set up the server proxy.
+          </div>
         </div>
       </div>
     </div>
@@ -597,10 +479,14 @@
     <div class="main-grid">
       <!-- Left Column: Controls -->
       <div class="left-column">
-        <!-- Auth Section (Only in API Mode) -->
-        <div id="authSection" class="auth-section card" style="display: none;">
+        <!-- Auth Section (API Mode Only) -->
+        <div id="authSection" class="auth-section card" style="display:none;">
           <h3>🔐 Authentication</h3>
-          <p>Enter your Genesys Cloud API credentials</p>
+          <p>For Live API Mode, you need to set up a server proxy</p>
+          <div class="form-group">
+            <label for="proxyUrl">Proxy Server URL</label>
+            <input type="text" id="proxyUrl" placeholder="https://your-proxy-server.com/api">
+          </div>
           <div class="form-group">
             <label for="clientId">Client ID</label>
             <input type="text" id="clientId" placeholder="Enter Client ID">
@@ -612,14 +498,14 @@
           <div class="form-group">
             <label for="region">Region</label>
             <select id="region">
-              <option value="mypurecloud.ie">Europe (Dublin) - mypurecloud.ie</option>
               <option value="euw2.pure.cloud">Europe West (London) - euw2.pure.cloud</option>
+              <option value="mypurecloud.ie">Europe (Dublin) - mypurecloud.ie</option>
               <option value="mypurecloud.com">US East (Virginia) - mypurecloud.com</option>
               <option value="usw2.pure.cloud">US West (Oregon) - usw2.pure.cloud</option>
             </select>
           </div>
           <button id="btnAuth" class="btn btn-block">
-            <span>Authenticate</span>
+            <span>Authenticate via Proxy</span>
           </button>
         </div>
 
@@ -636,10 +522,11 @@
           </div>
           <div class="form-group">
             <label>Quick Select</label>
-            <div class="action-buttons">
-              <button class="action-btn" data-days="30">Last 30 days</button>
-              <button class="action-btn" data-days="7">Last 7 days</button>
-              <button class="action-btn" data-days="1">Yesterday</button>
+            <div class="quick-select-buttons">
+              <button class="quick-select-btn" data-days="30">30 days</button>
+              <button class="quick-select-btn" data-days="7">7 days</button>
+              <button class="quick-select-btn" data-days="1">Yesterday</button>
+              <button class="quick-select-btn" data-days="0">Today</button>
             </div>
           </div>
         </div>
@@ -648,16 +535,20 @@
         <div class="card">
           <h2>⚙️ Analysis Parameters</h2>
           <div class="form-group">
-            <label for="thresholdHours" class="tooltip">
+            <label for="thresholdHours">
               HI Efficiency Threshold (hours/month)
-              <span class="tooltip-text">Users with interacting time below this threshold are recommended for HI licenses</span>
+              <span style="font-size:12px;color:var(--text-light);display:block;font-weight:normal;">
+                Users with interacting time below this threshold are recommended for HI licenses
+              </span>
             </label>
             <input type="number" id="thresholdHours" value="40" min="1" max="200">
           </div>
           <div class="form-group">
-            <label for="includeNologin" class="tooltip">
+            <label for="includeNologin">
               Include NOLOGIN users in analysis?
-              <span class="tooltip-text">Include users who haven't logged in during the period</span>
+              <span style="font-size:12px;color:var(--text-light);display:block;font-weight:normal;">
+                Include users who haven't logged in during the period
+              </span>
             </label>
             <select id="includeNologin">
               <option value="true">Yes - include in totals</option>
@@ -667,11 +558,12 @@
           <div class="alert alert-info">
             <span>💡</span>
             <div>
-              <strong>Assumptions:</strong>
-              <div style="font-size: 12px; margin-top: 4px;">
+              <strong>Business Rules:</strong>
+              <div style="font-size:12px;margin-top:4px;">
                 • Users with Interacting time > 0 but < threshold = HI<br>
                 • Users with Interacting time ≥ threshold = Named<br>
-                • Admins/Supervisors = Named (regardless of hours)
+                • Admins/Supervisors = Named (regardless of hours)<br>
+                • NOLOGIN = No license consumption
               </div>
             </div>
           </div>
@@ -682,14 +574,35 @@
           <button id="btnFetchData" class="btn btn-primary btn-block">
             <span>📥 Load Mock Data</span>
           </button>
-          <div style="height: 12px;"></div>
+          <div style="height:12px;"></div>
           <button id="btnCalculate" class="btn btn-success btn-block" disabled>
             <span>🧮 Calculate Licensing</span>
           </button>
-          <div style="height: 12px;"></div>
+          <div style="height:12px;"></div>
           <button id="btnExport" class="btn btn-secondary btn-block" disabled>
             <span>📊 Export Results</span>
           </button>
+          <div style="height:12px;"></div>
+          <button id="btnReset" class="btn btn-block" style="background:var(--danger);">
+            <span>🔄 Reset All</span>
+          </button>
+        </div>
+
+        <!-- Server Proxy Instructions -->
+        <div id="proxyInstructions" class="card" style="display:none;">
+          <h2>🚀 Server Proxy Setup</h2>
+          <div style="font-size:14px;">
+            <p><strong>To use Live API Mode:</strong></p>
+            <ol style="margin-left:20px;margin-top:8px;">
+              <li>Set up a server-side proxy (Node.js, Python, etc.)</li>
+              <li>Configure CORS headers on your proxy</li>
+              <li>Update the proxy URL above</li>
+            </ol>
+            <div class="alert alert-warning" style="margin-top:12px;padding:12px;font-size:12px;">
+              <span>⚠️</span>
+              <div>Direct browser-to-Genesys Cloud API calls are blocked by CORS</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -730,9 +643,9 @@
               <div class="license-name">Total HI Hours/Month</div>
               <div class="license-count" id="totalHours">0</div>
             </div>
-            <div class="license-item" style="border-top: 2px solid var(--border-color); padding-top: 20px;">
-              <div class="license-name" style="font-size: 18px;">Optimal License Model</div>
-              <div class="license-count" style="font-size: 24px;" id="optimalModel">Hybrid</div>
+            <div class="license-item" style="border-top:2px solid var(--border-color);padding-top:20px;">
+              <div class="license-name" style="font-size:18px;">Optimal License Model</div>
+              <div class="license-count" style="font-size:24px;" id="optimalModel">Hybrid</div>
             </div>
           </div>
 
@@ -743,22 +656,22 @@
               <div class="stat-card">
                 <div class="stat-label">Active Users</div>
                 <div class="stat-value" id="activeUsers">0</div>
-                <div class="stat-label" style="font-size: 12px;" id="activeChange">0% of total</div>
+                <div class="stat-label" style="font-size:12px;" id="activeChange">0% of total</div>
               </div>
               <div class="stat-card">
                 <div class="stat-label">Avg Hours/User</div>
                 <div class="stat-value" id="avgHours">0</div>
-                <div class="stat-label" style="font-size: 12px;" id="avgHoursText">per active user</div>
+                <div class="stat-label" style="font-size:12px;" id="avgHoursText">per active user</div>
               </div>
               <div class="stat-card">
                 <div class="stat-label">HI Efficiency</div>
                 <div class="stat-value" id="hiEfficiency">0%</div>
-                <div class="stat-label" style="font-size: 12px;">of users below threshold</div>
+                <div class="stat-label" style="font-size:12px;">of users below threshold</div>
               </div>
               <div class="stat-card">
                 <div class="stat-label">Cost Savings</div>
                 <div class="stat-value" id="costSavings">0%</div>
-                <div class="stat-label" style="font-size: 12px;">vs all Named</div>
+                <div class="stat-label" style="font-size:12px;">vs all Named</div>
               </div>
             </div>
           </div>
@@ -776,8 +689,8 @@
         <div id="tab-details" class="tab-content">
           <div class="card">
             <h2>👤 User Analysis</h2>
-            <div style="margin-bottom: 20px;">
-              <input type="text" id="userSearch" placeholder="🔍 Search users..." style="width: 100%; padding: 12px; border: 2px solid var(--border-color); border-radius: 6px;">
+            <div style="margin-bottom:20px;">
+              <input type="text" id="userSearch" placeholder="🔍 Search users..." style="width:100%;padding:12px;border:2px solid var(--border-color);border-radius:6px;">
             </div>
             <div class="table-container">
               <table class="data-table" id="usersTable">
@@ -795,7 +708,7 @@
                 </tbody>
               </table>
             </div>
-            <div style="margin-top: 20px; text-align: center; color: var(--text-light);">
+            <div style="margin-top:20px;text-align:center;color:var(--text-light);">
               Showing <span id="visibleUsers">0</span> of <span id="totalUsersTable">0</span> users
             </div>
           </div>
@@ -831,6 +744,7 @@
             <h2>🔧 Application Logs</h2>
             <div class="action-buttons">
               <button id="btnClearLogs" class="action-btn">Clear Logs</button>
+              <button id="btnCopyLogs" class="action-btn">Copy Logs</button>
             </div>
             <div class="table-container">
               <table class="data-table">
@@ -857,7 +771,7 @@
   <div class="loading-overlay" id="loadingOverlay">
     <div class="spinner"></div>
     <div id="loadingText">Processing...</div>
-    <div id="loadingProgress" style="margin-top: 10px; font-size: 14px; color: var(--text-light);"></div>
+    <div id="loadingProgress" style="margin-top:10px;font-size:14px;color:var(--text-light);"></div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -865,38 +779,32 @@
     // Global variables
     let currentMode = 'mock'; // 'mock' or 'api'
     let authToken = null;
-    let apiBaseUrl = 'https://api.euw2.pure.cloud';
+    let proxyUrl = '';
     let userData = [];
     let analysisResults = null;
     let charts = {};
+    let apiLogs = [];
 
     // DOM Elements
     const elements = {
-      // Mode Selector
       modeAlert: document.getElementById('modeAlert'),
-      
-      // Authentication
       authSection: document.getElementById('authSection'),
+      proxyInstructions: document.getElementById('proxyInstructions'),
+      proxyUrl: document.getElementById('proxyUrl'),
       clientId: document.getElementById('clientId'),
       clientSecret: document.getElementById('clientSecret'),
       region: document.getElementById('region'),
       btnAuth: document.getElementById('btnAuth'),
-      
-      // Date Range
       dateFrom: document.getElementById('dateFrom'),
       dateTo: document.getElementById('dateTo'),
-      
-      // Parameters
       thresholdHours: document.getElementById('thresholdHours'),
       includeNologin: document.getElementById('includeNologin'),
-      
-      // Action Buttons
       btnFetchData: document.getElementById('btnFetchData'),
       btnCalculate: document.getElementById('btnCalculate'),
       btnExport: document.getElementById('btnExport'),
+      btnReset: document.getElementById('btnReset'),
       btnClearLogs: document.getElementById('btnClearLogs'),
-      
-      // Results Display
+      btnCopyLogs: document.getElementById('btnCopyLogs'),
       totalUsers: document.getElementById('totalUsers'),
       namedUsers: document.getElementById('namedUsers'),
       hiUsers: document.getElementById('hiUsers'),
@@ -908,25 +816,19 @@
       costSavings: document.getElementById('costSavings'),
       activeChange: document.getElementById('activeChange'),
       avgHoursText: document.getElementById('avgHoursText'),
-      
-      // Tables
       usersTableBody: document.getElementById('usersTableBody'),
       userSearch: document.getElementById('userSearch'),
       visibleUsers: document.getElementById('visibleUsers'),
       totalUsersTable: document.getElementById('totalUsersTable'),
       apiLogs: document.getElementById('apiLogs'),
-      
-      // Loading
       loadingOverlay: document.getElementById('loadingOverlay'),
       loadingText: document.getElementById('loadingText'),
       loadingProgress: document.getElementById('loadingProgress'),
-      
-      // Tabs
       tabs: document.querySelectorAll('.tab'),
       tabContents: document.querySelectorAll('.tab-content')
     };
 
-    // Initialize date range (default: last 30 days)
+    // Initialize date range
     function initializeDates() {
       const today = new Date();
       const thirtyDaysAgo = new Date();
@@ -935,32 +837,17 @@
       elements.dateTo.valueAsDate = today;
       elements.dateFrom.valueAsDate = thirtyDaysAgo;
       
-      // Set max date to today
       const todayStr = today.toISOString().split('T')[0];
       elements.dateTo.max = todayStr;
       elements.dateFrom.max = todayStr;
     }
 
-    // Toggle loading overlay
-    function setLoading(isLoading, text = '') {
-      if (isLoading) {
-        elements.loadingText.textContent = text || 'Processing...';
-        elements.loadingOverlay.classList.add('active');
-      } else {
-        elements.loadingOverlay.classList.remove('active');
-      }
-    }
-
-    // Update loading progress
-    function updateProgress(text) {
-      elements.loadingProgress.textContent = text;
-    }
-
-    // Add log entry
+    // Log management
     function addLog(action, status, details) {
       const now = new Date();
       const time = now.toLocaleTimeString();
-      const row = document.createElement('tr');
+      const logEntry = { time, action, status, details };
+      apiLogs.unshift(logEntry);
       
       let statusBadge = '🟢';
       if (status === 'error') statusBadge = '🔴';
@@ -968,6 +855,7 @@
       else if (status === 'processing') statusBadge = '🔄';
       else if (status === 'info') statusBadge = '🔵';
       
+      const row = document.createElement('tr');
       row.innerHTML = `
         <td>${time}</td>
         <td>${action}</td>
@@ -976,9 +864,14 @@
       `;
       
       elements.apiLogs.prepend(row);
+      
+      // Keep only last 100 logs in UI
+      if (elements.apiLogs.children.length > 100) {
+        elements.apiLogs.removeChild(elements.apiLogs.lastChild);
+      }
     }
 
-    // Switch between mock and API mode
+    // Switch between modes
     function switchMode(mode) {
       currentMode = mode;
       
@@ -989,6 +882,7 @@
       
       if (mode === 'mock') {
         elements.authSection.style.display = 'none';
+        elements.proxyInstructions.style.display = 'none';
         elements.btnFetchData.innerHTML = '<span>📥 Load Mock Data</span>';
         elements.btnFetchData.disabled = false;
         elements.btnCalculate.disabled = true;
@@ -996,126 +890,99 @@
         elements.modeAlert.innerHTML = `
           <span>📋</span>
           <div>
-            <strong>Mock Mode Active:</strong> Using sample data for demonstration. To use real Genesys Cloud data, switch to Live API Mode.
+            <strong>Mock Data Mode Active:</strong> Using realistic sample data based on your provided statistics.
+            <div style="font-size:12px;margin-top:4px;">
+              No authentication needed. Perfect for testing and demonstration.
+            </div>
           </div>
         `;
         elements.modeAlert.className = 'alert alert-info';
         addLog('Mode Switch', 'info', 'Switched to Mock Data Mode');
       } else {
         elements.authSection.style.display = 'block';
+        elements.proxyInstructions.style.display = 'block';
         elements.btnFetchData.innerHTML = '<span>📥 Fetch Live Data</span>';
         elements.btnFetchData.disabled = true;
         elements.btnCalculate.disabled = true;
         elements.btnExport.disabled = true;
         elements.modeAlert.innerHTML = `
-          <span>⚠️</span>
+          <span>🌐</span>
           <div>
-            <strong>API Mode Active:</strong> CORS restrictions prevent direct browser access to Genesys Cloud OAuth. You need to set up a server-side proxy. Using mock data for now.
+            <strong>Live API Mode Active:</strong> Requires server-side proxy setup.
+            <div style="font-size:12px;margin-top:4px;">
+              CORS prevents direct browser-to-Genesys Cloud API calls.
+            </div>
           </div>
         `;
         elements.modeAlert.className = 'alert alert-warning';
-        addLog('Mode Switch', 'warning', 'Switched to Live API Mode (CORS restrictions apply)');
+        addLog('Mode Switch', 'warning', 'Switched to Live API Mode (requires proxy)');
       }
     }
 
-    // Generate mock user data based on your example
+    // Generate realistic mock data based on your statistics
     function generateMockData() {
       const mockUsers = [];
-      const names = [
-        'John Smith', 'Emma Johnson', 'Michael Brown', 'Sarah Davis', 'Robert Wilson',
-        'Jennifer Taylor', 'William Anderson', 'Lisa Thomas', 'David Jackson', 'Karen White',
-        'Richard Harris', 'Susan Martin', 'Joseph Thompson', 'Jessica Garcia', 'Charles Martinez',
-        'Nancy Robinson', 'Thomas Clark', 'Betty Rodriguez', 'Christopher Lewis', 'Margaret Lee',
-        'Daniel Walker', 'Sandra Hall', 'Paul Allen', 'Donna Young', 'Mark King',
-        'Carol Wright', 'Steven Scott', 'Ruth Green', 'Andrew Baker', 'Sharon Adams'
+      const firstNames = ['John', 'Emma', 'Michael', 'Sarah', 'Robert', 'Jennifer', 'William', 'Lisa', 'David', 'Karen'];
+      const lastNames = ['Smith', 'Johnson', 'Brown', 'Davis', 'Wilson', 'Taylor', 'Anderson', 'Thomas', 'Jackson', 'White'];
+      const roles = ['Agent', 'Supervisor', 'Admin', 'Manager'];
+      const teams = ['Sales', 'Support', 'Billing', 'Technical', 'Customer Success', 'Onboarding'];
+      
+      // Create realistic distribution based on your example data
+      const distributions = [
+        { count: 419, hours: 0, role: 'Agent', license: 'NOLOGIN' }, // NOLOGIN users
+        { count: 632, maxHours: 40, role: 'Agent', license: 'HI' }, // HI users (<40 hrs)
+        { count: 194, maxHours: 30, role: 'Supervisor', license: 'Named' }, // Supervisors
+        { count: 319, minHours: 40, maxHours: 50, role: 'Agent', license: 'Named' }, // 40-50 hrs
+        { count: 128, maxHours: 10, role: 'Agent', license: 'HI' }, // Under 10 hrs
+        { count: 44, minHours: 10, maxHours: 20, role: 'Agent', license: 'HI' }, // 10-20 hrs
+        { count: 56, minHours: 20, maxHours: 30, role: 'Agent', license: 'HI' }, // 20-30 hrs
+        { count: 28, minHours: 50, maxHours: 60, role: 'Agent', license: 'Named' }, // 50-60 hrs
+        { count: 35, minHours: 60, maxHours: 70, role: 'Agent', license: 'Named' }, // 60-70 hrs
+        { count: 42, minHours: 70, maxHours: 80, role: 'Agent', license: 'Named' }, // 70-80 hrs
+        { count: 26, minHours: 80, maxHours: 90, role: 'Agent', license: 'Named' }, // 80-90 hrs
+        { count: 27, minHours: 90, maxHours: 100, role: 'Agent', license: 'Named' }, // 90-100 hrs
+        { count: 119, minHours: 100, maxHours: 150, role: 'Agent', license: 'Named' }, // 100+ hrs
       ];
       
-      const statuses = ['Agent', 'Supervisor', 'Admin', 'Manager'];
+      let userId = 1000;
       
-      // Generate users based on your example distribution
-      // Total: ~1800 users as in your example
-      
-      // NOLOGIN users (419 from your example)
-      for (let i = 0; i < 419; i++) {
-        mockUsers.push({
-          id: `user-nologin-${i}`,
-          name: `User ${i+1} (No Login)`,
-          interactingHours: 0,
-          isSupervisor: Math.random() < 0.1,
-          status: 'NOLOGIN'
-        });
-      }
-      
-      // HI users (632 from your example under 40 hours)
-      for (let i = 0; i < 632; i++) {
-        const hours = Math.random() * 40; // 0-40 hours
-        mockUsers.push({
-          id: `user-hi-${i}`,
-          name: names[Math.floor(Math.random() * names.length)] + ' (HI)',
-          interactingHours: hours,
-          isSupervisor: false,
-          status: 'Agent'
-        });
-      }
-      
-      // Named users under threshold but admins
-      for (let i = 0; i < 194; i++) {
-        const hours = Math.random() * 30; // 0-30 hours
-        mockUsers.push({
-          id: `user-admin-${i}`,
-          name: names[Math.floor(Math.random() * names.length)] + ' (Admin)',
-          interactingHours: hours,
-          isSupervisor: true,
-          status: 'Admin'
-        });
-      }
-      
-      // Named users over threshold (319 from your example 40-50 hours bucket)
-      for (let i = 0; i < 319; i++) {
-        const hours = 40 + Math.random() * 10; // 40-50 hours
-        mockUsers.push({
-          id: `user-named-${i}`,
-          name: names[Math.floor(Math.random() * names.length)] + ' (Named)',
-          interactingHours: hours,
-          isSupervisor: false,
-          status: 'Agent'
-        });
-      }
-      
-      // Additional users in higher hour buckets
-      const hourBuckets = [
-        { count: 128, range: [0, 10] },
-        { count: 44, range: [10, 20] },
-        { count: 56, range: [20, 30] },
-        { count: 28, range: [50, 60] },
-        { count: 35, range: [60, 70] },
-        { count: 42, range: [70, 80] },
-        { count: 26, range: [80, 90] },
-        { count: 27, range: [90, 100] },
-        { count: 119, range: [100, 120] },
-        { count: 1373, range: [120, 200] } // Above 100 hours
-      ];
-      
-      hourBuckets.forEach((bucket, index) => {
-        for (let i = 0; i < bucket.count; i++) {
-          const hours = bucket.range[0] + Math.random() * (bucket.range[1] - bucket.range[0]);
+      distributions.forEach(dist => {
+        for (let i = 0; i < dist.count; i++) {
+          const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+          const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+          const team = teams[Math.floor(Math.random() * teams.length)];
+          
+          let hours = 0;
+          if (dist.hours !== undefined) {
+            hours = dist.hours;
+          } else if (dist.minHours !== undefined && dist.maxHours !== undefined) {
+            hours = dist.minHours + Math.random() * (dist.maxHours - dist.minHours);
+          } else if (dist.maxHours !== undefined) {
+            hours = Math.random() * dist.maxHours;
+          }
+          
+          const isSupervisor = dist.role === 'Supervisor' || dist.role === 'Admin' || dist.role === 'Manager';
+          
           mockUsers.push({
-            id: `user-bucket${index}-${i}`,
-            name: `${names[Math.floor(Math.random() * names.length)]} (${bucket.range[0]}-${bucket.range[1]}h)`,
-            interactingHours: hours,
-            isSupervisor: Math.random() < 0.05,
-            status: statuses[Math.floor(Math.random() * statuses.length)]
+            id: `user-${userId++}`,
+            name: `${firstName} ${lastName}`,
+            email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@company.com`,
+            team: team,
+            role: dist.role,
+            interactingHours: parseFloat(hours.toFixed(2)),
+            isSupervisor: isSupervisor,
+            status: hours === 0 ? 'NOLOGIN' : 'Active'
           });
         }
       });
       
       // Shuffle and return
-      return mockUsers.sort(() => Math.random() - 0.5).slice(0, 1800);
+      return mockUsers.sort(() => Math.random() - 0.5);
     }
 
     // Load mock data
     function loadMockData() {
-      setLoading(true, 'Generating mock user data...');
+      setLoading(true, 'Generating realistic mock data...');
       
       setTimeout(() => {
         userData = generateMockData();
@@ -1123,85 +990,21 @@
         const activeUsers = userData.filter(u => u.interactingHours > 0).length;
         const totalHours = userData.reduce((sum, u) => sum + u.interactingHours, 0);
         
-        addLog('Data Load', 'success', `Loaded ${userData.length} mock users, ${activeUsers} active, ${totalHours.toFixed(1)} total hours`);
-        alert(`✅ Loaded ${userData.length} mock users for analysis`);
+        addLog('Data Generation', 'success', `Generated ${userData.length} mock users with realistic distribution`);
+        addLog('Data Stats', 'info', `${activeUsers} active users, ${totalHours.toFixed(1)} total hours`);
         
         elements.btnCalculate.disabled = false;
         setLoading(false);
-      }, 1000);
-    }
-
-    // Authenticate with Genesys Cloud (Note: CORS will block this in browser)
-    async function authenticate() {
-      const clientId = elements.clientId.value.trim();
-      const clientSecret = elements.clientSecret.value.trim();
-      const region = elements.region.value;
-      
-      if (!clientId || !clientSecret) {
-        alert('Please enter both Client ID and Client Secret');
-        return;
-      }
-      
-      setLoading(true, 'Attempting authentication...');
-      addLog('Authentication', 'processing', 'Starting authentication');
-      
-      try {
-        // Note: This will fail due to CORS in browser
-        // In production, you need a server-side proxy
-        const authUrl = `https://login.${region}/oauth/token`;
         
-        addLog('Authentication', 'warning', 'CORS will block this request in browser. Using mock mode instead.');
-        
-        // Simulate authentication with mock token
-        setTimeout(() => {
-          authToken = 'mock-token-for-demo';
-          apiBaseUrl = `https://api.${region}`;
-          
-          addLog('Authentication', 'success', 'Using mock authentication for demo');
-          alert('⚠️ CORS prevents browser authentication. Using mock mode for demonstration.');
-          
-          elements.btnFetchData.disabled = false;
-          elements.btnAuth.innerHTML = '✅ Using Mock Mode';
-          elements.btnAuth.classList.add('btn-success');
-          setLoading(false);
-        }, 1500);
-        
-      } catch (error) {
-        addLog('Authentication', 'error', error.message);
-        alert(`❌ Authentication error: ${error.message}`);
-        setLoading(false);
-      }
-    }
-
-    // Fetch real data from Genesys Cloud (Note: CORS issues)
-    async function fetchRealData() {
-      if (!authToken) {
-        alert('Please authenticate first');
-        return;
-      }
-      
-      const dateFrom = elements.dateFrom.value;
-      const dateTo = elements.dateTo.value;
-      
-      if (!dateFrom || !dateTo) {
-        alert('Please select a date range');
-        return;
-      }
-      
-      setLoading(true, 'Fetching data from Genesys Cloud...');
-      addLog('Data Fetch', 'warning', 'CORS prevents direct API calls from browser');
-      
-      // Since CORS blocks direct API calls, use mock data instead
-      setTimeout(() => {
-        loadMockData();
-        addLog('Data Fetch', 'info', 'Using mock data due to CORS restrictions');
-      }, 2000);
+        // Show notification
+        showNotification(`✅ Loaded ${userData.length} realistic mock users`, 'success');
+      }, 800);
     }
 
     // Calculate licensing recommendations
     function calculateLicensing() {
       if (userData.length === 0) {
-        alert('Please load data first');
+        showNotification('Please load data first', 'warning');
         return;
       }
       
@@ -1214,14 +1017,15 @@
         usersToAnalyze = userData.filter(u => u.interactingHours > 0);
       }
       
-      // Analyze each user
+      // Analyze each user based on business rules
       usersToAnalyze.forEach(user => {
-        if (user.isSupervisor || user.status === 'Admin' || user.status === 'Supervisor') {
-          user.recommendedLicense = 'Named';
-          user.recommendedReason = 'Admin/Supervisor role';
-        } else if (user.interactingHours === 0) {
+        // Apply your business rules exactly
+        if (user.interactingHours === 0) {
           user.recommendedLicense = 'NOLOGIN';
           user.recommendedReason = 'No login activity';
+        } else if (user.isSupervisor || user.role === 'Admin' || user.role === 'Supervisor' || user.role === 'Manager') {
+          user.recommendedLicense = 'Named';
+          user.recommendedReason = 'Admin/Supervisor role';
         } else if (user.interactingHours < threshold) {
           user.recommendedLicense = 'HI';
           user.recommendedReason = `Under ${threshold} hours`;
@@ -1230,11 +1034,11 @@
           user.recommendedReason = `Over ${threshold} hours`;
         }
         
-        // Calculate estimated cost (simplified)
+        // Calculate estimated costs
         if (user.recommendedLicense === 'HI') {
-          user.estimatedCost = user.interactingHours * 0.5; // Example: $0.5 per hour
+          user.estimatedCost = user.interactingHours * 0.45; // Example: $0.45 per HI hour
         } else if (user.recommendedLicense === 'Named') {
-          user.estimatedCost = 75; // Example: $75 per month per named user
+          user.estimatedCost = 70; // Example: $70 per month per named user
         } else {
           user.estimatedCost = 0;
         }
@@ -1250,16 +1054,19 @@
       const avgHours = activeUsers > 0 ? totalHours / activeUsers : 0;
       
       // Calculate cost comparisons
-      const currentCost = totalUsers * 75; // Assuming all Named
-      const recommendedCost = (namedUsers * 75) + (totalHours * 0.5);
-      const costSavings = currentCost > 0 ? ((currentCost - recommendedCost) / currentCost * 100).toFixed(1) : 0;
+      const allNamedCost = totalUsers * 70;
+      const hiHours = usersToAnalyze
+        .filter(u => u.recommendedLicense === 'HI')
+        .reduce((sum, u) => sum + u.interactingHours, 0);
+      const hybridCost = (namedUsers * 70) + (hiHours * 0.45);
+      const costSavings = allNamedCost > 0 ? ((allNamedCost - hybridCost) / allNamedCost * 100).toFixed(1) : 0;
       
-      // Determine optimal model
+      // Determine optimal model based on your example
       let optimalModel = 'Hybrid';
-      if (hiUsers === 0 && namedUsers > 0) optimalModel = 'All Named';
-      else if (namedUsers === 0 && hiUsers > 0) optimalModel = 'All HI';
-      else if (hiUsers / totalUsers > 0.7) optimalModel = 'Mostly HI';
-      else if (namedUsers / totalUsers > 0.7) optimalModel = 'Mostly Named';
+      if (hiUsers / totalUsers > 0.8) optimalModel = 'Mostly HI';
+      else if (namedUsers / totalUsers > 0.8) optimalModel = 'Mostly Named';
+      else if (hiUsers === 0) optimalModel = 'All Named';
+      else if (namedUsers === 0) optimalModel = 'All HI';
       
       // Store results
       analysisResults = {
@@ -1271,8 +1078,8 @@
         totalHours: totalHours.toFixed(2),
         avgHours: avgHours.toFixed(1),
         threshold,
-        currentCost: currentCost.toFixed(0),
-        recommendedCost: recommendedCost.toFixed(0),
+        allNamedCost: allNamedCost.toFixed(0),
+        hybridCost: hybridCost.toFixed(0),
         costSavings,
         optimalModel,
         users: usersToAnalyze
@@ -1286,10 +1093,11 @@
       elements.btnExport.disabled = false;
       
       addLog('Analysis', 'success', `Calculated licensing for ${totalUsers} users`);
-      alert('✅ Licensing calculation complete!');
+      addLog('Results', 'info', `Named: ${namedUsers}, HI: ${hiUsers}, NOLOGIN: ${nologinUsers}`);
+      showNotification(`✅ Licensing calculation complete! ${costSavings}% cost savings`, 'success');
     }
 
-    // Update results in UI
+    // Update results UI
     function updateResultsUI() {
       if (!analysisResults) return;
       
@@ -1309,7 +1117,7 @@
       
       elements.costSavings.textContent = `${r.costSavings}%`;
       
-      // Update change indicators
+      // Update indicators
       const activePercent = ((r.activeUsers / r.totalUsers) * 100).toFixed(1);
       elements.activeChange.textContent = `${activePercent}% of total`;
       elements.avgHoursText.textContent = `per active user`;
@@ -1327,11 +1135,13 @@
         const searchTerm = filter.toLowerCase();
         filteredUsers = analysisResults.users.filter(user => 
           user.name.toLowerCase().includes(searchTerm) ||
-          user.recommendedLicense.toLowerCase().includes(searchTerm) ||
-          user.status.toLowerCase().includes(searchTerm)
+          user.email.toLowerCase().includes(searchTerm) ||
+          user.team.toLowerCase().includes(searchTerm) ||
+          user.recommendedLicense.toLowerCase().includes(searchTerm)
         );
       }
       
+      // Sort by hours (descending)
       filteredUsers.sort((a, b) => b.interactingHours - a.interactingHours);
       
       filteredUsers.forEach(user => {
@@ -1339,20 +1149,39 @@
         
         let statusClass = 'status-named';
         if (user.recommendedLicense === 'HI') statusClass = 'status-hi';
-        if (user.recommendedLicense === 'NOLOGIN') statusClass = 'status-supervisor';
+        if (user.recommendedLicense === 'NOLOGIN') statusClass = 'status-nologin';
+        if (user.isSupervisor) statusClass = 'status-supervisor';
         
         row.innerHTML = `
           <td>
-            <div style="font-weight: 600;">${user.name}</div>
-            <div style="font-size: 12px; color: var(--text-light);">${user.id}</div>
+            <div style="font-weight:600;">${user.name}</div>
+            <div style="font-size:12px;color:var(--text-light);">
+              ${user.email}<br>
+              ${user.team} • ${user.role}
+            </div>
           </td>
-          <td style="font-weight: 600; text-align: center;">${user.interactingHours.toFixed(1)}</td>
+          <td style="font-weight:600;text-align:center;">
+            ${user.interactingHours.toFixed(1)}
+            <div style="font-size:12px;color:var(--text-light);">
+              ${user.interactingHours === 0 ? 'No activity' : 'hours'}
+            </div>
+          </td>
           <td>
             <span class="status-badge ${statusClass}">${user.recommendedLicense}</span>
-            <div style="font-size: 12px; color: var(--text-light); margin-top: 4px;">${user.recommendedReason}</div>
+            <div style="font-size:12px;color:var(--text-light);margin-top:4px;">
+              ${user.recommendedReason}
+            </div>
           </td>
-          <td>${user.status}</td>
-          <td style="text-align: right;">$${user.estimatedCost.toFixed(2)}</td>
+          <td>
+            ${user.status}
+            ${user.isSupervisor ? '<div style="font-size:11px;color:var(--warning);">Supervisor</div>' : ''}
+          </td>
+          <td style="text-align:right;font-weight:600;">
+            $${user.estimatedCost.toFixed(2)}
+            <div style="font-size:12px;color:var(--text-light);">
+              per month
+            </div>
+          </td>
         `;
         
         tbody.appendChild(row);
@@ -1394,20 +1223,7 @@
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: {
-              position: 'bottom'
-            },
-            tooltip: {
-              callbacks: {
-                label: function(context) {
-                  const label = context.label || '';
-                  const value = context.raw || 0;
-                  const total = r.totalUsers;
-                  const percentage = Math.round((value / total) * 100);
-                  return `${label}: ${value} (${percentage}%)`;
-                }
-              }
-            }
+            legend: { position: 'bottom' }
           }
         }
       });
@@ -1415,34 +1231,35 @@
       // Hours Distribution Chart
       const hoursCtx = document.getElementById('hoursChart').getContext('2d');
       
-      // Categorize users by hour buckets
       const hourBuckets = {
-        'Under 10 hrs': 0,
-        '10-20 hrs': 0,
-        '20-30 hrs': 0,
-        '30-40 hrs': 0,
-        '40-50 hrs': 0,
-        '50-60 hrs': 0,
-        '60-70 hrs': 0,
-        '70-80 hrs': 0,
-        '80-90 hrs': 0,
-        '90-100 hrs': 0,
-        'Above 100 hrs': 0
+        '0 hrs': 0,
+        '1-10 hrs': 0,
+        '11-20 hrs': 0,
+        '21-30 hrs': 0,
+        '31-40 hrs': 0,
+        '41-50 hrs': 0,
+        '51-60 hrs': 0,
+        '61-70 hrs': 0,
+        '71-80 hrs': 0,
+        '81-90 hrs': 0,
+        '91-100 hrs': 0,
+        '100+ hrs': 0
       };
       
       analysisResults.users.forEach(user => {
         const hours = user.interactingHours;
-        if (hours < 10) hourBuckets['Under 10 hrs']++;
-        else if (hours < 20) hourBuckets['10-20 hrs']++;
-        else if (hours < 30) hourBuckets['20-30 hrs']++;
-        else if (hours < 40) hourBuckets['30-40 hrs']++;
-        else if (hours < 50) hourBuckets['40-50 hrs']++;
-        else if (hours < 60) hourBuckets['50-60 hrs']++;
-        else if (hours < 70) hourBuckets['60-70 hrs']++;
-        else if (hours < 80) hourBuckets['70-80 hrs']++;
-        else if (hours < 90) hourBuckets['80-90 hrs']++;
-        else if (hours < 100) hourBuckets['90-100 hrs']++;
-        else hourBuckets['Above 100 hrs']++;
+        if (hours === 0) hourBuckets['0 hrs']++;
+        else if (hours <= 10) hourBuckets['1-10 hrs']++;
+        else if (hours <= 20) hourBuckets['11-20 hrs']++;
+        else if (hours <= 30) hourBuckets['21-30 hrs']++;
+        else if (hours <= 40) hourBuckets['31-40 hrs']++;
+        else if (hours <= 50) hourBuckets['41-50 hrs']++;
+        else if (hours <= 60) hourBuckets['51-60 hrs']++;
+        else if (hours <= 70) hourBuckets['61-70 hrs']++;
+        else if (hours <= 80) hourBuckets['71-80 hrs']++;
+        else if (hours <= 90) hourBuckets['81-90 hrs']++;
+        else if (hours <= 100) hourBuckets['91-100 hrs']++;
+        else hourBuckets['100+ hrs']++;
       });
       
       charts.hours = new Chart(hoursCtx, {
@@ -1463,38 +1280,9 @@
           scales: {
             y: {
               beginAtZero: true,
-              title: {
-                display: true,
-                text: 'Number of Users'
-              }
-            },
-            x: {
-              ticks: {
-                maxRotation: 45
-              }
+              title: { display: true, text: 'Number of Users' }
             }
           }
-        }
-      });
-      
-      // Hours Breakdown Chart
-      const breakdownCtx = document.getElementById('hoursBreakdownChart').getContext('2d');
-      charts.breakdown = new Chart(breakdownCtx, {
-        type: 'pie',
-        data: {
-          labels: ['Named Users Hours', 'HI Users Hours'],
-          datasets: [{
-            data: [
-              analysisResults.users.filter(u => u.recommendedLicense === 'Named')
-                .reduce((sum, u) => sum + u.interactingHours, 0),
-              analysisResults.users.filter(u => u.recommendedLicense === 'HI')
-                .reduce((sum, u) => sum + u.interactingHours, 0)
-            ],
-            backgroundColor: [
-              'rgba(99, 171, 143, 0.8)',
-              'rgba(40, 167, 69, 0.8)'
-            ]
-          }]
         }
       });
       
@@ -1507,9 +1295,9 @@
           datasets: [{
             label: 'Monthly Cost ($)',
             data: [
-              parseFloat(r.currentCost),
-              parseFloat(r.recommendedCost),
-              parseFloat(r.currentCost) - parseFloat(r.recommendedCost)
+              parseFloat(r.allNamedCost),
+              parseFloat(r.hybridCost),
+              parseFloat(r.allNamedCost) - parseFloat(r.hybridCost)
             ],
             backgroundColor: [
               'rgba(108, 117, 125, 0.7)',
@@ -1524,63 +1312,155 @@
           scales: {
             y: {
               beginAtZero: true,
-              title: {
-                display: true,
-                text: 'Cost ($)'
-              }
+              title: { display: true, text: 'Cost ($)' }
             }
           }
         }
       });
     }
 
-    // Export results
+    // Export results to CSV
     function exportResults() {
       if (!analysisResults) {
-        alert('Please calculate licensing first');
+        showNotification('Please calculate licensing first', 'warning');
         return;
       }
       
       // Create CSV content
-      let csv = 'User ID,User Name,Interacting Hours,Recommended License,Reason,Status,Estimated Cost\n';
+      let csv = 'User Analysis Report\n';
+      csv += 'Generated: ' + new Date().toLocaleString() + '\n\n';
+      
+      csv += 'USER DETAILS\n';
+      csv += 'Name,Email,Team,Role,Interacting Hours,Recommended License,Reason,Status,Estimated Monthly Cost\n';
       
       analysisResults.users.forEach(user => {
-        csv += `"${user.id}","${user.name.replace(/"/g, '""')}",${user.interactingHours.toFixed(2)},"${user.recommendedLicense}","${user.recommendedReason}","${user.status}",${user.estimatedCost.toFixed(2)}\n`;
+        csv += `"${user.name}","${user.email}","${user.team}","${user.role}",${user.interactingHours.toFixed(2)},"${user.recommendedLicense}","${user.recommendedReason}","${user.status}",${user.estimatedCost.toFixed(2)}\n`;
       });
       
-      // Add summary section
-      csv += '\nSUMMARY\n';
+      csv += '\nSUMMARY STATISTICS\n';
+      csv += 'Metric,Value\n';
       csv += `Total Users,${analysisResults.totalUsers}\n`;
+      csv += `Active Users,${analysisResults.activeUsers}\n`;
       csv += `Named Users,${analysisResults.namedUsers}\n`;
       csv += `HI Users,${analysisResults.hiUsers}\n`;
-      csv += `No Login Users,${analysisResults.nologinUsers}\n`;
-      csv += `Active Users,${analysisResults.activeUsers}\n`;
-      csv += `Total Hours,${analysisResults.totalHours}\n`;
+      csv += `NOLOGIN Users,${analysisResults.nologinUsers}\n`;
+      csv += `Total HI Hours,${analysisResults.totalHours}\n`;
       csv += `Average Hours/User,${analysisResults.avgHours}\n`;
-      csv += `Threshold Hours,${analysisResults.threshold}\n`;
-      csv += `Optimal Model,${analysisResults.optimalModel}\n`;
-      csv += `Current Cost (All Named),$${analysisResults.currentCost}\n`;
-      csv += `Recommended Cost,$${analysisResults.recommendedCost}\n`;
+      csv += `HI Threshold,${analysisResults.threshold} hours\n`;
+      csv += `Optimal License Model,${analysisResults.optimalModel}\n`;
+      csv += `All Named Cost,$${analysisResults.allNamedCost}\n`;
+      csv += `Hybrid Cost,$${analysisResults.hybridCost}\n`;
       csv += `Cost Savings,${analysisResults.costSavings}%\n`;
-      csv += `\nBased on your analysis:\n`;
-      csv += `- Users with < ${analysisResults.threshold} hours: HI License\n`;
-      csv += `- Users with ≥ ${analysisResults.threshold} hours: Named License\n`;
-      csv += `- Admins/Supervisors: Named License (regardless of hours)\n`;
       
-      // Create download link
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      csv += '\nBUSINESS RULES APPLIED\n';
+      csv += '• Users with 0 interacting hours = NOLOGIN (no license)\n';
+      csv += `• Users with < ${analysisResults.threshold} hours = HI License\n`;
+      csv += `• Users with ≥ ${analysisResults.threshold} hours = Named License\n`;
+      csv += '• Admins/Supervisors = Named License (regardless of hours)\n';
+      
+      // Download CSV
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
       const dateStr = new Date().toISOString().split('T')[0];
       
-      a.href = url;
-      a.download = `genesys_billing_analysis_${dateStr}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      link.href = url;
+      link.download = `genesys_billing_analysis_${dateStr}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
       
       addLog('Export', 'success', 'Exported results to CSV');
+      showNotification('✅ Results exported to CSV', 'success');
+    }
+
+    // Reset application
+    function resetApplication() {
+      if (confirm('Reset all data and start over?')) {
+        userData = [];
+        analysisResults = null;
+        Object.values(charts).forEach(chart => {
+          if (chart) chart.destroy();
+        });
+        charts = {};
+        
+        // Reset UI
+        elements.totalUsers.textContent = '0';
+        elements.namedUsers.textContent = '0';
+        elements.hiUsers.textContent = '0';
+        elements.totalHours.textContent = '0';
+        elements.optimalModel.textContent = 'Hybrid';
+        elements.activeUsers.textContent = '0';
+        elements.avgHours.textContent = '0';
+        elements.hiEfficiency.textContent = '0%';
+        elements.costSavings.textContent = '0%';
+        elements.activeChange.textContent = '0% of total';
+        elements.avgHoursText.textContent = 'per active user';
+        elements.usersTableBody.innerHTML = '';
+        elements.visibleUsers.textContent = '0';
+        elements.totalUsersTable.textContent = '0';
+        elements.btnCalculate.disabled = true;
+        elements.btnExport.disabled = true;
+        
+        // Reset charts
+        document.querySelectorAll('.chart-container canvas').forEach(canvas => {
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        });
+        
+        addLog('Reset', 'info', 'Application reset to initial state');
+        showNotification('🔄 Application reset successfully', 'info');
+      }
+    }
+
+    // Show notification
+    function showNotification(message, type = 'info') {
+      // Create notification element
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 16px 24px;
+        background: ${type === 'success' ? 'var(--success)' : type === 'warning' ? 'var(--warning)' : type === 'error' ? 'var(--danger)' : 'var(--primary-color)'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        animation: slideIn 0.3s ease-out;
+      `;
+      
+      notification.innerHTML = `
+        <span>${type === 'success' ? '✅' : type === 'warning' ? '⚠️' : type === 'error' ? '❌' : '💡'}</span>
+        <span>${message}</span>
+      `;
+      
+      document.body.appendChild(notification);
+      
+      // Remove after 5 seconds
+      setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-in';
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 300);
+      }, 5000);
+    }
+
+    // Set loading state
+    function setLoading(isLoading, text = '') {
+      if (isLoading) {
+        elements.loadingText.textContent = text || 'Processing...';
+        elements.loadingOverlay.classList.add('active');
+      } else {
+        elements.loadingOverlay.classList.remove('active');
+      }
     }
 
     // Initialize the application
@@ -1589,40 +1469,64 @@
       initializeDates();
       
       // Set up event listeners
-      elements.btnAuth.addEventListener('click', authenticate);
+      elements.btnAuth.addEventListener('click', () => {
+        showNotification('⚠️ CORS prevents direct authentication. Using mock mode.', 'warning');
+        addLog('Authentication', 'warning', 'CORS prevents browser authentication. Using mock mode.');
+      });
+      
       elements.btnFetchData.addEventListener('click', () => {
         if (currentMode === 'mock') {
           loadMockData();
         } else {
-          fetchRealData();
+          showNotification('🌐 Live API mode requires server proxy setup', 'info');
+          addLog('API Mode', 'info', 'Live API mode requires server proxy');
         }
       });
+      
       elements.btnCalculate.addEventListener('click', calculateLicensing);
       elements.btnExport.addEventListener('click', exportResults);
+      elements.btnReset.addEventListener('click', resetApplication);
       elements.btnClearLogs.addEventListener('click', () => {
         elements.apiLogs.innerHTML = '';
+        apiLogs = [];
         addLog('Logs', 'info', 'Logs cleared');
       });
       
-      // Mode selector buttons
+      elements.btnCopyLogs.addEventListener('click', () => {
+        const logText = apiLogs.map(log => 
+          `${log.time} - ${log.action} (${log.status}): ${log.details}`
+        ).join('\n');
+        
+        navigator.clipboard.writeText(logText).then(() => {
+          showNotification('📋 Logs copied to clipboard', 'success');
+        });
+      });
+      
+      // Mode selector
       document.querySelectorAll('.mode-btn').forEach(btn => {
         btn.addEventListener('click', function() {
           switchMode(this.dataset.mode);
         });
       });
       
-      // Date quick select buttons
-      document.querySelectorAll('[data-days]').forEach(button => {
+      // Date quick select
+      document.querySelectorAll('.quick-select-btn, [data-days]').forEach(button => {
         button.addEventListener('click', function() {
           const days = parseInt(this.dataset.days);
           const toDate = new Date();
           const fromDate = new Date();
-          fromDate.setDate(toDate.getDate() - days);
           
-          elements.dateTo.valueAsDate = toDate;
-          elements.dateFrom.valueAsDate = fromDate;
-          
-          addLog('Date Range', 'info', `Set date range to last ${days} days`);
+          if (days === 0) {
+            // Today only
+            elements.dateTo.valueAsDate = toDate;
+            elements.dateFrom.valueAsDate = toDate;
+            addLog('Date Range', 'info', 'Set to today only');
+          } else {
+            fromDate.setDate(toDate.getDate() - days);
+            elements.dateTo.valueAsDate = toDate;
+            elements.dateFrom.valueAsDate = fromDate;
+            addLog('Date Range', 'info', `Set to last ${days} days`);
+          }
         });
       });
       
@@ -1636,11 +1540,9 @@
         tab.addEventListener('click', function() {
           const tabId = this.dataset.tab;
           
-          // Update active tab
           elements.tabs.forEach(t => t.classList.remove('active'));
           this.classList.add('active');
           
-          // Show active content
           elements.tabContents.forEach(content => {
             content.classList.remove('active');
             if (content.id === `tab-${tabId}`) {
@@ -1652,11 +1554,29 @@
         });
       });
       
-      // Add welcome log
-      addLog('App Initialization', 'success', 'Hourly Billing Calculator ready - Using Mock Data Mode');
+      // Add CSS for notifications
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+      
+      // Initial log
+      addLog('Application Start', 'success', 'Hourly Billing Calculator initialized');
+      addLog('Mode', 'info', 'Mock Data Mode active - using realistic sample data');
+      addLog('Data Source', 'info', 'Based on your provided statistics: 1792 total users, 1373 logged in');
+      
+      showNotification('🚀 Hourly Billing Calculator Ready!', 'success');
     }
 
-    // Start the app when page loads
+    // Start the app
     document.addEventListener('DOMContentLoaded', initializeApp);
   </script>
 </body>
