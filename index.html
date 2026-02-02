@@ -363,11 +363,29 @@
               </div>
             </div>
             <div class="form-group">
+              <label for="namedLicenseCost">Named Licence Monthly Cost ($)</label>
+              <input type="number" id="namedLicenseCost" value="70" min="1" step="0.01">
+            </div>
+            <div class="form-group">
+              <label for="hourlyLicenseRate">Hourly Interacting Rate ($/hour)</label>
+              <input type="number" id="hourlyLicenseRate" value="0.45" min="0.01" step="0.01">
+            </div>
+            <div class="form-group">
               <label for="includeNologin">Include NOLOGIN Users</label>
               <select id="includeNologin">
                 <option value="true">Yes - Include in totals</option>
                 <option value="false">No - Exclude from analysis</option>
               </select>
+            </div>
+            <div style="background:rgba(99,171,143,0.05);padding:12px;border-radius:6px;margin-top:10px;">
+              <div style="font-size:12px;color:var(--primary-color);font-weight:600;margin-bottom:5px;">📋 Business Logic:</div>
+              <div style="font-size:11px;color:var(--text-light);">
+                • Interacting time &gt; 0 but &lt; threshold = Hourly Interacting Licence<br>
+                • Interacting time ≥ threshold = Named Licence<br>
+                • Admins/Supervisors = Named (always)<br>
+                • NOLOGIN = No licence consumption<br>
+                • Based on total interacting time in selected period
+              </div>
             </div>
           </div>
 
@@ -459,6 +477,7 @@
                   <div class="hour-bar-chart" id="hourBarChart"></div>
                 </div>
               </div>
+              <div id="hourStats" style="margin-top:15px;font-size:12px;color:var(--text-light);text-align:center;"></div>
             </div>
 
             <div class="card" style="margin-top:20px;">
@@ -495,6 +514,8 @@
                     <option value="named">Named Licence</option>
                     <option value="hi">Hourly Interacting Licence</option>
                     <option value="nologin">NOLOGIN</option>
+                    <option value="hasHours">Has Interacting Hours</option>
+                    <option value="noHours">No Interacting Hours</option>
                   </select>
                   <div style="font-size:12px;color:var(--text-light);">
                     <span id="visibleCount">0</span>/<span id="totalCount">0</span> users
@@ -541,6 +562,7 @@
                   <div style="font-size:32px;font-weight:700;color:var(--primary-color);" id="totalCost">$0</div>
                   <div style="font-size:14px;color:var(--text-light);">Monthly Cost</div>
                   <div style="margin-top:15px;font-size:12px;color:var(--success);" id="savings">0% savings</div>
+                  <div style="margin-top:5px;font-size:11px;color:var(--text-light);" id="costDetails"></div>
                 </div>
               </div>
 
@@ -578,6 +600,27 @@
                   <div class="stat-label">Admin Named</div>
                   <div class="stat-value" id="statAdminNamed">0</div>
                   <div style="font-size:11px;color:var(--text-light);">Admins with Named</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:20px;">
+              <h2>💵 Cost Parameters</h2>
+              <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+                <div class="stat-card">
+                  <div class="stat-label">Named Licence Cost</div>
+                  <div class="stat-value" id="statNamedCost">$70</div>
+                  <div style="font-size:11px;color:var(--text-light);">Per user per month</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Hourly Interacting Rate</div>
+                  <div class="stat-value" id="statHourlyRate">$0.45</div>
+                  <div style="font-size:11px;color:var(--text-light);">Per hour</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Total Interacting Hours</div>
+                  <div class="stat-value" id="statTotalHours">0</div>
+                  <div style="font-size:11px;color:var(--text-light);">In selected period</div>
                 </div>
               </div>
             </div>
@@ -679,6 +722,8 @@
       dateFrom: document.getElementById('dateFrom'),
       dateTo: document.getElementById('dateTo'),
       thresholdHours: document.getElementById('thresholdHours'),
+      namedLicenseCost: document.getElementById('namedLicenseCost'),
+      hourlyLicenseRate: document.getElementById('hourlyLicenseRate'),
       includeNologin: document.getElementById('includeNologin'),
       statTotalUsers: document.getElementById('statTotalUsers'),
       statActiveUsers: document.getElementById('statActiveUsers'),
@@ -692,9 +737,14 @@
       statAgentHI: document.getElementById('statAgentHI'),
       statSupervisorNamed: document.getElementById('statSupervisorNamed'),
       statAdminNamed: document.getElementById('statAdminNamed'),
+      statNamedCost: document.getElementById('statNamedCost'),
+      statHourlyRate: document.getElementById('statHourlyRate'),
+      statTotalHours: document.getElementById('statTotalHours'),
       totalCost: document.getElementById('totalCost'),
       savings: document.getElementById('savings'),
+      costDetails: document.getElementById('costDetails'),
       licenseModel: document.getElementById('licenseModel'),
+      hourStats: document.getElementById('hourStats'),
       usersTableBody: document.getElementById('usersTableBody'),
       userSearch: document.getElementById('userSearch'),
       userFilter: document.getElementById('userFilter'),
@@ -1034,12 +1084,14 @@
           if (!usersData?.nextUri || users.length < pageSize) break;
           page++;
           await new Promise(resolve => setTimeout(resolve, 200));
-          updateLoadingProgress(20 + (page * 10));
+          updateLoadingProgress(20 + (page * 5));
         }
 
         updateLoadingProgress(40);
         logMessage('INFO', `Loaded ${allUsers.length} users from API`);
 
+        // Create a map of user IDs to user objects for quick lookup
+        const userMap = {};
         appState.userData = allUsers.map(user => {
           const teamName = user.groups && user.groups.length > 0 ? user.groups[0].name : 'Unassigned';
           const roleNames = user.authorization?.roles ? user.authorization.roles.map(r => r.name).join(', ') : 'No role';
@@ -1050,7 +1102,7 @@
             lastLogin = loginDate.toLocaleDateString();
           }
 
-          return {
+          const userObj = {
             id: user.id,
             name: user.name || 'Unknown',
             email: user.email || 'No email',
@@ -1065,6 +1117,9 @@
             isSupervisor: userType === 'supervisor' || userType === 'admin',
             status: 'Unknown'
           };
+
+          userMap[user.id] = userObj;
+          return userObj;
         });
 
         updateLoadingProgress(50);
@@ -1074,60 +1129,93 @@
         const userHoursMap = {};
 
         try {
-          const queryBody = {
-            interval: interval,
-            order: "asc",
-            orderBy: "userId",
-            paging: {
-              pageSize: 1000,
-              pageNumber: 1
-            },
-            segmentFilters: [
-              {
-                type: "and",
-                predicates: [
-                  {
-                    dimension: "routingStatus",
-                    value: "INTERACTING"
-                  }
-                ]
-              }
-            ]
-          };
+          // Query for agent status data with INTERACTING status
+          // We'll need to handle pagination as the API might return many results
+          let pageNumber = 1;
+          const pageSize = 1000;
+          let hasMorePages = true;
+          let totalResults = 0;
 
-          updateLoadingProgress(60);
-          logMessage('INFO', 'Querying Agent Status API for INTERACTING status records');
-
-          const analyticsResponse = await apiCall('/api/v2/analytics/agentstatus/query', {
-            method: 'POST',
-            body: JSON.stringify(queryBody)
-          });
-
-          console.log('Agent Status API Response:', analyticsResponse);
-
-          if (analyticsResponse.results && analyticsResponse.results.length > 0) {
-            analyticsResponse.results.forEach(record => {
-              const userId = record.userId;
-              if (record.startDate && record.endDate && record.routingStatus === "INTERACTING") {
-                const startTime = new Date(record.startDate);
-                const endTime = new Date(record.endDate);
-                const durationMs = endTime - startTime;
-                
-                if (durationMs > 0) {
-                  if (!userHoursMap[userId]) userHoursMap[userId] = 0;
-                  userHoursMap[userId] += durationMs;
+          while (hasMorePages) {
+            const queryBody = {
+              interval: interval,
+              order: "asc",
+              orderBy: "userId",
+              paging: {
+                pageSize: pageSize,
+                pageNumber: pageNumber
+              },
+              segmentFilters: [
+                {
+                  type: "and",
+                  predicates: [
+                    {
+                      dimension: "routingStatus",
+                      value: "INTERACTING"
+                    }
+                  ]
                 }
-              }
+              ]
+            };
+
+            updateLoadingProgress(50 + (pageNumber * 5));
+            logMessage('INFO', `Querying Agent Status API page ${pageNumber}`);
+
+            const analyticsResponse = await apiCall('/api/v2/analytics/agentstatus/query', {
+              method: 'POST',
+              body: JSON.stringify(queryBody)
             });
 
-            logMessage('SUCCESS', 'Agent Status query completed', `Found ${Object.keys(userHoursMap).length} users with INTERACTING time`);
+            console.log('Agent Status API Response page', pageNumber, analyticsResponse);
+
+            if (analyticsResponse.results && analyticsResponse.results.length > 0) {
+              totalResults += analyticsResponse.results.length;
+              
+              // Process each agent status record
+              analyticsResponse.results.forEach(record => {
+                const userId = record.userId;
+                
+                // Calculate duration in milliseconds
+                if (record.startDate && record.endDate && record.routingStatus === "INTERACTING") {
+                  const startTime = new Date(record.startDate);
+                  const endTime = new Date(record.endDate);
+                  const durationMs = endTime - startTime;
+                  
+                  if (durationMs > 0) {
+                    if (!userHoursMap[userId]) {
+                      userHoursMap[userId] = 0;
+                    }
+                    userHoursMap[userId] += durationMs;
+                  }
+                }
+              });
+
+              // Check if there are more pages
+              if (analyticsResponse.paging && analyticsResponse.paging.pageCount > pageNumber) {
+                pageNumber++;
+                await new Promise(resolve => setTimeout(resolve, 500)); // Delay between pages
+              } else {
+                hasMorePages = false;
+              }
+            } else {
+              hasMorePages = false;
+            }
+          }
+
+          if (totalResults > 0) {
+            logMessage('SUCCESS', 'Agent Status query completed', `Found ${Object.keys(userHoursMap).length} users with INTERACTING time from ${totalResults} records`);
             
-            const sampleUsers = Object.keys(userHoursMap).slice(0, 5);
-            sampleUsers.forEach(userId => {
+            // Debug: Show some sample data
+            const usersWithHours = Object.keys(userHoursMap);
+            const sampleCount = Math.min(10, usersWithHours.length);
+            for (let i = 0; i < sampleCount; i++) {
+              const userId = usersWithHours[i];
+              const user = userMap[userId];
+              const userName = user ? user.name : userId;
               const hoursFormatted = formatMillisecondsToHHMMSS(userHoursMap[userId]);
               const hoursDecimal = formatMillisecondsToDecimalHours(userHoursMap[userId]);
-              logMessage('DEBUG', `Sample user ${userId.substring(0, 8)}...`, `INTERACTING time: ${hoursFormatted} (${hoursDecimal.toFixed(2)} hours)`);
-            });
+              logMessage('DEBUG', `User: ${userName}`, `INTERACTING time: ${hoursFormatted} (${hoursDecimal.toFixed(2)} hours)`);
+            }
           } else {
             logMessage('WARN', 'No agent status data found in selected period', 'Users will have 0 interacting time');
           }
@@ -1136,6 +1224,7 @@
           console.error('Agent Status API error details:', analyticsError);
         }
 
+        // Update user data with interacting time
         appState.userData.forEach(user => {
           const interactTimeMs = userHoursMap[user.id] || 0;
           user.interactingMilliseconds = interactTimeMs;
@@ -1143,21 +1232,70 @@
           user.interactingHoursDecimal = formatMillisecondsToDecimalHours(interactTimeMs);
         });
 
+        // Calculate and log statistics
         const usersWithHours = appState.userData.filter(u => u.interactingMilliseconds > 0);
-        logMessage('INFO', `Interacting time distribution`, `${usersWithHours.length} users have > 0 interacting time, ${appState.userData.length - usersWithHours.length} users have 0 interacting time`);
+        const totalInteractingMs = usersWithHours.reduce((sum, u) => sum + u.interactingMilliseconds, 0);
+        const totalInteractingHours = formatMillisecondsToDecimalHours(totalInteractingMs);
+        
+        logMessage('INFO', `Interacting time distribution`, 
+          `${usersWithHours.length} users have > 0 interacting time, ${appState.userData.length - usersWithHours.length} users have 0 interacting time`);
+        logMessage('INFO', `Total interacting time`, 
+          `${formatMillisecondsToHHMMSS(totalInteractingMs)} (${totalInteractingHours.toFixed(2)} hours)`);
 
         if (usersWithHours.length > 0) {
-          const totalMs = usersWithHours.reduce((sum, u) => sum + u.interactingMilliseconds, 0);
-          const totalHoursFormatted = formatMillisecondsToHHMMSS(totalMs);
-          const avgMs = totalMs / usersWithHours.length;
+          const avgMs = totalInteractingMs / usersWithHours.length;
           const avgHoursFormatted = formatMillisecondsToHHMMSS(avgMs);
-          logMessage('INFO', `Interacting time statistics`, `Total: ${totalHoursFormatted}, Avg per user: ${avgHoursFormatted}`);
+          logMessage('INFO', `Average per user`, `${avgHoursFormatted} per active user`);
+          
+          // Log hour distribution
+          const hourRanges = {
+            '0h': 0,
+            '1-10h': 0,
+            '11-20h': 0,
+            '21-30h': 0,
+            '31-40h': 0,
+            '41-50h': 0,
+            '51-60h': 0,
+            '61-70h': 0,
+            '71-80h': 0,
+            '81-90h': 0,
+            '91-100h': 0,
+            '100+h': 0
+          };
+          
+          appState.userData.forEach(user => {
+            const hours = user.interactingHoursDecimal || 0;
+            if (hours === 0) hourRanges['0h']++;
+            else if (hours <= 10) hourRanges['1-10h']++;
+            else if (hours <= 20) hourRanges['11-20h']++;
+            else if (hours <= 30) hourRanges['21-30h']++;
+            else if (hours <= 40) hourRanges['31-40h']++;
+            else if (hours <= 50) hourRanges['41-50h']++;
+            else if (hours <= 60) hourRanges['51-60h']++;
+            else if (hours <= 70) hourRanges['61-70h']++;
+            else if (hours <= 80) hourRanges['71-80h']++;
+            else if (hours <= 90) hourRanges['81-90h']++;
+            else if (hours <= 100) hourRanges['91-100h']++;
+            else hourRanges['100+h']++;
+          });
+          
+          Object.entries(hourRanges).forEach(([range, count]) => {
+            if (count > 0) {
+              logMessage('DEBUG', `Hour range ${range}`, `${count} users`);
+            }
+          });
         }
 
         updateLoadingProgress(95);
         updateUserTypeStats();
 
-        logMessage('SUCCESS', 'Data loaded successfully', `${appState.userData.length} users loaded, ${usersWithHours.length} with interacting time`);
+        // Update cost parameter displays
+        el.statNamedCost.textContent = `$${el.namedLicenseCost.value}`;
+        el.statHourlyRate.textContent = `$${el.hourlyLicenseRate.value}`;
+        el.statTotalHours.textContent = totalInteractingHours.toFixed(2);
+
+        logMessage('SUCCESS', 'Data loaded successfully', 
+          `${appState.userData.length} users loaded, ${usersWithHours.length} with interacting time, total ${totalInteractingHours.toFixed(2)} hours`);
 
         el.statTotalUsers.textContent = appState.userData.length;
         el.totalCount.textContent = appState.userData.length;
@@ -1201,6 +1339,8 @@
 
       try {
         const threshold = parseFloat(el.thresholdHours.value);
+        const namedLicenseCost = parseFloat(el.namedLicenseCost.value);
+        const hourlyLicenseRate = parseFloat(el.hourlyLicenseRate.value);
         const includeNologin = el.includeNologin.value === 'true';
         updateProgress('Filtering users...', 30);
         
@@ -1237,9 +1377,9 @@
           }
 
           if (user.recommendedLicense === 'Hourly Interacting') {
-            user.estimatedCost = user.interactingHoursDecimal * 0.45;
+            user.estimatedCost = user.interactingHoursDecimal * hourlyLicenseRate;
           } else if (user.recommendedLicense === 'Named') {
-            user.estimatedCost = 70;
+            user.estimatedCost = namedLicenseCost;
           } else {
             user.estimatedCost = 0;
           }
@@ -1258,11 +1398,11 @@
         const supervisorNamed = usersToAnalyze.filter(u => u.userType === 'supervisor' && u.recommendedLicense === 'Named').length;
         const adminNamed = usersToAnalyze.filter(u => u.userType === 'admin' && u.recommendedLicense === 'Named').length;
 
-        const allNamedCost = totalUsers * 70;
+        const allNamedCost = totalUsers * namedLicenseCost;
         const hiHours = usersToAnalyze
           .filter(u => u.recommendedLicense === 'Hourly Interacting')
           .reduce((sum, u) => sum + u.interactingHoursDecimal, 0);
-        const hybridCost = (namedUsers * 70) + (hiHours * 0.45);
+        const hybridCost = (namedUsers * namedLicenseCost) + (hiHours * hourlyLicenseRate);
         const savings = allNamedCost > 0 ? ((allNamedCost - hybridCost) / allNamedCost * 100).toFixed(1) : 0;
 
         let optimalModel = 'Hybrid';
@@ -1279,8 +1419,10 @@
           nologinUsers,
           totalHours: totalHours.toFixed(2),
           threshold,
-          allNamedCost: allNamedCost.toFixed(0),
-          hybridCost: hybridCost.toFixed(0),
+          namedLicenseCost,
+          hourlyLicenseRate,
+          allNamedCost: allNamedCost.toFixed(2),
+          hybridCost: hybridCost.toFixed(2),
           savings,
           optimalModel,
           agentNamed,
@@ -1298,17 +1440,24 @@
         el.statAgentHI.textContent = agentHI;
         el.statSupervisorNamed.textContent = supervisorNamed;
         el.statAdminNamed.textContent = adminNamed;
-        el.totalCost.textContent = `$${parseFloat(hybridCost).toFixed(0)}`;
+        el.statNamedCost.textContent = `$${namedLicenseCost}`;
+        el.statHourlyRate.textContent = `$${hourlyLicenseRate}`;
+        el.statTotalHours.textContent = totalHours.toFixed(2);
+        el.totalCost.textContent = `$${parseFloat(hybridCost).toFixed(2)}`;
         el.savings.textContent = `${savings}% savings`;
+        el.costDetails.innerHTML = `All Named: $${parseFloat(allNamedCost).toFixed(2)}<br>Hybrid: $${parseFloat(hybridCost).toFixed(2)}`;
         el.licenseModel.textContent = optimalModel;
 
         renderUserTable();
+        updateHourBuckets();
+        updateHourBarChart();
         updateProgress('Creating visualisation...', 95);
         createLicenseChart();
         updateProgress('Analysis complete!', 100);
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         logMessage('SUCCESS', 'Analysis complete', `${namedUsers} Named, ${hiUsers} Hourly Interacting users`);
+        logMessage('INFO', 'Cost analysis', `All Named: $${allNamedCost}, Hybrid: $${hybridCost}, Savings: ${savings}%`);
         showStatusMessage(`✅ Analysis complete: ${savings}% cost savings`, 'success');
         el.btnExport.disabled = false;
 
@@ -1345,6 +1494,8 @@
         if (filterValue === 'named') usersToDisplay = usersToDisplay.filter(u => u.recommendedLicense === 'Named');
         else if (filterValue === 'hi') usersToDisplay = usersToDisplay.filter(u => u.recommendedLicense === 'Hourly Interacting');
         else if (filterValue === 'nologin') usersToDisplay = usersToDisplay.filter(u => u.recommendedLicense === 'NOLOGIN');
+        else if (filterValue === 'hasHours') usersToDisplay = usersToDisplay.filter(u => u.interactingHoursDecimal > 0);
+        else if (filterValue === 'noHours') usersToDisplay = usersToDisplay.filter(u => u.interactingHoursDecimal === 0);
         else usersToDisplay = usersToDisplay.filter(u => u.userType === filterValue);
       }
 
@@ -1463,6 +1614,19 @@
         card.innerHTML = `<div class="bucket-count">${count}</div><div class="bucket-label">${label}</div>`;
         el.hourBuckets.appendChild(card);
       });
+
+      // Update hour stats
+      const usersWithHours = appState.userData.filter(u => u.interactingHoursDecimal > 0);
+      const totalHours = usersWithHours.reduce((sum, u) => sum + u.interactingHoursDecimal, 0);
+      const avgHours = usersWithHours.length > 0 ? totalHours / usersWithHours.length : 0;
+      
+      el.hourStats.innerHTML = `
+        <div style="display:flex;justify-content:center;gap:20px;">
+          <div>Users with hours: <strong>${usersWithHours.length}</strong></div>
+          <div>Total hours: <strong>${totalHours.toFixed(2)}</strong></div>
+          <div>Avg per user: <strong>${avgHours.toFixed(2)}</strong></div>
+        </div>
+      `;
     }
 
     function updateHourBarChart() {
@@ -1572,7 +1736,10 @@
       let csv = 'Genesys Cloud Hourly Billing Analysis Report\n';
       csv += `Generated: ${new Date().toLocaleString()}\n`;
       csv += `Period: ${el.dateFrom.value} to ${el.dateTo.value}\n`;
-      csv += `Hourly Interacting Threshold: ${results.threshold} hours\n\n`;
+      csv += `Hourly Interacting Threshold: ${results.threshold} hours\n`;
+      csv += `Named Licence Cost: $${results.namedLicenseCost} per month\n`;
+      csv += `Hourly Interacting Rate: $${results.hourlyLicenseRate} per hour\n\n`;
+
       csv += 'SUMMARY\n';
       csv += 'Metric,Value\n';
       csv += `Total Users,${results.totalUsers}\n`;
@@ -1585,12 +1752,14 @@
       csv += `Hybrid Cost,$${results.hybridCost}\n`;
       csv += `Cost Savings,${results.savings}%\n`;
       csv += `Optimal Model,${results.optimalModel}\n\n`;
+
       csv += 'ROLE-BASED ANALYSIS\n';
       csv += 'Role Type,Metric,Value\n';
       csv += `Agent,Named Users,${results.agentNamed}\n`;
       csv += `Agent,Hourly Interacting Users,${results.agentHI}\n`;
       csv += `Supervisor,Named Users,${results.supervisorNamed}\n`;
       csv += `Admin,Named Users,${results.adminNamed}\n\n`;
+
       csv += 'USER DETAILS\n';
       csv += 'Name,Email,Team,Role Type,Roles,Last Login,Interacting Time (HH:MM:SS),Interacting Time (hours),Recommended Licence,Reason,Estimated Cost\n';
 
@@ -1631,6 +1800,7 @@
         el.statAdminNamed.textContent = '0';
         el.totalCost.textContent = '$0';
         el.savings.textContent = '0% savings';
+        el.costDetails.innerHTML = '';
         el.licenseModel.textContent = 'Hybrid';
         el.totalCount.textContent = '0';
         el.visibleCount.textContent = '0';
@@ -1646,6 +1816,7 @@
 
         el.hourBuckets.innerHTML = '';
         el.hourBarChart.innerHTML = '';
+        el.hourStats.innerHTML = '';
 
         if (appState.chartInstances.license) appState.chartInstances.license.destroy();
 
@@ -1716,6 +1887,15 @@
           `${log.timestamp} [${log.level}] ${log.message} ${log.details ? '- ' + log.details : ''}`
         ).join('\n');
         navigator.clipboard.writeText(logText).then(() => showStatusMessage('Logs copied to clipboard', 'success'));
+      });
+
+      // Update cost displays when values change
+      el.namedLicenseCost.addEventListener('change', () => {
+        el.statNamedCost.textContent = `$${el.namedLicenseCost.value}`;
+      });
+      
+      el.hourlyLicenseRate.addEventListener('change', () => {
+        el.statHourlyRate.textContent = `$${el.hourlyLicenseRate.value}`;
       });
 
       logMessage('INFO', 'Hourly Billing Calculator initialised', 'Ready for authentication');
