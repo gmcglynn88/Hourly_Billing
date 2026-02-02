@@ -286,6 +286,17 @@
         </select>
       </div>
       
+      <div class="form-group">
+        <label for="authMethod">Authentication Method</label>
+        <select id="authMethod">
+          <option value="proxy">Use CORS Proxy (Development)</option>
+          <option value="direct">Direct (Localhost Only)</option>
+        </select>
+        <div style="font-size:12px;color:var(--text-light);margin-top:5px;">
+          Select "Use CORS Proxy" when running from GitHub Pages
+        </div>
+      </div>
+      
       <button id="btnConnect" class="btn btn-block">
         <span>🔗 Connect to Genesys Cloud</span>
       </button>
@@ -675,6 +686,12 @@
       token: null,
       tokenExpiry: null
     };
+    
+    // CORS Proxy Configuration
+    const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/'; // Public proxy for development
+    // Alternative proxies you can try if this one is rate-limited:
+    // 'https://api.allorigins.win/raw?url=' // Another CORS proxy
+    // 'https://corsproxy.io/?' // Another option
 
     // ==============================================
     // APPLICATION STATE
@@ -698,6 +715,7 @@
       clientId: document.getElementById('clientId'),
       clientSecret: document.getElementById('clientSecret'),
       environment: document.getElementById('environment'),
+      authMethod: document.getElementById('authMethod'),
       btnConnect: document.getElementById('btnConnect'),
       btnDisconnect: document.getElementById('btnDisconnect'),
       envDisplay: document.getElementById('envDisplay'),
@@ -774,6 +792,7 @@
         const clientId = el.clientId.value || DEV_CONFIG.clientId;
         const clientSecret = el.clientSecret.value || DEV_CONFIG.clientSecret;
         const environment = el.environment.value || DEV_CONFIG.environment;
+        const authMethod = el.authMethod.value;
         
         if (!clientId || !clientSecret) {
           throw new Error('Please enter Client ID and Client Secret');
@@ -786,19 +805,49 @@
         // Get login host from environment URL
         const loginHost = environment.replace('api.', 'login.');
         
-        // Make OAuth request
-        const authResponse = await fetch(`${loginHost}/oauth/token`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': 'Basic ' + btoa(`${clientId}:${clientSecret}`)
-          },
-          body: 'grant_type=client_credentials'
-        });
+        // Make OAuth request with CORS proxy if needed
+        const authUrl = `${loginHost}/oauth/token`;
+        let authResponse;
+        
+        if (authMethod === 'proxy') {
+          // Use CORS proxy for development
+          logMessage('INFO', 'Using CORS proxy for authentication');
+          const proxyUrl = CORS_PROXY + authUrl;
+          
+          authResponse = await fetch(proxyUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Authorization': 'Basic ' + btoa(`${clientId}:${clientSecret}`),
+              'X-Requested-With': 'XMLHttpRequest' // Some proxies need this
+            },
+            body: 'grant_type=client_credentials'
+          });
+        } else {
+          // Direct request (only works locally)
+          authResponse = await fetch(authUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Authorization': 'Basic ' + btoa(`${clientId}:${clientSecret}`)
+            },
+            body: 'grant_type=client_credentials'
+          });
+        }
         
         if (!authResponse.ok) {
-          const errorText = await authResponse.text();
-          throw new Error(`Authentication failed: ${authResponse.status} ${authResponse.statusText} - ${errorText}`);
+          let errorText = '';
+          try {
+            errorText = await authResponse.text();
+          } catch (e) {
+            errorText = 'Could not read error response';
+          }
+          
+          if (authResponse.status === 0 && authMethod === 'proxy') {
+            throw new Error('CORS proxy may be blocked. Try running locally or use a different proxy.');
+          }
+          
+          throw new Error(`Authentication failed: ${authResponse.status} ${authResponse.statusText} - ${errorText.slice(0,200)}`);
         }
         
         const authData = await authResponse.json();
@@ -818,6 +867,11 @@
         setLoading(false);
         logMessage('ERROR', 'Authentication failed', error.message);
         showStatusMessage('❌ Authentication failed', 'error');
+        
+        // Provide helpful suggestions based on error
+        if (error.message.includes('CORS') || error.message.includes('proxy')) {
+          showStatusMessage('💡 Try running locally or use different authentication method', 'info');
+        }
       }
     }
 
@@ -874,6 +928,7 @@
         el.clientId.value = '';
         el.clientSecret.value = '';
         el.environment.value = 'https://api.euw2.pure.cloud';
+        el.authMethod.value = 'proxy';
         
         updateConnectionStatus(false, 'Not Connected');
         logMessage('INFO', 'Disconnected from Genesys Cloud');
@@ -1007,14 +1062,34 @@
       
       if (!CURRENT_CONFIG.token) throw new Error('Not authenticated');
       
-      const response = await fetch(`${CURRENT_CONFIG.environment}${path}`, {
-        ...options,
-        headers: {
-          'Authorization': `Bearer ${CURRENT_CONFIG.token}`,
-          'Content-Type': 'application/json',
-          ...options.headers
-        }
-      });
+      const url = `${CURRENT_CONFIG.environment}${path}`;
+      const authMethod = el.authMethod.value;
+      
+      let response;
+      
+      if (authMethod === 'proxy' && !path.includes('/oauth/token')) {
+        // Use proxy for API calls too (except token endpoint which we already handled)
+        const proxyUrl = CORS_PROXY + url;
+        response = await fetch(proxyUrl, {
+          ...options,
+          headers: {
+            'Authorization': `Bearer ${CURRENT_CONFIG.token}`,
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            ...options.headers
+          }
+        });
+      } else {
+        // Direct API call
+        response = await fetch(url, {
+          ...options,
+          headers: {
+            'Authorization': `Bearer ${CURRENT_CONFIG.token}`,
+            'Content-Type': 'application/json',
+            ...options.headers
+          }
+        });
+      }
       
       if (response.status === 401 || response.status === 403) {
         throw new Error(`Authentication error (${response.status}). Please reconnect.`);
@@ -1098,6 +1173,7 @@
           
           // Add delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 200));
+          updateLoadingProgress(20 + (page * 10));
         }
         
         updateLoadingProgress(40);
