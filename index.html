@@ -257,14 +257,52 @@
   </style>
 </head>
 <body>
-  <!-- Sign In Button (Hidden initially) -->
-  <button id="signinBtn" style="display:none;margin-bottom:12px;">Sign in to Genesys Cloud</button>
-
-  <!-- Auth Status Card -->
-  <div id="authStatus" class="card" style="display:none;">
-    <div style="text-align:center;padding:20px;">
-      <div style="font-size:18px;color:var(--secondary-color);margin-bottom:8px;">🔐 Authenticating…</div>
-      <div class="muted">Connecting to Genesys Cloud</div>
+  <!-- Authentication Form -->
+  <div id="authContainer" class="container" style="max-width:500px;margin-top:50px;">
+    <div class="auth-card">
+      <h3>🔐 Genesys Cloud Authentication</h3>
+      <p>Enter your OAuth Client Credentials to connect to Genesys Cloud</p>
+      
+      <div class="form-group">
+        <label for="clientId">Client ID</label>
+        <input type="text" id="clientId" placeholder="Enter Client ID">
+      </div>
+      
+      <div class="form-group">
+        <label for="clientSecret">Client Secret</label>
+        <input type="password" id="clientSecret" placeholder="Enter Client Secret">
+      </div>
+      
+      <div class="form-group">
+        <label for="environment">Environment</label>
+        <select id="environment">
+          <option value="https://api.euw2.pure.cloud">EU West (London) - euw2.pure.cloud</option>
+          <option value="https://api.mypurecloud.ie">Ireland - mypurecloud.ie</option>
+          <option value="https://api.mypurecloud.com">US East - mypurecloud.com</option>
+          <option value="https://api.usw2.pure.cloud">US West - usw2.pure.cloud</option>
+          <option value="https://api.cac1.pure.cloud">Canada - cac1.pure.cloud</option>
+          <option value="https://api.apne2.pure.cloud">Australia - apne2.pure.cloud</option>
+          <option value="https://api.euw2.pure.cloud">EU West (Frankfurt) - euw2.pure.cloud</option>
+        </select>
+      </div>
+      
+      <button id="btnConnect" class="btn btn-block">
+        <span>🔗 Connect to Genesys Cloud</span>
+      </button>
+      
+      <div style="margin-top:20px;font-size:12px;opacity:0.8;">
+        <strong>Note:</strong> This application requires an OAuth Client with appropriate permissions.
+      </div>
+    </div>
+    
+    <div class="card" style="margin-top:20px;text-align:center;">
+      <h4>📋 Required Permissions</h4>
+      <div style="font-size:12px;text-align:left;margin-top:10px;">
+        <div>• analytics:userDetail:view</div>
+        <div>• users:read</div>
+        <div>• routing:queue:view</div>
+        <div>• organization:read</div>
+      </div>
     </div>
   </div>
 
@@ -287,7 +325,7 @@
             <h2>🔌 Connection Status</h2>
             <div class="form-group">
               <label>Environment</label>
-              <input type="text" value="EU West (London) - euw2.pure.cloud" readonly style="background:var(--filter-bg);">
+              <input type="text" id="envDisplay" value="EU West (London) - euw2.pure.cloud" readonly style="background:var(--filter-bg);">
             </div>
             <div class="form-group">
               <label>Status</label>
@@ -296,6 +334,9 @@
                 <span id="statusText">Not Connected</span>
               </div>
             </div>
+            <button id="btnDisconnect" class="btn" style="margin-top:15px;background:var(--danger);">
+              <span>🚪 Disconnect</span>
+            </button>
           </div>
 
           <!-- Date Range -->
@@ -616,20 +657,29 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     // ==============================================
-    // CONFIGURATION
+    // CONFIGURATION - EDIT THESE VALUES
     // ==============================================
-    const CONFIG = {
-      clientId: 'fe305808-b368-4547-8af9-325d28d552bb',
-      redirectUri: 'https://gmcglynn88.github.io/Hourly_Billing/',
-      loginHost: 'https://login.mypurecloud.ie',
-      apiHost: 'https://api.mypurecloud.ie'
+    // For development, you can hardcode credentials here
+    // Remove the values below and add your own client ID and secret
+    const DEV_CONFIG = {
+      clientId: '3131e33d-153f-49af-8687-47ccb5ef307e',  // ← ADD YOUR CLIENT ID HERE
+      clientSecret: 'ajLZWc8rEKQPo54Ocu4GC7xV9D59tkmVeqhWSwTSRJY',  // ← ADD YOUR CLIENT SECRET HERE
+      environment: 'https://api.euw2.pure.cloud'  // Default to London
+    };
+    
+    // Or leave empty to use the form input
+    let CURRENT_CONFIG = {
+      clientId: '',
+      clientSecret: '',
+      environment: '',
+      token: null,
+      tokenExpiry: null
     };
 
     // ==============================================
     // APPLICATION STATE
     // ==============================================
     let appState = {
-      token: null,
       isConnected: false,
       userData: [],
       analysisResults: null,
@@ -643,10 +693,16 @@
     // DOM ELEMENTS
     // ==============================================
     const el = {
+      // Auth Elements
+      authContainer: document.getElementById('authContainer'),
+      clientId: document.getElementById('clientId'),
+      clientSecret: document.getElementById('clientSecret'),
+      environment: document.getElementById('environment'),
+      btnConnect: document.getElementById('btnConnect'),
+      btnDisconnect: document.getElementById('btnDisconnect'),
+      envDisplay: document.getElementById('envDisplay'),
+      
       // Connection
-      signinBtn: document.getElementById('signinBtn'),
-      authStatus: document.getElementById('authStatus'),
-      connectionCard: document.getElementById('connectionCard'),
       statusIndicator: document.getElementById('statusIndicator'),
       statusText: document.getElementById('statusText'),
       mainContent: document.getElementById('mainContent'),
@@ -708,62 +764,133 @@
     };
 
     // ==============================================
-    // AUTHENTICATION
+    // AUTHENTICATION - CLIENT CREDENTIALS FLOW
     // ==============================================
-    function parseTokenFromHash() {
-      const params = new URLSearchParams(location.hash.replace(/^#/, ''));
-      return { 
-        token: params.get('access_token'), 
-        error: params.get('error'), 
-        errorDescription: params.get('error_description') 
-      };
-    }
-
-    function authUrl() {
-      return `${CONFIG.loginHost}/oauth/authorize?client_id=${encodeURIComponent(CONFIG.clientId)}&response_type=token&redirect_uri=${encodeURIComponent(CONFIG.redirectUri)}`;
-    }
-
-    function initAuth() {
-      const { token, error } = parseTokenFromHash();
+    async function authenticate() {
+      setLoading(true, 'Authenticating...', 'Connecting to Genesys Cloud...');
       
-      // Clear hash from URL
-      if (location.hash) {
-        history.replaceState(null, '', location.pathname);
-      }
-
-      if (token) {
-        // Clear any previous auth attempts
-        sessionStorage.removeItem('gc_auto_auth_attempted');
-        appState.token = token;
+      try {
+        // Get credentials from form or use hardcoded dev config
+        const clientId = el.clientId.value || DEV_CONFIG.clientId;
+        const clientSecret = el.clientSecret.value || DEV_CONFIG.clientSecret;
+        const environment = el.environment.value || DEV_CONFIG.environment;
+        
+        if (!clientId || !clientSecret) {
+          throw new Error('Please enter Client ID and Client Secret');
+        }
+        
+        CURRENT_CONFIG.clientId = clientId;
+        CURRENT_CONFIG.clientSecret = clientSecret;
+        CURRENT_CONFIG.environment = environment;
+        
+        // Get login host from environment URL
+        const loginHost = environment.replace('api.', 'login.');
+        
+        // Make OAuth request
+        const authResponse = await fetch(`${loginHost}/oauth/token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': 'Basic ' + btoa(`${clientId}:${clientSecret}`)
+          },
+          body: 'grant_type=client_credentials'
+        });
+        
+        if (!authResponse.ok) {
+          const errorText = await authResponse.text();
+          throw new Error(`Authentication failed: ${authResponse.status} ${authResponse.statusText} - ${errorText}`);
+        }
+        
+        const authData = await authResponse.json();
+        
+        // Store token
+        CURRENT_CONFIG.token = authData.access_token;
+        CURRENT_CONFIG.tokenExpiry = Date.now() + (authData.expires_in * 1000);
+        
+        // Show main app
         showMainApp();
-        initializeApp();
-        return;
+        
+        setLoading(false);
+        logMessage('SUCCESS', 'Authentication successful', `Connected to ${environment}`);
+        showStatusMessage('✅ Connected to Genesys Cloud', 'success');
+        
+      } catch (error) {
+        setLoading(false);
+        logMessage('ERROR', 'Authentication failed', error.message);
+        showStatusMessage('❌ Authentication failed', 'error');
       }
+    }
 
-      const attempted = sessionStorage.getItem('gc_auto_auth_attempted');
-      if (!attempted && !error) {
-        // First attempt - try auto-auth
-        sessionStorage.setItem('gc_auto_auth_attempted', '1');
-        location.assign(authUrl());
-        return;
+    function checkTokenExpiry() {
+      if (!CURRENT_CONFIG.token || !CURRENT_CONFIG.tokenExpiry) {
+        return false;
       }
-
-      // Show sign in button
-      el.signinBtn.style.display = 'inline-block';
-      el.signinBtn.onclick = () => { 
-        sessionStorage.setItem('gc_auto_auth_attempted', '1'); 
-        location.assign(authUrl()); 
-      };
-      el.authStatus.style.display = 'none';
+      
+      // Check if token expires in less than 5 minutes
+      if (Date.now() > CURRENT_CONFIG.tokenExpiry - (5 * 60 * 1000)) {
+        logMessage('WARN', 'Token expired or about to expire', 'Need to refresh authentication');
+        return false;
+      }
+      
+      return true;
     }
 
     function showMainApp() {
-      el.authStatus.style.display = 'none';
-      el.signinBtn.style.display = 'none';
+      el.authContainer.style.display = 'none';
       el.mainContent.style.display = 'block';
+      
+      // Update environment display
+      const envName = getEnvironmentName(CURRENT_CONFIG.environment);
+      el.envDisplay.value = envName;
+      
       updateConnectionStatus(true, 'Connected ✓');
-      logMessage('SUCCESS', 'Authentication successful', 'Connected to Genesys Cloud');
-      showStatusMessage('✅ Connected to Genesys Cloud', 'success');
+      initializeApp();
+    }
+
+    function disconnect() {
+      if (confirm('Disconnect from Genesys Cloud?')) {
+        // Clear all data
+        CURRENT_CONFIG = {
+          clientId: '',
+          clientSecret: '',
+          environment: '',
+          token: null,
+          tokenExpiry: null
+        };
+        
+        appState = {
+          isConnected: false,
+          userData: [],
+          analysisResults: null,
+          isAnalyzing: false,
+          currentTab: 'dashboard',
+          logs: [],
+          chartInstances: {}
+        };
+        
+        // Reset UI
+        el.mainContent.style.display = 'none';
+        el.authContainer.style.display = 'block';
+        el.clientId.value = '';
+        el.clientSecret.value = '';
+        el.environment.value = 'https://api.euw2.pure.cloud';
+        
+        updateConnectionStatus(false, 'Not Connected');
+        logMessage('INFO', 'Disconnected from Genesys Cloud');
+      }
+    }
+
+    function getEnvironmentName(url) {
+      const envMap = {
+        'https://api.euw2.pure.cloud': 'EU West (London) - euw2.pure.cloud',
+        'https://api.mypurecloud.ie': 'Ireland - mypurecloud.ie',
+        'https://api.mypurecloud.com': 'US East - mypurecloud.com',
+        'https://api.usw2.pure.cloud': 'US West - usw2.pure.cloud',
+        'https://api.cac1.pure.cloud': 'Canada - cac1.pure.cloud',
+        'https://api.apne2.pure.cloud': 'Australia - apne2.pure.cloud'
+      };
+      
+      return envMap[url] || url;
     }
 
     function updateConnectionStatus(connected, message = '') {
@@ -874,19 +1001,23 @@
     // API HELPER
     // ==============================================
     async function apiCall(path, options = {}) {
-      if (!appState.token) throw new Error('Not authenticated');
+      if (!checkTokenExpiry()) {
+        throw new Error('Authentication token expired. Please reconnect.');
+      }
       
-      const response = await fetch(`${CONFIG.apiHost}${path}`, {
+      if (!CURRENT_CONFIG.token) throw new Error('Not authenticated');
+      
+      const response = await fetch(`${CURRENT_CONFIG.environment}${path}`, {
         ...options,
         headers: {
-          'Authorization': `Bearer ${appState.token}`,
+          'Authorization': `Bearer ${CURRENT_CONFIG.token}`,
           'Content-Type': 'application/json',
           ...options.headers
         }
       });
       
       if (response.status === 401 || response.status === 403) {
-        throw new Error(`Authentication error (${response.status}). Please refresh.`);
+        throw new Error(`Authentication error (${response.status}). Please reconnect.`);
       }
       
       if (response.status === 429) {
@@ -1601,8 +1732,50 @@
     // RESET FUNCTIONALITY
     // ==============================================
     function resetApplication() {
-      if (confirm('Reset the application? This will clear all data.')) {
-        window.location.reload();
+      if (confirm('Reset the application? This will clear all data but keep the connection.')) {
+        // Clear data but keep connection
+        appState.userData = [];
+        appState.analysisResults = null;
+        
+        // Reset UI
+        el.statTotalUsers.textContent = '0';
+        el.statActiveUsers.textContent = '0';
+        el.statNamedUsers.textContent = '0';
+        el.statHiUsers.textContent = '0';
+        el.statAgents.textContent = '0';
+        el.statSupervisors.textContent = '0';
+        el.statAdmins.textContent = '0';
+        el.statOthers.textContent = '0';
+        el.statAgentNamed.textContent = '0';
+        el.statAgentHI.textContent = '0';
+        el.statSupervisorNamed.textContent = '0';
+        el.statAdminNamed.textContent = '0';
+        el.totalCost.textContent = '$0';
+        el.savings.textContent = '0% savings';
+        el.licenseModel.textContent = 'Hybrid';
+        el.totalCount.textContent = '0';
+        el.visibleCount.textContent = '0';
+        el.btnAnalyze.disabled = true;
+        el.btnRunAnalysis.disabled = true;
+        el.btnExport.disabled = true;
+        
+        // Clear tables
+        el.usersTableBody.innerHTML = `
+          <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-light);">
+            No data loaded. Connect and fetch data first.
+          </td></tr>
+        `;
+        
+        // Clear hour buckets
+        el.hourBuckets.innerHTML = '';
+        
+        // Destroy chart
+        if (appState.chartInstances.license) {
+          appState.chartInstances.license.destroy();
+        }
+        
+        logMessage('INFO', 'Application reset', 'All data cleared');
+        showStatusMessage('🔄 Application reset', 'info');
       }
     }
 
@@ -1624,6 +1797,8 @@
       el.dateFrom.max = todayStr;
       
       // Event Listeners
+      el.btnConnect.addEventListener('click', authenticate);
+      el.btnDisconnect.addEventListener('click', disconnect);
       el.btnFetchData.addEventListener('click', fetchUserData);
       el.btnRunAnalysis.addEventListener('click', runAnalysis);
       el.btnAnalyze.addEventListener('click', runAnalysis);
@@ -1693,14 +1868,37 @@
         });
       });
       
+      // Allow Enter key to authenticate
+      el.clientId.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') authenticate();
+      });
+      el.clientSecret.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') authenticate();
+      });
+      
       // Initial log
-      logMessage('INFO', 'Hourly Billing Calculator initialized', `Connected to ${CONFIG.apiHost}`);
+      logMessage('INFO', 'Hourly Billing Calculator initialized', 'Ready for authentication');
     }
 
     // ==============================================
     // START APPLICATION
     // ==============================================
-    document.addEventListener('DOMContentLoaded', initAuth);
+    document.addEventListener('DOMContentLoaded', function() {
+      // Check if we have hardcoded dev credentials
+      if (DEV_CONFIG.clientId && DEV_CONFIG.clientSecret) {
+        // Pre-fill the form with dev credentials
+        el.clientId.value = DEV_CONFIG.clientId;
+        el.clientSecret.value = DEV_CONFIG.clientSecret;
+        el.environment.value = DEV_CONFIG.environment;
+        
+        // Auto-connect if credentials are provided
+        setTimeout(() => {
+          authenticate();
+        }, 500);
+      }
+      
+      initializeApp();
+    });
   </script>
 </body>
 </html>
