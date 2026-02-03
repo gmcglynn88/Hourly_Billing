@@ -377,6 +377,43 @@
       padding-bottom: 8px;
       border-bottom: 1px solid var(--border-color);
     }
+    
+    /* New styles for overage table */
+    .overage-table-container {
+      margin-top: 20px;
+    }
+    
+    .overage-summary {
+      background: rgba(220, 53, 69, 0.1);
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      border: 1px solid rgba(220, 53, 69, 0.3);
+    }
+    
+    .overage-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      background: rgba(220, 53, 69, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(220, 53, 69, 0.3);
+    }
+    
+    .overage-hours {
+      color: var(--danger);
+      font-weight: 700;
+    }
+    
+    .no-overage-message {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-light);
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -633,6 +670,7 @@
                     <option value="nologin">NOLOGIN</option>
                     <option value="hasHours">Has Interacting Hours</option>
                     <option value="noHours">No Interacting Hours</option>
+                    <option value="overThreshold">Over Threshold</option>
                   </select>
                   <div style="font-size:12px;color:var(--text-light);">
                     <span id="visibleCount">0</span>/<span id="totalCount">0</span> users
@@ -657,6 +695,54 @@
                   <tbody id="usersTableBody">
                     <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-light);">
                       No data loaded. Connect and fetch data first.
+                    </td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <!-- New Overage Table Card -->
+            <div class="card" style="margin-top:20px;">
+              <h2>📈 Overage Analysis</h2>
+              <div style="margin-bottom:15px;">
+                <div class="overage-summary">
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                      <span style="font-weight:600;">Threshold:</span> 
+                      <span id="currentThresholdDisplay">40</span> hours
+                    </div>
+                    <div>
+                      <span style="font-weight:600;">Users over threshold:</span> 
+                      <span id="overageCount" style="color:var(--danger);font-weight:700;">0</span>
+                    </div>
+                    <div>
+                      <span style="font-weight:600;">Total overage hours:</span> 
+                      <span id="totalOverageHours" style="color:var(--danger);font-weight:700;">0</span>
+                    </div>
+                  </div>
+                  <div style="margin-top:10px;font-size:12px;color:var(--text-light);">
+                    Shows users whose interacting hours exceed the threshold (<span id="thresholdValueDisplay">40</span> hours) for the selected date range
+                  </div>
+                </div>
+              </div>
+              
+              <div class="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>User Name</th>
+                      <th>Email</th>
+                      <th>Team</th>
+                      <th>Role Type</th>
+                      <th>Interacting Hours</th>
+                      <th>Over Threshold By</th>
+                      <th>Percentage Over</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="overageTableBody">
+                    <tr><td colspan="8" class="no-overage-message">
+                      No data available. Fetch user data and run analysis first.
                     </td></tr>
                   </tbody>
                 </table>
@@ -888,7 +974,12 @@
       totalAgentsCount: document.getElementById('totalAgentsCount'),
       currencySymbol: document.getElementById('currencySymbol'),
       hourlyCurrencySymbol: document.getElementById('hourlyCurrencySymbol'),
-      agentCounts: document.getElementById('agentCounts')
+      agentCounts: document.getElementById('agentCounts'),
+      overageTableBody: document.getElementById('overageTableBody'),
+      overageCount: document.getElementById('overageCount'),
+      totalOverageHours: document.getElementById('totalOverageHours'),
+      currentThresholdDisplay: document.getElementById('currentThresholdDisplay'),
+      thresholdValueDisplay: document.getElementById('thresholdValueDisplay')
     };
 
     function formatMillisecondsToHHMMSS(ms) {
@@ -1487,6 +1578,7 @@
         renderUserTable();
         updateHourBuckets();
         updateHourBarChart();
+        updateOverageTable();
 
         updateLoadingProgress(100);
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -1509,6 +1601,131 @@
       el.statSupervisors.textContent = supervisors;
       el.statAdmins.textContent = admins;
       el.statOthers.textContent = others;
+    }
+
+    function updateOverageTable() {
+      const tbody = el.overageTableBody;
+      tbody.innerHTML = '';
+      
+      const threshold = parseFloat(el.thresholdHours.value) || 40;
+      el.currentThresholdDisplay.textContent = threshold;
+      el.thresholdValueDisplay.textContent = threshold;
+      
+      // Get users over the threshold
+      const usersOverThreshold = appState.userData.filter(user => 
+        user.interactingHoursDecimal > threshold
+      );
+      
+      // Sort by hours descending
+      usersOverThreshold.sort((a, b) => b.interactingHoursDecimal - a.interactingHoursDecimal);
+      
+      // Update summary
+      el.overageCount.textContent = usersOverThreshold.length;
+      
+      // Calculate total overage hours
+      let totalOverage = 0;
+      usersOverThreshold.forEach(user => {
+        totalOverage += (user.interactingHoursDecimal - threshold);
+      });
+      el.totalOverageHours.textContent = Math.round(totalOverage);
+      
+      if (usersOverThreshold.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="8" class="no-overage-message">
+          No users exceed the threshold of ${threshold} hours for the selected date range.
+        </td>`;
+        tbody.appendChild(row);
+        return;
+      }
+      
+      usersOverThreshold.forEach(user => {
+        const overageHours = user.interactingHoursDecimal - threshold;
+        const percentageOver = ((overageHours / threshold) * 100).toFixed(1);
+        
+        const row = document.createElement('tr');
+        
+        let userTypeBadge = '';
+        switch(user.userType) {
+          case 'agent':
+            userTypeBadge = `<span class="status-badge" style="background:rgba(99,171,143,0.15);color:var(--primary-color);">Agent</span>`;
+            break;
+          case 'supervisor':
+            userTypeBadge = `<span class="status-badge" style="background:rgba(255,193,7,0.15);color:#d39e00;">Supervisor</span>`;
+            break;
+          case 'admin':
+            userTypeBadge = `<span class="status-badge" style="background:rgba(220,53,69,0.15);color:var(--danger);">Admin</span>`;
+            break;
+          default:
+            userTypeBadge = `<span class="status-badge" style="background:rgba(108,117,125,0.15);color:var(--text-light);">Other</span>`;
+        }
+        
+        // Determine status based on how far over threshold
+        let statusBadge = '';
+        let statusText = '';
+        if (percentageOver > 100) {
+          statusBadge = `<span class="overage-badge">Significant Overage</span>`;
+          statusText = 'More than double the threshold';
+        } else if (percentageOver > 50) {
+          statusBadge = `<span class="overage-badge">High Overage</span>`;
+          statusText = '50-100% over threshold';
+        } else if (percentageOver > 25) {
+          statusBadge = `<span class="status-badge" style="background:rgba(255,193,7,0.15);color:#d39e00;">Moderate Overage</span>`;
+          statusText = '25-50% over threshold';
+        } else {
+          statusBadge = `<span class="status-badge" style="background:rgba(108,117,125,0.15);color:var(--text-light);">Minor Overage</span>`;
+          statusText = 'Under 25% over threshold';
+        }
+        
+        row.innerHTML = `
+          <td>
+            <div style="font-weight:600;">${user.name || 'Unknown'}</div>
+            <div style="font-size:11px;color:var(--text-light);">ID: ${user.id?.substring(0, 8)}...</div>
+          </td>
+          <td>${user.email || 'No email'}</td>
+          <td>${user.team || 'Unassigned'}</td>
+          <td>
+            ${userTypeBadge}
+            <div style="font-size:11px;color:var(--text-light);margin-top:4px;">${user.role?.substring(0, 30) || 'No role'}${user.role && user.role.length > 30 ? '...' : ''}</div>
+          </td>
+          <td style="text-align:center;font-weight:600;">
+            ${Math.round(user.interactingHoursDecimal)} hours
+            <div style="font-size:11px;color:var(--text-light);">${user.interactingHoursFormatted}</div>
+          </td>
+          <td style="text-align:center;font-weight:700;color:var(--danger);">
+            +${Math.round(overageHours)} hours
+          </td>
+          <td style="text-align:center;font-weight:600;color:var(--danger);">
+            ${percentageOver}%
+          </td>
+          <td>
+            ${statusBadge}
+            <div style="font-size:11px;color:var(--text-light);margin-top:4px;">${statusText}</div>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+      
+      // Add summary row
+      const summaryRow = document.createElement('tr');
+      summaryRow.style.backgroundColor = 'rgba(220, 53, 69, 0.05)';
+      summaryRow.innerHTML = `
+        <td colspan="4" style="text-align:right;font-weight:600;">
+          <span style="color:var(--danger);">TOTAL OVERAGE:</span>
+        </td>
+        <td style="text-align:center;font-weight:600;">
+          ${Math.round(usersOverThreshold.reduce((sum, u) => sum + u.interactingHoursDecimal, 0))} hours
+        </td>
+        <td style="text-align:center;font-weight:700;color:var(--danger);">
+          +${Math.round(totalOverage)} hours
+        </td>
+        <td style="text-align:center;font-weight:600;color:var(--danger);">
+          ${usersOverThreshold.length} users
+        </td>
+        <td>
+          <span style="font-size:11px;color:var(--text-light);">Average: ${Math.round(totalOverage / usersOverThreshold.length)} hours over</span>
+        </td>
+      `;
+      tbody.appendChild(summaryRow);
     }
 
     async function runAnalysis() {
@@ -1634,6 +1851,7 @@
         renderUserTable();
         updateHourBuckets();
         updateHourBarChart();
+        updateOverageTable();
         updateProgress('Creating visualisation...', 95);
         createLicenseChart();
         updateProgress('Analysis complete!', 100);
@@ -1691,7 +1909,10 @@
         else if (filterValue === 'nologin') usersToDisplay = usersToDisplay.filter(u => u.recommendedLicense === 'NOLOGIN');
         else if (filterValue === 'hasHours') usersToDisplay = usersToDisplay.filter(u => u.interactingHoursDecimal > 0);
         else if (filterValue === 'noHours') usersToDisplay = usersToDisplay.filter(u => u.interactingHoursDecimal === 0);
-        else usersToDisplay = usersToDisplay.filter(u => u.userType === filterValue);
+        else if (filterValue === 'overThreshold') {
+          const threshold = parseFloat(el.thresholdHours.value) || 40;
+          usersToDisplay = usersToDisplay.filter(u => u.interactingHoursDecimal > threshold);
+        } else usersToDisplay = usersToDisplay.filter(u => u.userType === filterValue);
       }
 
       el.visibleCount.textContent = usersToDisplay.length;
@@ -2130,6 +2351,14 @@
         el.agentCounts.innerHTML = '';
         el.hourBarChart.innerHTML = '';
         el.hourStats.innerHTML = '';
+        
+        el.overageTableBody.innerHTML = `
+          <tr><td colspan="8" class="no-overage-message">
+            No data available. Fetch user data and run analysis first.
+          </td></tr>
+        `;
+        el.overageCount.textContent = '0';
+        el.totalOverageHours.textContent = '0';
 
         if (appState.chartInstances.license) appState.chartInstances.license.destroy();
 
@@ -2188,6 +2417,13 @@
 
       el.userSearch.addEventListener('input', renderUserTable);
       el.userFilter.addEventListener('change', renderUserTable);
+      
+      // Add event listener for threshold changes to update overage table
+      el.thresholdHours.addEventListener('change', () => {
+        if (appState.userData.length > 0) {
+          updateOverageTable();
+        }
+      });
 
       document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', function() {
