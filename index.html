@@ -414,6 +414,198 @@
       color: var(--text-light);
       font-style: italic;
     }
+
+    /* New styles for improved date selector */
+    .date-range-container {
+      background: var(--light-bg);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border-color);
+    }
+    
+    .date-range-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    
+    .date-range-header h3 {
+      margin: 0;
+      color: var(--primary-color);
+      font-size: 16px;
+    }
+    
+    .date-range-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    
+    .date-field {
+      position: relative;
+    }
+    
+    .date-field label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-light);
+      margin-bottom: 8px;
+    }
+    
+    .date-field label svg {
+      width: 16px;
+      height: 16px;
+      color: var(--primary-color);
+    }
+    
+    .date-field input[type="date"] {
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--card-bg);
+      font-size: 14px;
+      width: 100%;
+      transition: all 0.3s;
+      color: var(--text-color);
+    }
+    
+    .date-field input[type="date"]:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(99, 171, 143, 0.1);
+    }
+    
+    .date-field input[type="date"]::placeholder {
+      color: var(--text-light);
+    }
+    
+    .date-field input[type="date"]:not(:placeholder-shown) {
+      background: var(--card-bg);
+      border-color: var(--primary-color);
+    }
+    
+    .date-range-divider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-light);
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .date-placeholder {
+      position: absolute;
+      top: 50%;
+      left: 12px;
+      transform: translateY(-50%);
+      color: var(--text-light);
+      font-size: 14px;
+      pointer-events: none;
+      transition: all 0.3s;
+      background: var(--card-bg);
+      padding: 0 4px;
+    }
+    
+    .date-field input[type="date"]:focus + .date-placeholder,
+    .date-field input[type="date"]:not(:placeholder-shown) + .date-placeholder {
+      top: 0;
+      font-size: 11px;
+      color: var(--primary-color);
+      background: var(--card-bg);
+    }
+    
+    .date-validation {
+      display: none;
+      font-size: 12px;
+      color: var(--danger);
+      margin-top: 4px;
+    }
+    
+    .date-validation.show {
+      display: block;
+    }
+    
+    .date-required-indicator {
+      color: var(--danger);
+      margin-left: 4px;
+    }
+    
+    /* Quick date buttons styling improvements */
+    .quick-dates-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 16px;
+      margin-bottom: 12px;
+    }
+    
+    .quick-dates-header h4 {
+      margin: 0;
+      font-size: 14px;
+      color: var(--text-color);
+    }
+    
+    .quick-date-buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+    
+    .quick-date-btn {
+      padding: 10px 8px;
+      background: var(--light-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-align: center;
+      color: var(--text-color);
+    }
+    
+    .quick-date-btn:hover {
+      background: var(--pill);
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
+    
+    .quick-date-btn.active {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    
+    .date-range-selected {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 12px;
+      text-align: center;
+      padding: 8px;
+      background: var(--pill);
+      border-radius: 4px;
+      border: 1px solid rgba(99, 171, 143, 0.2);
+    }
+    
+    @media (max-width: 768px) {
+      .date-range-fields {
+        grid-template-columns: 1fr;
+      }
+      
+      .quick-date-buttons {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .date-range-divider {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
@@ -458,21 +650,69 @@
             </button>
           </div>
 
+          <!-- Updated Date Range Card -->
           <div class="card">
             <h2>📅 Analysis Period</h2>
-            <div class="form-group">
-              <label>From Date</label>
-              <input type="date" id="dateFrom">
+            
+            <div class="date-range-container">
+              <div class="date-range-header">
+                <h3>Select Date Range</h3>
+                <div style="font-size:12px;color:var(--text-light);">
+                  <span id="selectedRangeInfo">No dates selected</span>
+                </div>
+              </div>
+              
+              <div class="date-range-fields">
+                <div class="date-field">
+                  <label for="dateFrom">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12.75 12.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM7.5 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM8.25 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM9.75 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM10.5 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM12.75 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM14.25 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM15 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM16.5 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM15 12.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM16.5 13.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
+                      <path fill-rule="evenodd" d="M6.75 2.25A.75.75 0 017.5 3v1.5h9V3A.75.75 0 0118 3v1.5h.75a3 3 0 013 3v11.25a3 3 0 01-3 3H5.25a3 3 0 01-3-3V7.5a3 3 0 013-3H6V3a.75.75 0 01.75-.75zm13.5 9a1.5 1.5 0 00-1.5-1.5H5.25a1.5 1.5 0 00-1.5 1.5v7.5a1.5 1.5 0 001.5 1.5h13.5a1.5 1.5 0 001.5-1.5v-7.5z" clip-rule="evenodd" />
+                    </svg>
+                    From Date
+                    <span class="date-required-indicator">*</span>
+                  </label>
+                  <input type="date" id="dateFrom" required>
+                  <div class="date-placeholder">Select start date</div>
+                  <div class="date-validation" id="dateFromValidation">Please select a valid start date</div>
+                </div>
+                
+                <div class="date-field">
+                  <label for="dateTo">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12.75 12.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM7.5 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM8.25 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM9.75 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM10.5 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM12.75 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM14.25 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM15 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM16.5 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM15 12.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM16.5 13.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
+                      <path fill-rule="evenodd" d="M6.75 2.25A.75.75 0 017.5 3v1.5h9V3A.75.75 0 0118 3v1.5h.75a3 3 0 013 3v11.25a3 3 0 01-3 3H5.25a3 3 0 01-3-3V7.5a3 3 0 013-3H6V3a.75.75 0 01.75-.75zm13.5 9a1.5 1.5 0 00-1.5-1.5H5.25a1.5 1.5 0 00-1.5 1.5v7.5a1.5 1.5 0 001.5 1.5h13.5a1.5 1.5 0 001.5-1.5v-7.5z" clip-rule="evenodd" />
+                    </svg>
+                    To Date
+                    <span class="date-required-indicator">*</span>
+                  </label>
+                  <input type="date" id="dateTo" required>
+                  <div class="date-placeholder">Select end date</div>
+                  <div class="date-validation" id="dateToValidation">Please select a valid end date</div>
+                </div>
+              </div>
+              
+              <div class="date-range-selected" id="dateRangeDisplay">
+                Select dates to see range information
+              </div>
+              
+              <div class="quick-dates-header">
+                <h4>Quick Select:</h4>
+                <div style="font-size:11px;color:var(--text-light);">
+                  <span id="dateRangeDays">0</span> days
+                </div>
+              </div>
+              
+              <div class="quick-date-buttons">
+                <button class="quick-date-btn" data-days="1">Yesterday</button>
+                <button class="quick-date-btn" data-days="7">Last 7 days</button>
+                <button class="quick-date-btn" data-days="30">Last 30 days</button>
+                <button class="quick-date-btn" data-days="90">Last 90 days</button>
+              </div>
             </div>
-            <div class="form-group">
-              <label>To Date</label>
-              <input type="date" id="dateTo">
-            </div>
-            <div class="quick-select-buttons">
-              <button class="quick-select-btn" data-days="30">📅 Last 30 days</button>
-              <button class="quick-select-btn" data-days="7">📅 Last 7 days</button>
-              <button class="quick-select-btn" data-days="1">📅 Yesterday</button>
-              <button class="quick-select-btn" data-days="0">📅 Today</button>
+            
+            <div style="font-size:11px;color:var(--text-light);margin-top:16px;padding:12px;background:var(--pill);border-radius:6px;">
+              <strong>💡 Tip:</strong> Select a date range that represents a typical billing period (e.g., 30 days). Ensure both dates are selected before fetching data.
             </div>
           </div>
 
@@ -892,7 +1132,9 @@
       TOKEN_EXPIRY: 'gc_token_expiry',
       REFRESH_TOKEN: 'gc_refresh_token',
       CURRENCY: 'gc_currency',
-      HOURLY_CURRENCY: 'gc_hourly_currency'
+      HOURLY_CURRENCY: 'gc_hourly_currency',
+      DATE_FROM: 'gc_date_from',
+      DATE_TO: 'gc_date_to'
     };
 
     let CURRENT_CONFIG = {
@@ -979,7 +1221,12 @@
       overageCount: document.getElementById('overageCount'),
       totalOverageHours: document.getElementById('totalOverageHours'),
       currentThresholdDisplay: document.getElementById('currentThresholdDisplay'),
-      thresholdValueDisplay: document.getElementById('thresholdValueDisplay')
+      thresholdValueDisplay: document.getElementById('thresholdValueDisplay'),
+      selectedRangeInfo: document.getElementById('selectedRangeInfo'),
+      dateRangeDisplay: document.getElementById('dateRangeDisplay'),
+      dateRangeDays: document.getElementById('dateRangeDays'),
+      dateFromValidation: document.getElementById('dateFromValidation'),
+      dateToValidation: document.getElementById('dateToValidation')
     };
 
     function formatMillisecondsToHHMMSS(ms) {
@@ -996,6 +1243,151 @@
       return parseFloat((ms / (1000 * 60 * 60)).toFixed(2));
     }
 
+    function formatDateForDisplay(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-GB', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+
+    function formatDateForInput(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toISOString().split('T')[0];
+    }
+
+    function calculateDateRangeDays() {
+      const fromDate = el.dateFrom.value;
+      const toDate = el.dateTo.value;
+      
+      if (!fromDate || !toDate) return 0;
+      
+      const start = new Date(fromDate);
+      const end = new Date(toDate);
+      const diffTime = Math.abs(end - start);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end
+      
+      return diffDays;
+    }
+
+    function updateDateRangeDisplay() {
+      const fromDate = el.dateFrom.value;
+      const toDate = el.dateTo.value;
+      
+      if (fromDate && toDate) {
+        const days = calculateDateRangeDays();
+        el.dateRangeDays.textContent = days;
+        
+        const fromDisplay = formatDateForDisplay(fromDate);
+        const toDisplay = formatDateForDisplay(toDate);
+        
+        el.selectedRangeInfo.textContent = `${fromDisplay} → ${toDisplay}`;
+        el.dateRangeDisplay.textContent = `Selected range: ${fromDisplay} to ${toDisplay} (${days} days)`;
+        el.dateRangeDisplay.style.display = 'block';
+        
+        // Clear validation errors
+        el.dateFromValidation.classList.remove('show');
+        el.dateToValidation.classList.remove('show');
+        
+        // Enable fetch button if both dates are selected
+        el.btnFetchData.disabled = false;
+        
+        // Save dates to localStorage
+        localStorage.setItem(STORAGE_KEYS.DATE_FROM, fromDate);
+        localStorage.setItem(STORAGE_KEYS.DATE_TO, toDate);
+      } else {
+        el.selectedRangeInfo.textContent = 'No dates selected';
+        el.dateRangeDisplay.textContent = 'Select dates to see range information';
+        el.dateRangeDisplay.style.display = 'block';
+        el.dateRangeDays.textContent = '0';
+        el.btnFetchData.disabled = true;
+      }
+    }
+
+    function validateDateRange() {
+      const fromDate = el.dateFrom.value;
+      const toDate = el.dateTo.value;
+      let isValid = true;
+      
+      // Clear previous validation
+      el.dateFromValidation.classList.remove('show');
+      el.dateToValidation.classList.remove('show');
+      
+      if (!fromDate) {
+        el.dateFromValidation.classList.add('show');
+        isValid = false;
+      }
+      
+      if (!toDate) {
+        el.dateToValidation.classList.add('show');
+        isValid = false;
+      }
+      
+      if (fromDate && toDate) {
+        const start = new Date(fromDate);
+        const end = new Date(toDate);
+        
+        if (start > end) {
+          el.dateToValidation.textContent = 'End date must be after start date';
+          el.dateToValidation.classList.add('show');
+          isValid = false;
+        }
+        
+        // Check if date is in the future
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (end > today) {
+          el.dateToValidation.textContent = 'End date cannot be in the future';
+          el.dateToValidation.classList.add('show');
+          isValid = false;
+        }
+      }
+      
+      return isValid;
+    }
+
+    function setQuickDate(days) {
+      const today = new Date();
+      const endDate = new Date(today);
+      const startDate = new Date(today);
+      
+      if (days === 1) {
+        // Yesterday
+        startDate.setDate(today.getDate() - 1);
+        endDate.setDate(today.getDate() - 1);
+      } else if (days === 0) {
+        // Today
+        startDate.setDate(today.getDate());
+        endDate.setDate(today.getDate());
+      } else {
+        // Last X days (including today)
+        startDate.setDate(today.getDate() - days + 1);
+        endDate.setDate(today.getDate());
+      }
+      
+      // Format dates as YYYY-MM-DD
+      el.dateFrom.value = startDate.toISOString().split('T')[0];
+      el.dateTo.value = endDate.toISOString().split('T')[0];
+      
+      // Update display
+      updateDateRangeDisplay();
+      
+      // Highlight the active quick date button
+      document.querySelectorAll('.quick-date-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (parseInt(btn.dataset.days) === days) {
+          btn.classList.add('active');
+        }
+      });
+      
+      logMessage('INFO', 'Date range updated', `Last ${days} day${days !== 1 ? 's' : ''}`);
+    }
+
     function loadStoredCredentials() {
       try {
         const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
@@ -1004,6 +1396,8 @@
         const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
         const currency = localStorage.getItem(STORAGE_KEYS.CURRENCY);
         const hourlyCurrency = localStorage.getItem(STORAGE_KEYS.HOURLY_CURRENCY);
+        const dateFrom = localStorage.getItem(STORAGE_KEYS.DATE_FROM);
+        const dateTo = localStorage.getItem(STORAGE_KEYS.DATE_TO);
 
         if (token && tokenExpiry && environment) {
           CURRENT_CONFIG = {
@@ -1031,6 +1425,16 @@
           appState.hourlyCurrencySymbol = hourlyCurrency;
           el.hourlyCurrencySymbol.value = hourlyCurrency;
         }
+        
+        // Load stored dates if they exist
+        if (dateFrom) {
+          el.dateFrom.value = dateFrom;
+        }
+        
+        if (dateTo) {
+          el.dateTo.value = dateTo;
+        }
+        
       } catch (e) {
         console.warn('Failed to load stored credentials:', e);
       }
@@ -1058,6 +1462,8 @@
         localStorage.removeItem(STORAGE_KEYS.TOKEN_EXPIRY);
         localStorage.removeItem(STORAGE_KEYS.ENVIRONMENT);
         localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+        localStorage.removeItem(STORAGE_KEYS.DATE_FROM);
+        localStorage.removeItem(STORAGE_KEYS.DATE_TO);
         CURRENT_CONFIG = { environment: '', token: null, tokenExpiry: null, refreshToken: null };
       } catch (e) {
         console.error('Failed to clear credentials:', e);
@@ -1200,7 +1606,7 @@
         el.statusIndicator.style.background = 'var(--success)';
         el.statusText.textContent = message || 'Connected ✓';
         el.statusText.style.color = 'var(--success)';
-        el.btnFetchData.disabled = false;
+        el.btnFetchData.disabled = !(el.dateFrom.value && el.dateTo.value);
       } else {
         el.statusIndicator.style.background = 'var(--danger)';
         el.statusText.textContent = message || 'Not Connected';
@@ -1302,6 +1708,11 @@
     }
 
     async function fetchUserData() {
+      if (!validateDateRange()) {
+        showStatusMessage('❌ Please select valid dates', 'error');
+        return;
+      }
+
       setLoading(true, 'Fetching User Data', 'Retrieving agent interaction data from Genesys Cloud...');
       updateLoadingProgress(10);
 
@@ -2369,15 +2780,12 @@
     }
 
     function initializeApp() {
+      // Set max date to today for both date inputs
       const today = new Date();
-      const lastMonth = new Date();
-      lastMonth.setMonth(today.getMonth() - 1);
-      el.dateTo.valueAsDate = today;
-      el.dateFrom.valueAsDate = lastMonth;
       const todayStr = today.toISOString().split('T')[0];
       el.dateTo.max = todayStr;
       el.dateFrom.max = todayStr;
-
+      
       // Load stored currency preferences
       const storedCurrency = localStorage.getItem(STORAGE_KEYS.CURRENCY);
       const storedHourlyCurrency = localStorage.getItem(STORAGE_KEYS.HOURLY_CURRENCY);
@@ -2391,6 +2799,9 @@
         appState.hourlyCurrencySymbol = storedHourlyCurrency;
         el.hourlyCurrencySymbol.value = storedHourlyCurrency;
       }
+      
+      // Update date range display initially
+      updateDateRangeDisplay();
 
       el.btnDisconnect.addEventListener('click', disconnect);
       el.btnFetchData.addEventListener('click', fetchUserData);
@@ -2399,20 +2810,25 @@
       el.btnExport.addEventListener('click', exportReport);
       el.btnReset.addEventListener('click', resetApplication);
 
-      document.querySelectorAll('.quick-select-btn').forEach(btn => {
+      // Date input event listeners
+      el.dateFrom.addEventListener('change', function() {
+        updateDateRangeDisplay();
+        validateDateRange();
+      });
+      
+      el.dateTo.addEventListener('change', function() {
+        updateDateRangeDisplay();
+        validateDateRange();
+      });
+      
+      el.dateFrom.addEventListener('input', updateDateRangeDisplay);
+      el.dateTo.addEventListener('input', updateDateRangeDisplay);
+
+      // Quick date buttons
+      document.querySelectorAll('.quick-date-btn').forEach(btn => {
         btn.addEventListener('click', function() {
           const days = parseInt(this.dataset.days, 10);
-          const toDate = new Date();
-          const fromDate = new Date();
-          if (days === 0) {
-            el.dateTo.valueAsDate = toDate;
-            el.dateFrom.valueAsDate = toDate;
-          } else {
-            fromDate.setDate(toDate.getDate() - days);
-            el.dateTo.valueAsDate = toDate;
-            el.dateFrom.valueAsDate = fromDate;
-          }
-          logMessage('INFO', 'Date range updated', `Last ${days === 0 ? 'today' : days + ' days'}`);
+          setQuickDate(days);
         });
       });
 
