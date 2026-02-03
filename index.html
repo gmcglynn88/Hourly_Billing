@@ -1941,8 +1941,8 @@
       csv += `Generated: ${new Date().toLocaleString()}\n`;
       csv += `Period: ${el.dateFrom.value} to ${el.dateTo.value}\n`;
       csv += `Hourly Interacting Threshold: ${results.threshold} hours\n`;
-      csv += `Named Licence Cost: $${results.namedLicenseCost} per month\n`;
-      csv += `Hourly Interacting Rate: $${results.hourlyLicenseRate} per hour\n\n`;
+      csv += `Named Licence Cost: $£{results.namedLicenseCost} per month\n`;
+      csv += `Hourly Interacting Rate: $£{results.hourlyLicenseRate} per hour\n\n`;
 
       csv += 'SUMMARY\n';
       csv += 'Metric,Value\n';
