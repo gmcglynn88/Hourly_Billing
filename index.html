@@ -202,7 +202,7 @@
       box-shadow:0 6px 12px rgba(0,0,0,0.1);
     }
 
-    .bucket-count{
+    .bucket-hours{
       font-size:24px;font-weight:700;color:var(--primary-color);
     }
 
@@ -483,8 +483,8 @@
                 <div>
                   <div class="bucket-container" id="hourBuckets"></div>
                   <div style="margin-top:15px;font-size:12px;color:var(--text-light);text-align:center;">
-                    <div>📊 <strong>Total Users: <span id="totalUsersCount">0</span></strong> | 👥 <strong>Agents: <span id="totalAgentsCount">0</span></strong></div>
-                    <div style="font-size:11px;margin-top:5px;">Hover over buckets to see agent counts</div>
+                    <div>📊 <strong>Total Hours: <span id="totalHoursCount">0</span></strong> | 👥 <strong>Agents: <span id="totalAgentsCount">0</span></strong></div>
+                    <div style="font-size:11px;margin-top:5px;">Hover over buckets to see details</div>
                   </div>
                 </div>
                 <div>
@@ -777,7 +777,7 @@
       loadingSubtext: document.getElementById('loadingSubtext'),
       loadingProgressFill: document.getElementById('loadingProgressFill'),
       statusContainer: document.getElementById('statusContainer'),
-      totalUsersCount: document.getElementById('totalUsersCount'),
+      totalHoursCount: document.getElementById('totalHoursCount'),
       totalAgentsCount: document.getElementById('totalAgentsCount')
     };
 
@@ -1338,39 +1338,66 @@
           
           // Log hour distribution
           const hourRanges = {
-            '0h': 0,
-            '1-10h': 0,
-            '11-20h': 0,
-            '21-30h': 0,
-            '31-40h': 0,
-            '41-50h': 0,
-            '51-60h': 0,
-            '61-70h': 0,
-            '71-80h': 0,
-            '81-90h': 0,
-            '91-100h': 0,
-            '100+h': 0
+            '0h': { totalHours: 0, agentCount: 0 },
+            '1-10h': { totalHours: 0, agentCount: 0 },
+            '11-20h': { totalHours: 0, agentCount: 0 },
+            '21-30h': { totalHours: 0, agentCount: 0 },
+            '31-40h': { totalHours: 0, agentCount: 0 },
+            '41-50h': { totalHours: 0, agentCount: 0 },
+            '51-60h': { totalHours: 0, agentCount: 0 },
+            '61-70h': { totalHours: 0, agentCount: 0 },
+            '71-80h': { totalHours: 0, agentCount: 0 },
+            '81-90h': { totalHours: 0, agentCount: 0 },
+            '91-100h': { totalHours: 0, agentCount: 0 },
+            '100+h': { totalHours: 0, agentCount: 0 }
           };
           
           appState.userData.forEach(user => {
             const hours = user.interactingHoursDecimal || 0;
-            if (hours === 0) hourRanges['0h']++;
-            else if (hours <= 10) hourRanges['1-10h']++;
-            else if (hours <= 20) hourRanges['11-20h']++;
-            else if (hours <= 30) hourRanges['21-30h']++;
-            else if (hours <= 40) hourRanges['31-40h']++;
-            else if (hours <= 50) hourRanges['41-50h']++;
-            else if (hours <= 60) hourRanges['51-60h']++;
-            else if (hours <= 70) hourRanges['61-70h']++;
-            else if (hours <= 80) hourRanges['71-80h']++;
-            else if (hours <= 90) hourRanges['81-90h']++;
-            else if (hours <= 100) hourRanges['91-100h']++;
-            else hourRanges['100+h']++;
+            const isAgent = user.userType === 'agent';
+            
+            if (hours === 0) {
+              hourRanges['0h'].totalHours += hours;
+              if (isAgent) hourRanges['0h'].agentCount++;
+            } else if (hours <= 10) {
+              hourRanges['1-10h'].totalHours += hours;
+              if (isAgent) hourRanges['1-10h'].agentCount++;
+            } else if (hours <= 20) {
+              hourRanges['11-20h'].totalHours += hours;
+              if (isAgent) hourRanges['11-20h'].agentCount++;
+            } else if (hours <= 30) {
+              hourRanges['21-30h'].totalHours += hours;
+              if (isAgent) hourRanges['21-30h'].agentCount++;
+            } else if (hours <= 40) {
+              hourRanges['31-40h'].totalHours += hours;
+              if (isAgent) hourRanges['31-40h'].agentCount++;
+            } else if (hours <= 50) {
+              hourRanges['41-50h'].totalHours += hours;
+              if (isAgent) hourRanges['41-50h'].agentCount++;
+            } else if (hours <= 60) {
+              hourRanges['51-60h'].totalHours += hours;
+              if (isAgent) hourRanges['51-60h'].agentCount++;
+            } else if (hours <= 70) {
+              hourRanges['61-70h'].totalHours += hours;
+              if (isAgent) hourRanges['61-70h'].agentCount++;
+            } else if (hours <= 80) {
+              hourRanges['71-80h'].totalHours += hours;
+              if (isAgent) hourRanges['71-80h'].agentCount++;
+            } else if (hours <= 90) {
+              hourRanges['81-90h'].totalHours += hours;
+              if (isAgent) hourRanges['81-90h'].agentCount++;
+            } else if (hours <= 100) {
+              hourRanges['91-100h'].totalHours += hours;
+              if (isAgent) hourRanges['91-100h'].agentCount++;
+            } else {
+              hourRanges['100+h'].totalHours += hours;
+              if (isAgent) hourRanges['100+h'].agentCount++;
+            }
           });
           
-          Object.entries(hourRanges).forEach(([range, count]) => {
-            if (count > 0) {
-              logMessage('DEBUG', `Hour range ${range}`, `${count} users`);
+          Object.entries(hourRanges).forEach(([range, data]) => {
+            if (data.totalHours > 0 || data.agentCount > 0) {
+              logMessage('DEBUG', `Hour range ${range}`, `Total hours: ${data.totalHours.toFixed(2)}, Agents: ${data.agentCount}`);
             }
           });
         }
@@ -1666,97 +1693,96 @@
 
     function updateHourBuckets() {
       const buckets = {
-        '0h': { total: 0, agents: 0 },
-        '1-10h': { total: 0, agents: 0 },
-        '11-20h': { total: 0, agents: 0 },
-        '21-30h': { total: 0, agents: 0 },
-        '31-40h': { total: 0, agents: 0 },
-        '41-50h': { total: 0, agents: 0 },
-        '51-60h': { total: 0, agents: 0 },
-        '61-70h': { total: 0, agents: 0 },
-        '71-80h': { total: 0, agents: 0 },
-        '81-90h': { total: 0, agents: 0 },
-        '91-100h': { total: 0, agents: 0 },
-        '100+h': { total: 0, agents: 0 }
+        '0h': { totalHours: 0, agentCount: 0 },
+        '1-10h': { totalHours: 0, agentCount: 0 },
+        '11-20h': { totalHours: 0, agentCount: 0 },
+        '21-30h': { totalHours: 0, agentCount: 0 },
+        '31-40h': { totalHours: 0, agentCount: 0 },
+        '41-50h': { totalHours: 0, agentCount: 0 },
+        '51-60h': { totalHours: 0, agentCount: 0 },
+        '61-70h': { totalHours: 0, agentCount: 0 },
+        '71-80h': { totalHours: 0, agentCount: 0 },
+        '81-90h': { totalHours: 0, agentCount: 0 },
+        '91-100h': { totalHours: 0, agentCount: 0 },
+        '100+h': { totalHours: 0, agentCount: 0 }
       };
+
+      let totalHoursSum = 0;
+      let totalAgents = 0;
 
       (appState.userData || []).forEach(user => {
         const hours = user.interactingHoursDecimal || 0;
         const isAgent = user.userType === 'agent';
         
+        if (isAgent) totalAgents++;
+        
         if (hours === 0) {
-          buckets['0h'].total++;
-          if (isAgent) buckets['0h'].agents++;
+          buckets['0h'].totalHours += hours;
+          if (isAgent) buckets['0h'].agentCount++;
         } else if (hours <= 10) {
-          buckets['1-10h'].total++;
-          if (isAgent) buckets['1-10h'].agents++;
+          buckets['1-10h'].totalHours += hours;
+          if (isAgent) buckets['1-10h'].agentCount++;
         } else if (hours <= 20) {
-          buckets['11-20h'].total++;
-          if (isAgent) buckets['11-20h'].agents++;
+          buckets['11-20h'].totalHours += hours;
+          if (isAgent) buckets['11-20h'].agentCount++;
         } else if (hours <= 30) {
-          buckets['21-30h'].total++;
-          if (isAgent) buckets['21-30h'].agents++;
+          buckets['21-30h'].totalHours += hours;
+          if (isAgent) buckets['21-30h'].agentCount++;
         } else if (hours <= 40) {
-          buckets['31-40h'].total++;
-          if (isAgent) buckets['31-40h'].agents++;
+          buckets['31-40h'].totalHours += hours;
+          if (isAgent) buckets['31-40h'].agentCount++;
         } else if (hours <= 50) {
-          buckets['41-50h'].total++;
-          if (isAgent) buckets['41-50h'].agents++;
+          buckets['41-50h'].totalHours += hours;
+          if (isAgent) buckets['41-50h'].agentCount++;
         } else if (hours <= 60) {
-          buckets['51-60h'].total++;
-          if (isAgent) buckets['51-60h'].agents++;
+          buckets['51-60h'].totalHours += hours;
+          if (isAgent) buckets['51-60h'].agentCount++;
         } else if (hours <= 70) {
-          buckets['61-70h'].total++;
-          if (isAgent) buckets['61-70h'].agents++;
+          buckets['61-70h'].totalHours += hours;
+          if (isAgent) buckets['61-70h'].agentCount++;
         } else if (hours <= 80) {
-          buckets['71-80h'].total++;
-          if (isAgent) buckets['71-80h'].agents++;
+          buckets['71-80h'].totalHours += hours;
+          if (isAgent) buckets['71-80h'].agentCount++;
         } else if (hours <= 90) {
-          buckets['81-90h'].total++;
-          if (isAgent) buckets['81-90h'].agents++;
+          buckets['81-90h'].totalHours += hours;
+          if (isAgent) buckets['81-90h'].agentCount++;
         } else if (hours <= 100) {
-          buckets['91-100h'].total++;
-          if (isAgent) buckets['91-100h'].agents++;
+          buckets['91-100h'].totalHours += hours;
+          if (isAgent) buckets['91-100h'].agentCount++;
         } else {
-          buckets['100+h'].total++;
-          if (isAgent) buckets['100+h'].agents++;
+          buckets['100+h'].totalHours += hours;
+          if (isAgent) buckets['100+h'].agentCount++;
         }
+        
+        totalHoursSum += hours;
       });
 
       el.hourBuckets.innerHTML = '';
       
-      // Calculate totals
-      let totalUsers = 0;
-      let totalAgents = 0;
-      
       Object.entries(buckets).forEach(([label, data]) => {
-        totalUsers += data.total;
-        totalAgents += data.agents;
-        
         const card = document.createElement('div');
         card.className = 'bucket-card';
-        card.title = `Total: ${data.total} users | Agents: ${data.agents} users`;
+        card.title = `Total hours: ${data.totalHours.toFixed(2)} | Agents in bucket: ${data.agentCount}`;
         card.innerHTML = `
-          <div class="bucket-count">${data.total}</div>
-          <div class="bucket-agent-count">👥 ${data.agents} agents</div>
+          <div class="bucket-hours">${data.totalHours.toFixed(0)}</div>
+          <div class="bucket-agent-count">👥 ${data.agentCount} agents</div>
           <div class="bucket-label">${label}</div>
         `;
         el.hourBuckets.appendChild(card);
       });
 
       // Update total counts display
-      el.totalUsersCount.textContent = totalUsers;
+      el.totalHoursCount.textContent = totalHoursSum.toFixed(0);
       el.totalAgentsCount.textContent = totalAgents;
 
       // Update hour stats
       const usersWithHours = appState.userData.filter(u => u.interactingHoursDecimal > 0);
-      const totalHours = usersWithHours.reduce((sum, u) => sum + u.interactingHoursDecimal, 0);
-      const avgHours = usersWithHours.length > 0 ? totalHours / usersWithHours.length : 0;
+      const avgHours = usersWithHours.length > 0 ? totalHoursSum / usersWithHours.length : 0;
       
       el.hourStats.innerHTML = `
         <div style="display:flex;justify-content:center;gap:20px;">
           <div>Users with hours: <strong>${usersWithHours.length}</strong></div>
-          <div>Total hours: <strong>${totalHours.toFixed(2)}</strong></div>
+          <div>Total hours: <strong>${totalHoursSum.toFixed(2)}</strong></div>
           <div>Avg per user: <strong>${avgHours.toFixed(2)}</strong></div>
         </div>
       `;
@@ -1764,18 +1790,18 @@
 
     function updateHourBarChart() {
       const buckets = {
-        '0h': { total: 0, agents: 0 },
-        '1-10h': { total: 0, agents: 0 },
-        '11-20h': { total: 0, agents: 0 },
-        '21-30h': { total: 0, agents: 0 },
-        '31-40h': { total: 0, agents: 0 },
-        '41-50h': { total: 0, agents: 0 },
-        '51-60h': { total: 0, agents: 0 },
-        '61-70h': { total: 0, agents: 0 },
-        '71-80h': { total: 0, agents: 0 },
-        '81-90h': { total: 0, agents: 0 },
-        '91-100h': { total: 0, agents: 0 },
-        '100+h': { total: 0, agents: 0 }
+        '0h': { totalHours: 0, agentCount: 0 },
+        '1-10h': { totalHours: 0, agentCount: 0 },
+        '11-20h': { totalHours: 0, agentCount: 0 },
+        '21-30h': { totalHours: 0, agentCount: 0 },
+        '31-40h': { totalHours: 0, agentCount: 0 },
+        '41-50h': { totalHours: 0, agentCount: 0 },
+        '51-60h': { totalHours: 0, agentCount: 0 },
+        '61-70h': { totalHours: 0, agentCount: 0 },
+        '71-80h': { totalHours: 0, agentCount: 0 },
+        '81-90h': { totalHours: 0, agentCount: 0 },
+        '91-100h': { totalHours: 0, agentCount: 0 },
+        '100+h': { totalHours: 0, agentCount: 0 }
       };
 
       (appState.userData || []).forEach(user => {
@@ -1783,57 +1809,57 @@
         const isAgent = user.userType === 'agent';
         
         if (hours === 0) {
-          buckets['0h'].total++;
-          if (isAgent) buckets['0h'].agents++;
+          buckets['0h'].totalHours += hours;
+          if (isAgent) buckets['0h'].agentCount++;
         } else if (hours <= 10) {
-          buckets['1-10h'].total++;
-          if (isAgent) buckets['1-10h'].agents++;
+          buckets['1-10h'].totalHours += hours;
+          if (isAgent) buckets['1-10h'].agentCount++;
         } else if (hours <= 20) {
-          buckets['11-20h'].total++;
-          if (isAgent) buckets['11-20h'].agents++;
+          buckets['11-20h'].totalHours += hours;
+          if (isAgent) buckets['11-20h'].agentCount++;
         } else if (hours <= 30) {
-          buckets['21-30h'].total++;
-          if (isAgent) buckets['21-30h'].agents++;
+          buckets['21-30h'].totalHours += hours;
+          if (isAgent) buckets['21-30h'].agentCount++;
         } else if (hours <= 40) {
-          buckets['31-40h'].total++;
-          if (isAgent) buckets['31-40h'].agents++;
+          buckets['31-40h'].totalHours += hours;
+          if (isAgent) buckets['31-40h'].agentCount++;
         } else if (hours <= 50) {
-          buckets['41-50h'].total++;
-          if (isAgent) buckets['41-50h'].agents++;
+          buckets['41-50h'].totalHours += hours;
+          if (isAgent) buckets['41-50h'].agentCount++;
         } else if (hours <= 60) {
-          buckets['51-60h'].total++;
-          if (isAgent) buckets['51-60h'].agents++;
+          buckets['51-60h'].totalHours += hours;
+          if (isAgent) buckets['51-60h'].agentCount++;
         } else if (hours <= 70) {
-          buckets['61-70h'].total++;
-          if (isAgent) buckets['61-70h'].agents++;
+          buckets['61-70h'].totalHours += hours;
+          if (isAgent) buckets['61-70h'].agentCount++;
         } else if (hours <= 80) {
-          buckets['71-80h'].total++;
-          if (isAgent) buckets['71-80h'].agents++;
+          buckets['71-80h'].totalHours += hours;
+          if (isAgent) buckets['71-80h'].agentCount++;
         } else if (hours <= 90) {
-          buckets['81-90h'].total++;
-          if (isAgent) buckets['81-90h'].agents++;
+          buckets['81-90h'].totalHours += hours;
+          if (isAgent) buckets['81-90h'].agentCount++;
         } else if (hours <= 100) {
-          buckets['91-100h'].total++;
-          if (isAgent) buckets['91-100h'].agents++;
+          buckets['91-100h'].totalHours += hours;
+          if (isAgent) buckets['91-100h'].agentCount++;
         } else {
-          buckets['100+h'].total++;
-          if (isAgent) buckets['100+h'].agents++;
+          buckets['100+h'].totalHours += hours;
+          if (isAgent) buckets['100+h'].agentCount++;
         }
       });
 
       el.hourBarChart.innerHTML = '';
-      const maxValue = Math.max(...Object.values(buckets).map(b => b.total));
+      const maxValue = Math.max(...Object.values(buckets).map(b => b.totalHours));
       const bucketLabels = Object.keys(buckets);
 
       bucketLabels.forEach(label => {
         const data = buckets[label];
-        const barHeight = maxValue > 0 ? (data.total / maxValue * 100) : 0;
+        const barHeight = maxValue > 0 ? (data.totalHours / maxValue * 100) : 0;
         const bar = document.createElement('div');
         bar.className = 'hour-bar';
         bar.style.height = `${barHeight}%`;
-        bar.title = `${label}: ${data.total} users (${data.agents} agents)`;
+        bar.title = `${label}: ${data.totalHours.toFixed(2)} hours | ${data.agentCount} agents`;
         bar.innerHTML = `
-          <div class="hour-bar-value">${data.total}</div>
+          <div class="hour-bar-value">${data.totalHours.toFixed(0)}</div>
           <div class="hour-bar-label">${label}</div>
         `;
         el.hourBarChart.appendChild(bar);
@@ -1968,7 +1994,7 @@
         el.licenseModel.textContent = 'Hybrid';
         el.totalCount.textContent = '0';
         el.visibleCount.textContent = '0';
-        el.totalUsersCount.textContent = '0';
+        el.totalHoursCount.textContent = '0';
         el.totalAgentsCount.textContent = '0';
         el.btnAnalyze.disabled = true;
         el.btnRunAnalysis.disabled = true;
