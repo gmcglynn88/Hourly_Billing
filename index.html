@@ -334,6 +334,49 @@
       color: white;
       border-color: var(--primary-color);
     }
+    
+    /* New styles for agent count tiles */
+    .agent-count-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    .agent-count-card {
+      background: rgba(99, 171, 143, 0.1);
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid rgba(99, 171, 143, 0.3);
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    
+    .agent-count-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+      border-color: var(--primary-color);
+    }
+    
+    .agent-count-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+    
+    .agent-count-label {
+      font-size: 11px;
+      color: var(--text-light);
+      margin-top: 5px;
+    }
+    
+    .section-title {
+      color: var(--primary-color);
+      font-size: 18px;
+      margin: 20px 0 10px 0;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
   </style>
 </head>
 <body>
@@ -528,7 +571,12 @@
               <h2>⏱️ Hour Distribution</h2>
               <div class="hour-distribution-container">
                 <div>
+                  <h3 class="section-title">📊 Total Hours per Bucket</h3>
                   <div class="bucket-container" id="hourBuckets"></div>
+                  
+                  <h3 class="section-title">👥 Agent Count per Bucket</h3>
+                  <div class="agent-count-container" id="agentCounts"></div>
+                  
                   <div style="margin-top:15px;font-size:12px;color:var(--text-light);text-align:center;">
                     <div>📊 <strong>Total Users: <span id="totalUsersCount">0</span></strong> | 👥 <strong>Agents: <span id="totalAgentsCount">0</span></strong></div>
                     <div style="font-size:11px;margin-top:5px;">Hover over buckets to see details</div>
@@ -839,7 +887,8 @@
       totalUsersCount: document.getElementById('totalUsersCount'),
       totalAgentsCount: document.getElementById('totalAgentsCount'),
       currencySymbol: document.getElementById('currencySymbol'),
-      hourlyCurrencySymbol: document.getElementById('hourlyCurrencySymbol')
+      hourlyCurrencySymbol: document.getElementById('hourlyCurrencySymbol'),
+      agentCounts: document.getElementById('agentCounts')
     };
 
     function formatMillisecondsToHHMMSS(ms) {
@@ -1576,7 +1625,7 @@
         // Update cost displays with correct currency
         updateCurrencyDisplay();
         
-        el.statTotalHours.textContent = totalHours.toFixed(2);
+        el.statTotalHours.textContent = Math.round(totalHours);
         el.totalCost.textContent = `${appState.currencySymbol}${parseFloat(hybridCost).toFixed(2)}`;
         el.savings.textContent = `${savings}% savings`;
         el.costDetails.innerHTML = `All Named: ${appState.currencySymbol}${parseFloat(allNamedCost).toFixed(2)}<br>Hybrid: ${appState.currencySymbol}${parseFloat(hybridCost).toFixed(2)}`;
@@ -1708,7 +1757,7 @@
           <td style="font-size:12px;color:${user.lastLogin === 'Never' ? 'var(--text-light)' : 'var(--success)'}">${user.lastLogin}</td>
           <td style="text-align:center;font-weight:600;font-family:monospace;">
             ${user.interactingHoursFormatted}
-            <div style="font-size:11px;color:var(--text-light);">${user.interactingHoursDecimal.toFixed(2)} hours</div>
+            <div style="font-size:11px;color:var(--text-light);">${Math.round(user.interactingHoursDecimal)} hours</div>
           </td>
           <td>${licenseBadge}</td>
           <td>
@@ -1801,18 +1850,33 @@
         }
       });
 
+      // Update hour buckets (showing total hours as integers)
       el.hourBuckets.innerHTML = '';
       
       Object.entries(buckets).forEach(([label, data]) => {
         const card = document.createElement('div');
         card.className = 'bucket-card';
-        card.title = `Bucket: ${label}\nUsers: ${data.userCount}\nAgents: ${data.agentCount}\nTotal Hours: ${data.totalHours.toFixed(2)}`;
+        card.title = `Bucket: ${label}\nUsers: ${data.userCount}\nAgents: ${data.agentCount}\nTotal Hours: ${Math.round(data.totalHours)}`;
         card.innerHTML = `
-          <div class="bucket-count">${data.totalHours.toFixed(2)}</div>
-          <div class="bucket-agent-count">👥 ${data.userCount} users | ${data.agentCount} agents</div>
+          <div class="bucket-count">${Math.round(data.totalHours)}</div>
+          <div class="bucket-agent-count">👥 ${data.userCount} users</div>
           <div class="bucket-label">${label}</div>
         `;
         el.hourBuckets.appendChild(card);
+      });
+
+      // Update agent count tiles (separate section)
+      el.agentCounts.innerHTML = '';
+      
+      Object.entries(buckets).forEach(([label, data]) => {
+        const card = document.createElement('div');
+        card.className = 'agent-count-card';
+        card.title = `Bucket: ${label}\nAgent Count: ${data.agentCount}\nTotal Hours: ${Math.round(data.totalHours)}`;
+        card.innerHTML = `
+          <div class="agent-count-value">${data.agentCount}</div>
+          <div class="agent-count-label">${label}</div>
+        `;
+        el.agentCounts.appendChild(card);
       });
 
       // Update total counts display
@@ -1826,8 +1890,8 @@
       el.hourStats.innerHTML = `
         <div style="display:flex;justify-content:center;gap:20px;">
           <div>Users with hours: <strong>${usersWithHours.length}</strong></div>
-          <div>Total hours: <strong>${totalHoursSum.toFixed(2)}</strong></div>
-          <div>Avg per user: <strong>${avgHours.toFixed(2)}</strong></div>
+          <div>Total hours: <strong>${Math.round(totalHoursSum)}</strong></div>
+          <div>Avg per user: <strong>${Math.round(avgHours)}</strong></div>
         </div>
       `;
     }
@@ -1913,9 +1977,9 @@
         const bar = document.createElement('div');
         bar.className = 'hour-bar';
         bar.style.height = `${barHeight}%`;
-        bar.title = `${label}\nTotal Hours: ${data.totalHours.toFixed(2)}\nUsers: ${data.userCount}\nAgents: ${data.agentCount}`;
+        bar.title = `${label}\nTotal Hours: ${Math.round(data.totalHours)}\nUsers: ${data.userCount}\nAgents: ${data.agentCount}`;
         bar.innerHTML = `
-          <div class="hour-bar-value">${data.totalHours.toFixed(1)}h</div>
+          <div class="hour-bar-value">${Math.round(data.totalHours)}h</div>
           <div class="hour-bar-label">${label}</div>
         `;
         el.hourBarChart.appendChild(bar);
@@ -1993,7 +2057,7 @@
       csv += `Named Users,${results.namedUsers}\n`;
       csv += `Hourly Interacting Users,${results.hiUsers}\n`;
       csv += `NOLOGIN Users,${results.nologinUsers}\n`;
-      csv += `Total Hours,${results.totalHours}\n`;
+      csv += `Total Hours,${Math.round(results.totalHours)}\n`;
       csv += `All Named Cost,${appState.currencySymbol}${results.allNamedCost}\n`;
       csv += `Hybrid Cost,${appState.currencySymbol}${results.hybridCost}\n`;
       csv += `Cost Savings,${results.savings}%\n`;
@@ -2010,7 +2074,7 @@
       csv += 'Name,Email,Team,Role Type,Roles,Last Login,Interacting Time (HH:MM:SS),Interacting Time (hours),Recommended Licence,Reason,Estimated Cost\n';
 
       results.users.forEach(user => {
-        csv += `"${user.name || ''}","${user.email || ''}","${user.team || ''}","${user.userType || ''}","${user.role || ''}","${user.lastLogin || 'Never'}","${user.interactingHoursFormatted}",${user.interactingHoursDecimal},"${user.recommendedLicense || ''}","${user.recommendedReason || ''}",${(user.estimatedCost || 0).toFixed(2)}\n`;
+        csv += `"${user.name || ''}","${user.email || ''}","${user.team || ''}","${user.userType || ''}","${user.role || ''}","${user.lastLogin || 'Never'}","${user.interactingHoursFormatted}",${Math.round(user.interactingHoursDecimal)},"${user.recommendedLicense || ''}","${user.recommendedReason || ''}",${(user.estimatedCost || 0).toFixed(2)}\n`;
       });
 
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -2063,6 +2127,7 @@
         `;
 
         el.hourBuckets.innerHTML = '';
+        el.agentCounts.innerHTML = '';
         el.hourBarChart.innerHTML = '';
         el.hourStats.innerHTML = '';
 
