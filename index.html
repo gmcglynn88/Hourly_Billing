@@ -202,7 +202,7 @@
       box-shadow:0 6px 12px rgba(0,0,0,0.1);
     }
 
-    .bucket-hours{
+    .bucket-count{
       font-size:24px;font-weight:700;color:var(--primary-color);
     }
 
@@ -307,6 +307,33 @@
       padding-top: 20px;
       border-top: 1px solid var(--border-color);
     }
+    
+    .currency-selector {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+    }
+    
+    .currency-option {
+      padding: 6px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--light-bg);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    .currency-option:hover {
+      background: var(--pill);
+    }
+    
+    .currency-option.active {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
   </style>
 </head>
 <body>
@@ -379,12 +406,26 @@
               </div>
             </div>
             <div class="form-group">
-              <label for="namedLicenseCost">Named Licence Monthly Cost (£)</label>
-              <input type="number" id="namedLicenseCost" value="70" min="1" step="0.01">
+              <label for="namedLicenseCost">Named Licence Monthly Cost</label>
+              <div style="display:flex;gap:10px;">
+                <select id="currencySymbol" style="width:80px;">
+                  <option value="£">£ GBP</option>
+                  <option value="$">$ USD</option>
+                  <option value="€">€ EUR</option>
+                </select>
+                <input type="number" id="namedLicenseCost" value="70" min="1" step="0.01" style="flex:1;">
+              </div>
             </div>
             <div class="form-group">
-              <label for="hourlyLicenseRate">Hourly Interacting Rate (£/hour)</label>
-              <input type="number" id="hourlyLicenseRate" value="0.45" min="0.01" step="0.01">
+              <label for="hourlyLicenseRate">Hourly Interacting Rate</label>
+              <div style="display:flex;gap:10px;">
+                <select id="hourlyCurrencySymbol" style="width:80px;">
+                  <option value="£">£ GBP</option>
+                  <option value="$">$ USD</option>
+                  <option value="€">€ EUR</option>
+                </select>
+                <input type="number" id="hourlyLicenseRate" value="0.45" min="0.01" step="0.01" style="flex:1;">
+              </div>
             </div>
             <div class="form-group">
               <label for="includeNologin">Include NOLOGIN Users</label>
@@ -489,7 +530,7 @@
                 <div>
                   <div class="bucket-container" id="hourBuckets"></div>
                   <div style="margin-top:15px;font-size:12px;color:var(--text-light);text-align:center;">
-                    <div>📊 <strong>Total Hours: <span id="totalHoursCount">0</span></strong> | 👥 <strong>Agents: <span id="totalAgentsCount">0</span></strong></div>
+                    <div>📊 <strong>Total Users: <span id="totalUsersCount">0</span></strong> | 👥 <strong>Agents: <span id="totalAgentsCount">0</span></strong></div>
                     <div style="font-size:11px;margin-top:5px;">Hover over buckets to see details</div>
                   </div>
                 </div>
@@ -500,7 +541,7 @@
             <div class="card chart-section">
               <h2>📊 Hour Distribution Chart</h2>
               <p style="color:var(--text-light);font-size:14px;margin-bottom:20px;">
-                Visual representation of total hours by bucket range
+                Visual representation of user count by hour bucket range
               </p>
               <div class="hour-bar-chart" id="hourBarChart"></div>
               <div style="margin-top:15px;font-size:12px;color:var(--text-light);text-align:center;">
@@ -715,7 +756,9 @@
       ENVIRONMENT: 'gc_environment',
       TOKEN: 'gc_token',
       TOKEN_EXPIRY: 'gc_token_expiry',
-      REFRESH_TOKEN: 'gc_refresh_token'
+      REFRESH_TOKEN: 'gc_refresh_token',
+      CURRENCY: 'gc_currency',
+      HOURLY_CURRENCY: 'gc_hourly_currency'
     };
 
     let CURRENT_CONFIG = {
@@ -732,7 +775,9 @@
       isAnalyzing: false,
       currentTab: 'dashboard',
       logs: [],
-      chartInstances: {}
+      chartInstances: {},
+      currencySymbol: '£',
+      hourlyCurrencySymbol: '£'
     };
 
     const el = {
@@ -791,8 +836,10 @@
       loadingSubtext: document.getElementById('loadingSubtext'),
       loadingProgressFill: document.getElementById('loadingProgressFill'),
       statusContainer: document.getElementById('statusContainer'),
-      totalHoursCount: document.getElementById('totalHoursCount'),
-      totalAgentsCount: document.getElementById('totalAgentsCount')
+      totalUsersCount: document.getElementById('totalUsersCount'),
+      totalAgentsCount: document.getElementById('totalAgentsCount'),
+      currencySymbol: document.getElementById('currencySymbol'),
+      hourlyCurrencySymbol: document.getElementById('hourlyCurrencySymbol')
     };
 
     function formatMillisecondsToHHMMSS(ms) {
@@ -815,6 +862,8 @@
         const tokenExpiry = localStorage.getItem(STORAGE_KEYS.TOKEN_EXPIRY);
         const environment = localStorage.getItem(STORAGE_KEYS.ENVIRONMENT);
         const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+        const currency = localStorage.getItem(STORAGE_KEYS.CURRENCY);
+        const hourlyCurrency = localStorage.getItem(STORAGE_KEYS.HOURLY_CURRENCY);
 
         if (token && tokenExpiry && environment) {
           CURRENT_CONFIG = {
@@ -831,6 +880,16 @@
           if (refreshToken) {
             return false;
           }
+        }
+        
+        if (currency) {
+          appState.currencySymbol = currency;
+          el.currencySymbol.value = currency;
+        }
+        
+        if (hourlyCurrency) {
+          appState.hourlyCurrencySymbol = hourlyCurrency;
+          el.hourlyCurrencySymbol.value = hourlyCurrency;
         }
       } catch (e) {
         console.warn('Failed to load stored credentials:', e);
@@ -975,7 +1034,17 @@
     function disconnect() {
       if (confirm('Disconnect from Genesys Cloud? This will clear all stored credentials.')) {
         clearCredentials();
-        appState = { isConnected: false, userData: [], analysisResults: null, isAnalyzing: false, currentTab: 'dashboard', logs: [], chartInstances: {} };
+        appState = { 
+          isConnected: false, 
+          userData: [], 
+          analysisResults: null, 
+          isAnalyzing: false, 
+          currentTab: 'dashboard', 
+          logs: [], 
+          chartInstances: {},
+          currencySymbol: '£',
+          hourlyCurrencySymbol: '£'
+        };
         el.mainContent.style.display = 'none';
         el.authContainer.style.display = 'block';
         updateConnectionStatus(false, 'Not Connected');
@@ -1349,80 +1418,13 @@
           const avgMs = totalInteractingMs / usersWithHours.length;
           const avgHoursFormatted = formatMillisecondsToHHMMSS(avgMs);
           logMessage('INFO', `Average per user`, `${avgHoursFormatted} per active user`);
-          
-          // Log hour distribution
-          const hourRanges = {
-            '0h': { totalHours: 0, agentCount: 0 },
-            '1-10h': { totalHours: 0, agentCount: 0 },
-            '11-20h': { totalHours: 0, agentCount: 0 },
-            '21-30h': { totalHours: 0, agentCount: 0 },
-            '31-40h': { totalHours: 0, agentCount: 0 },
-            '41-50h': { totalHours: 0, agentCount: 0 },
-            '51-60h': { totalHours: 0, agentCount: 0 },
-            '61-70h': { totalHours: 0, agentCount: 0 },
-            '71-80h': { totalHours: 0, agentCount: 0 },
-            '81-90h': { totalHours: 0, agentCount: 0 },
-            '91-100h': { totalHours: 0, agentCount: 0 },
-            '100+h': { totalHours: 0, agentCount: 0 }
-          };
-          
-          appState.userData.forEach(user => {
-            const hours = user.interactingHoursDecimal || 0;
-            const isAgent = user.userType === 'agent';
-            
-            if (hours === 0) {
-              hourRanges['0h'].totalHours += hours;
-              if (isAgent) hourRanges['0h'].agentCount++;
-            } else if (hours <= 10) {
-              hourRanges['1-10h'].totalHours += hours;
-              if (isAgent) hourRanges['1-10h'].agentCount++;
-            } else if (hours <= 20) {
-              hourRanges['11-20h'].totalHours += hours;
-              if (isAgent) hourRanges['11-20h'].agentCount++;
-            } else if (hours <= 30) {
-              hourRanges['21-30h'].totalHours += hours;
-              if (isAgent) hourRanges['21-30h'].agentCount++;
-            } else if (hours <= 40) {
-              hourRanges['31-40h'].totalHours += hours;
-              if (isAgent) hourRanges['31-40h'].agentCount++;
-            } else if (hours <= 50) {
-              hourRanges['41-50h'].totalHours += hours;
-              if (isAgent) hourRanges['41-50h'].agentCount++;
-            } else if (hours <= 60) {
-              hourRanges['51-60h'].totalHours += hours;
-              if (isAgent) hourRanges['51-60h'].agentCount++;
-            } else if (hours <= 70) {
-              hourRanges['61-70h'].totalHours += hours;
-              if (isAgent) hourRanges['61-70h'].agentCount++;
-            } else if (hours <= 80) {
-              hourRanges['71-80h'].totalHours += hours;
-              if (isAgent) hourRanges['71-80h'].agentCount++;
-            } else if (hours <= 90) {
-              hourRanges['81-90h'].totalHours += hours;
-              if (isAgent) hourRanges['81-90h'].agentCount++;
-            } else if (hours <= 100) {
-              hourRanges['91-100h'].totalHours += hours;
-              if (isAgent) hourRanges['91-100h'].agentCount++;
-            } else {
-              hourRanges['100+h'].totalHours += hours;
-              if (isAgent) hourRanges['100+h'].agentCount++;
-            }
-          });
-          
-          Object.entries(hourRanges).forEach(([range, data]) => {
-            if (data.totalHours > 0 || data.agentCount > 0) {
-              logMessage('DEBUG', `Hour range ${range}`, `Total hours: ${data.totalHours.toFixed(2)}, Agents: ${data.agentCount}`);
-            }
-          });
         }
 
         updateLoadingProgress(95);
         updateUserTypeStats();
 
-        // Update cost parameter displays
-        el.statNamedCost.textContent = `$${el.namedLicenseCost.value}`;
-        el.statHourlyRate.textContent = `$${el.hourlyLicenseRate.value}`;
-        el.statTotalHours.textContent = totalInteractingHours.toFixed(2);
+        // Update cost parameter displays with correct currency
+        updateCurrencyDisplay();
 
         logMessage('SUCCESS', 'Data loaded successfully', 
           `${appState.userData.length} users loaded, ${usersWithHours.length} with interacting time, total ${totalInteractingHours.toFixed(2)} hours`);
@@ -1570,12 +1572,14 @@
         el.statAgentHI.textContent = agentHI;
         el.statSupervisorNamed.textContent = supervisorNamed;
         el.statAdminNamed.textContent = adminNamed;
-        el.statNamedCost.textContent = `$${namedLicenseCost}`;
-        el.statHourlyRate.textContent = `$${hourlyLicenseRate}`;
+        
+        // Update cost displays with correct currency
+        updateCurrencyDisplay();
+        
         el.statTotalHours.textContent = totalHours.toFixed(2);
-        el.totalCost.textContent = `$${parseFloat(hybridCost).toFixed(2)}`;
+        el.totalCost.textContent = `${appState.currencySymbol}${parseFloat(hybridCost).toFixed(2)}`;
         el.savings.textContent = `${savings}% savings`;
-        el.costDetails.innerHTML = `All Named: $${parseFloat(allNamedCost).toFixed(2)}<br>Hybrid: $${parseFloat(hybridCost).toFixed(2)}`;
+        el.costDetails.innerHTML = `All Named: ${appState.currencySymbol}${parseFloat(allNamedCost).toFixed(2)}<br>Hybrid: ${appState.currencySymbol}${parseFloat(hybridCost).toFixed(2)}`;
         el.licenseModel.textContent = optimalModel;
 
         renderUserTable();
@@ -1587,7 +1591,7 @@
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         logMessage('SUCCESS', 'Analysis complete', `${namedUsers} Named, ${hiUsers} Hourly Interacting users`);
-        logMessage('INFO', 'Cost analysis', `All Named: $${allNamedCost}, Hybrid: $${hybridCost}, Savings: ${savings}%`);
+        logMessage('INFO', 'Cost analysis', `All Named: ${appState.currencySymbol}${allNamedCost}, Hybrid: ${appState.currencySymbol}${hybridCost}, Savings: ${savings}%`);
         showStatusMessage(`✅ Analysis complete: ${savings}% cost savings`, 'success');
         el.btnExport.disabled = false;
 
@@ -1599,6 +1603,18 @@
         el.btnRunAnalysis.disabled = false;
         el.btnRunAnalysis.innerHTML = '<span>▶️ Run Analysis</span>';
         updateProgress('Ready to analyse', 0);
+      }
+    }
+
+    function updateCurrencyDisplay() {
+      // Update all currency displays
+      el.statNamedCost.textContent = `${appState.currencySymbol}${el.namedLicenseCost.value}`;
+      el.statHourlyRate.textContent = `${appState.hourlyCurrencySymbol}${el.hourlyLicenseRate.value}`;
+      
+      // Update total cost if analysis has been run
+      if (appState.analysisResults) {
+        el.totalCost.textContent = `${appState.currencySymbol}${parseFloat(appState.analysisResults.hybridCost).toFixed(2)}`;
+        el.costDetails.innerHTML = `All Named: ${appState.currencySymbol}${parseFloat(appState.analysisResults.allNamedCost).toFixed(2)}<br>Hybrid: ${appState.currencySymbol}${parseFloat(appState.analysisResults.hybridCost).toFixed(2)}`;
       }
     }
 
@@ -1707,68 +1723,70 @@
 
     function updateHourBuckets() {
       const buckets = {
-        '0h': { totalHours: 0, agentCount: 0 },
-        '1-10h': { totalHours: 0, agentCount: 0 },
-        '11-20h': { totalHours: 0, agentCount: 0 },
-        '21-30h': { totalHours: 0, agentCount: 0 },
-        '31-40h': { totalHours: 0, agentCount: 0 },
-        '41-50h': { totalHours: 0, agentCount: 0 },
-        '51-60h': { totalHours: 0, agentCount: 0 },
-        '61-70h': { totalHours: 0, agentCount: 0 },
-        '71-80h': { totalHours: 0, agentCount: 0 },
-        '81-90h': { totalHours: 0, agentCount: 0 },
-        '91-100h': { totalHours: 0, agentCount: 0 },
-        '100+h': { totalHours: 0, agentCount: 0 }
+        '0h': { userCount: 0, agentCount: 0 },
+        '1-10h': { userCount: 0, agentCount: 0 },
+        '11-20h': { userCount: 0, agentCount: 0 },
+        '21-30h': { userCount: 0, agentCount: 0 },
+        '31-40h': { userCount: 0, agentCount: 0 },
+        '41-50h': { userCount: 0, agentCount: 0 },
+        '51-60h': { userCount: 0, agentCount: 0 },
+        '61-70h': { userCount: 0, agentCount: 0 },
+        '71-80h': { userCount: 0, agentCount: 0 },
+        '81-90h': { userCount: 0, agentCount: 0 },
+        '91-100h': { userCount: 0, agentCount: 0 },
+        '100+h': { userCount: 0, agentCount: 0 }
       };
 
-      let totalHoursSum = 0;
+      let totalUsers = 0;
       let totalAgents = 0;
+      let totalHoursSum = 0;
 
       (appState.userData || []).forEach(user => {
         const hours = user.interactingHoursDecimal || 0;
         const isAgent = user.userType === 'agent';
         
+        totalUsers++;
+        totalHoursSum += hours;
         if (isAgent) totalAgents++;
         
+        // FIXED: Proper bucket assignment - each user goes into exactly one bucket
         if (hours === 0) {
-          buckets['0h'].totalHours += hours;
+          buckets['0h'].userCount++;
           if (isAgent) buckets['0h'].agentCount++;
-        } else if (hours <= 10) {
-          buckets['1-10h'].totalHours += hours;
+        } else if (hours > 0 && hours <= 10) {
+          buckets['1-10h'].userCount++;
           if (isAgent) buckets['1-10h'].agentCount++;
-        } else if (hours <= 20) {
-          buckets['11-20h'].totalHours += hours;
+        } else if (hours > 10 && hours <= 20) {
+          buckets['11-20h'].userCount++;
           if (isAgent) buckets['11-20h'].agentCount++;
-        } else if (hours <= 30) {
-          buckets['21-30h'].totalHours += hours;
+        } else if (hours > 20 && hours <= 30) {
+          buckets['21-30h'].userCount++;
           if (isAgent) buckets['21-30h'].agentCount++;
-        } else if (hours <= 40) {
-          buckets['31-40h'].totalHours += hours;
+        } else if (hours > 30 && hours <= 40) {
+          buckets['31-40h'].userCount++;
           if (isAgent) buckets['31-40h'].agentCount++;
-        } else if (hours <= 50) {
-          buckets['41-50h'].totalHours += hours;
+        } else if (hours > 40 && hours <= 50) {
+          buckets['41-50h'].userCount++;
           if (isAgent) buckets['41-50h'].agentCount++;
-        } else if (hours <= 60) {
-          buckets['51-60h'].totalHours += hours;
+        } else if (hours > 50 && hours <= 60) {
+          buckets['51-60h'].userCount++;
           if (isAgent) buckets['51-60h'].agentCount++;
-        } else if (hours <= 70) {
-          buckets['61-70h'].totalHours += hours;
+        } else if (hours > 60 && hours <= 70) {
+          buckets['61-70h'].userCount++;
           if (isAgent) buckets['61-70h'].agentCount++;
-        } else if (hours <= 80) {
-          buckets['71-80h'].totalHours += hours;
+        } else if (hours > 70 && hours <= 80) {
+          buckets['71-80h'].userCount++;
           if (isAgent) buckets['71-80h'].agentCount++;
-        } else if (hours <= 90) {
-          buckets['81-90h'].totalHours += hours;
+        } else if (hours > 80 && hours <= 90) {
+          buckets['81-90h'].userCount++;
           if (isAgent) buckets['81-90h'].agentCount++;
-        } else if (hours <= 100) {
-          buckets['91-100h'].totalHours += hours;
+        } else if (hours > 90 && hours <= 100) {
+          buckets['91-100h'].userCount++;
           if (isAgent) buckets['91-100h'].agentCount++;
-        } else {
-          buckets['100+h'].totalHours += hours;
+        } else if (hours > 100) {
+          buckets['100+h'].userCount++;
           if (isAgent) buckets['100+h'].agentCount++;
         }
-        
-        totalHoursSum += hours;
       });
 
       el.hourBuckets.innerHTML = '';
@@ -1776,9 +1794,9 @@
       Object.entries(buckets).forEach(([label, data]) => {
         const card = document.createElement('div');
         card.className = 'bucket-card';
-        card.title = `Total hours: ${data.totalHours.toFixed(2)} | Agents in bucket: ${data.agentCount}`;
+        card.title = `Users in bucket: ${data.userCount} | Agents in bucket: ${data.agentCount}`;
         card.innerHTML = `
-          <div class="bucket-hours">${data.totalHours.toFixed(0)}</div>
+          <div class="bucket-count">${data.userCount}</div>
           <div class="bucket-agent-count">👥 ${data.agentCount} agents</div>
           <div class="bucket-label">${label}</div>
         `;
@@ -1786,7 +1804,7 @@
       });
 
       // Update total counts display
-      el.totalHoursCount.textContent = totalHoursSum.toFixed(0);
+      el.totalUsersCount.textContent = totalUsers;
       el.totalAgentsCount.textContent = totalAgents;
 
       // Update hour stats
@@ -1804,18 +1822,18 @@
 
     function updateHourBarChart() {
       const buckets = {
-        '0h': { totalHours: 0, agentCount: 0 },
-        '1-10h': { totalHours: 0, agentCount: 0 },
-        '11-20h': { totalHours: 0, agentCount: 0 },
-        '21-30h': { totalHours: 0, agentCount: 0 },
-        '31-40h': { totalHours: 0, agentCount: 0 },
-        '41-50h': { totalHours: 0, agentCount: 0 },
-        '51-60h': { totalHours: 0, agentCount: 0 },
-        '61-70h': { totalHours: 0, agentCount: 0 },
-        '71-80h': { totalHours: 0, agentCount: 0 },
-        '81-90h': { totalHours: 0, agentCount: 0 },
-        '91-100h': { totalHours: 0, agentCount: 0 },
-        '100+h': { totalHours: 0, agentCount: 0 }
+        '0h': { userCount: 0, agentCount: 0 },
+        '1-10h': { userCount: 0, agentCount: 0 },
+        '11-20h': { userCount: 0, agentCount: 0 },
+        '21-30h': { userCount: 0, agentCount: 0 },
+        '31-40h': { userCount: 0, agentCount: 0 },
+        '41-50h': { userCount: 0, agentCount: 0 },
+        '51-60h': { userCount: 0, agentCount: 0 },
+        '61-70h': { userCount: 0, agentCount: 0 },
+        '71-80h': { userCount: 0, agentCount: 0 },
+        '81-90h': { userCount: 0, agentCount: 0 },
+        '91-100h': { userCount: 0, agentCount: 0 },
+        '100+h': { userCount: 0, agentCount: 0 }
       };
 
       (appState.userData || []).forEach(user => {
@@ -1823,57 +1841,57 @@
         const isAgent = user.userType === 'agent';
         
         if (hours === 0) {
-          buckets['0h'].totalHours += hours;
+          buckets['0h'].userCount++;
           if (isAgent) buckets['0h'].agentCount++;
-        } else if (hours <= 10) {
-          buckets['1-10h'].totalHours += hours;
+        } else if (hours > 0 && hours <= 10) {
+          buckets['1-10h'].userCount++;
           if (isAgent) buckets['1-10h'].agentCount++;
-        } else if (hours <= 20) {
-          buckets['11-20h'].totalHours += hours;
+        } else if (hours > 10 && hours <= 20) {
+          buckets['11-20h'].userCount++;
           if (isAgent) buckets['11-20h'].agentCount++;
-        } else if (hours <= 30) {
-          buckets['21-30h'].totalHours += hours;
+        } else if (hours > 20 && hours <= 30) {
+          buckets['21-30h'].userCount++;
           if (isAgent) buckets['21-30h'].agentCount++;
-        } else if (hours <= 40) {
-          buckets['31-40h'].totalHours += hours;
+        } else if (hours > 30 && hours <= 40) {
+          buckets['31-40h'].userCount++;
           if (isAgent) buckets['31-40h'].agentCount++;
-        } else if (hours <= 50) {
-          buckets['41-50h'].totalHours += hours;
+        } else if (hours > 40 && hours <= 50) {
+          buckets['41-50h'].userCount++;
           if (isAgent) buckets['41-50h'].agentCount++;
-        } else if (hours <= 60) {
-          buckets['51-60h'].totalHours += hours;
+        } else if (hours > 50 && hours <= 60) {
+          buckets['51-60h'].userCount++;
           if (isAgent) buckets['51-60h'].agentCount++;
-        } else if (hours <= 70) {
-          buckets['61-70h'].totalHours += hours;
+        } else if (hours > 60 && hours <= 70) {
+          buckets['61-70h'].userCount++;
           if (isAgent) buckets['61-70h'].agentCount++;
-        } else if (hours <= 80) {
-          buckets['71-80h'].totalHours += hours;
+        } else if (hours > 70 && hours <= 80) {
+          buckets['71-80h'].userCount++;
           if (isAgent) buckets['71-80h'].agentCount++;
-        } else if (hours <= 90) {
-          buckets['81-90h'].totalHours += hours;
+        } else if (hours > 80 && hours <= 90) {
+          buckets['81-90h'].userCount++;
           if (isAgent) buckets['81-90h'].agentCount++;
-        } else if (hours <= 100) {
-          buckets['91-100h'].totalHours += hours;
+        } else if (hours > 90 && hours <= 100) {
+          buckets['91-100h'].userCount++;
           if (isAgent) buckets['91-100h'].agentCount++;
-        } else {
-          buckets['100+h'].totalHours += hours;
+        } else if (hours > 100) {
+          buckets['100+h'].userCount++;
           if (isAgent) buckets['100+h'].agentCount++;
         }
       });
 
       el.hourBarChart.innerHTML = '';
-      const maxValue = Math.max(...Object.values(buckets).map(b => b.totalHours));
+      const maxValue = Math.max(...Object.values(buckets).map(b => b.userCount));
       const bucketLabels = Object.keys(buckets);
 
       bucketLabels.forEach(label => {
         const data = buckets[label];
-        const barHeight = maxValue > 0 ? (data.totalHours / maxValue * 100) : 0;
+        const barHeight = maxValue > 0 ? (data.userCount / maxValue * 100) : 0;
         const bar = document.createElement('div');
         bar.className = 'hour-bar';
         bar.style.height = `${barHeight}%`;
-        bar.title = `${label}: ${data.totalHours.toFixed(2)} hours | ${data.agentCount} agents`;
+        bar.title = `${label}: ${data.userCount} users | ${data.agentCount} agents`;
         bar.innerHTML = `
-          <div class="hour-bar-value">${data.totalHours.toFixed(0)}</div>
+          <div class="hour-bar-value">${data.userCount}</div>
           <div class="hour-bar-label">${label}</div>
         `;
         el.hourBarChart.appendChild(bar);
@@ -1941,8 +1959,8 @@
       csv += `Generated: ${new Date().toLocaleString()}\n`;
       csv += `Period: ${el.dateFrom.value} to ${el.dateTo.value}\n`;
       csv += `Hourly Interacting Threshold: ${results.threshold} hours\n`;
-      csv += `Named Licence Cost: $£{results.namedLicenseCost} per month\n`;
-      csv += `Hourly Interacting Rate: $£{results.hourlyLicenseRate} per hour\n\n`;
+      csv += `Named Licence Cost: ${appState.currencySymbol}${results.namedLicenseCost} per month\n`;
+      csv += `Hourly Interacting Rate: ${appState.hourlyCurrencySymbol}${results.hourlyLicenseRate} per hour\n\n`;
 
       csv += 'SUMMARY\n';
       csv += 'Metric,Value\n';
@@ -1952,8 +1970,8 @@
       csv += `Hourly Interacting Users,${results.hiUsers}\n`;
       csv += `NOLOGIN Users,${results.nologinUsers}\n`;
       csv += `Total Hours,${results.totalHours}\n`;
-      csv += `All Named Cost,$${results.allNamedCost}\n`;
-      csv += `Hybrid Cost,$${results.hybridCost}\n`;
+      csv += `All Named Cost,${appState.currencySymbol}${results.allNamedCost}\n`;
+      csv += `Hybrid Cost,${appState.currencySymbol}${results.hybridCost}\n`;
       csv += `Cost Savings,${results.savings}%\n`;
       csv += `Optimal Model,${results.optimalModel}\n\n`;
 
@@ -2002,13 +2020,13 @@
         el.statAgentHI.textContent = '0';
         el.statSupervisorNamed.textContent = '0';
         el.statAdminNamed.textContent = '0';
-        el.totalCost.textContent = '$0';
+        el.totalCost.textContent = '£0';
         el.savings.textContent = '0% savings';
         el.costDetails.innerHTML = '';
         el.licenseModel.textContent = 'Hybrid';
         el.totalCount.textContent = '0';
         el.visibleCount.textContent = '0';
-        el.totalHoursCount.textContent = '0';
+        el.totalUsersCount.textContent = '0';
         el.totalAgentsCount.textContent = '0';
         el.btnAnalyze.disabled = true;
         el.btnRunAnalysis.disabled = true;
@@ -2040,6 +2058,20 @@
       const todayStr = today.toISOString().split('T')[0];
       el.dateTo.max = todayStr;
       el.dateFrom.max = todayStr;
+
+      // Load stored currency preferences
+      const storedCurrency = localStorage.getItem(STORAGE_KEYS.CURRENCY);
+      const storedHourlyCurrency = localStorage.getItem(STORAGE_KEYS.HOURLY_CURRENCY);
+      
+      if (storedCurrency) {
+        appState.currencySymbol = storedCurrency;
+        el.currencySymbol.value = storedCurrency;
+      }
+      
+      if (storedHourlyCurrency) {
+        appState.hourlyCurrencySymbol = storedHourlyCurrency;
+        el.hourlyCurrencySymbol.value = storedHourlyCurrency;
+      }
 
       el.btnDisconnect.addEventListener('click', disconnect);
       el.btnFetchData.addEventListener('click', fetchUserData);
@@ -2095,14 +2127,32 @@
         navigator.clipboard.writeText(logText).then(() => showStatusMessage('Logs copied to clipboard', 'success'));
       });
 
+      // Currency change handlers
+      el.currencySymbol.addEventListener('change', function() {
+        appState.currencySymbol = this.value;
+        localStorage.setItem(STORAGE_KEYS.CURRENCY, this.value);
+        updateCurrencyDisplay();
+        logMessage('INFO', 'Currency updated', `Named licence currency: ${this.value}`);
+      });
+      
+      el.hourlyCurrencySymbol.addEventListener('change', function() {
+        appState.hourlyCurrencySymbol = this.value;
+        localStorage.setItem(STORAGE_KEYS.HOURLY_CURRENCY, this.value);
+        updateCurrencyDisplay();
+        logMessage('INFO', 'Currency updated', `Hourly rate currency: ${this.value}`);
+      });
+
       // Update cost displays when values change
       el.namedLicenseCost.addEventListener('change', () => {
-        el.statNamedCost.textContent = `$${el.namedLicenseCost.value}`;
+        updateCurrencyDisplay();
       });
       
       el.hourlyLicenseRate.addEventListener('change', () => {
-        el.statHourlyRate.textContent = `$${el.hourlyLicenseRate.value}`;
+        updateCurrencyDisplay();
       });
+
+      // Initial currency display update
+      updateCurrencyDisplay();
 
       logMessage('INFO', 'Hourly Billing Calculator initialised', 'Ready for authentication');
     }
