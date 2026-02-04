@@ -674,12 +674,13 @@
               </select>
             </div>
             <div style="background:rgba(99,171,143,0.05);padding:14px;border-radius:8px;margin-top:12px;">
-              <div style="font-size:13px;color:var(--primary-color);font-weight:600;margin-bottom:6px;">📋 Business Logic:</div>
+              <div style="font-size:13px;color:var(--primary-color);font-weight:600;margin-bottom:6px;">📋 CORRECTED Business Logic:</div>
               <div style="font-size:12px;color:var(--text-light);line-height:1.5;">
                 • Interacting time &gt; 0 but &lt; threshold = Hourly Interacting Licence<br>
                 • Interacting time ≥ threshold = Named Licence<br>
                 • Admins/Supervisors = Named (always)<br>
-                • NOLOGIN = No licence consumption<br>
+                • NOLOGIN = No licence consumption (0 hours)<br>
+                • Users with 0 hours = NOLOGIN (even if logged in)<br>
                 • Based on total interacting time in selected period
               </div>
             </div>
@@ -734,7 +735,7 @@
                 <div class="stat-label">Hourly Interacting</div>
                 <div class="stat-value" id="statHiUsers">0</div>
                 <div class="stat-subvalue" id="statHiHours">0 hours</div>
-                <div style="font-size:12px;color:var(--text-light);">Users on Hourly licences</div>
+                <div style="font-size:12px;color:var(--text-light);">Users with &gt;0 hours but &lt; threshold</div>
               </div>
             </div>
 
@@ -995,7 +996,7 @@
                 <div class="stat-card">
                   <div class="stat-label">Hourly Users</div>
                   <div class="stat-value" id="statHiUsersDetailed">0</div>
-                  <div style="font-size:12px;color:var(--text-light);">Users on Hourly licences</div>
+                  <div style="font-size:12px;color:var(--text-light);">Users with &gt;0 but &lt; threshold hours</div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-label">Total Hourly Hours</div>
@@ -2067,6 +2068,8 @@
         });
 
         updateProgress('Applying business rules...', 50);
+        
+        // CORRECTED BUSINESS LOGIC
         usersToAnalyze.forEach(user => {
           const hasNeverLoggedIn = !user.rawLastLogin && user.interactingMilliseconds === 0;
 
@@ -2077,17 +2080,16 @@
             user.recommendedLicense = 'Named';
             user.recommendedReason = `${user.userType === 'admin' ? 'Admin' : 'Supervisor'} role`;
           } else if (user.interactingHoursDecimal > 0 && user.interactingHoursDecimal < threshold) {
+            // FIXED: Only users with >0 hours get Hourly Interacting
             user.recommendedLicense = 'Hourly Interacting';
             user.recommendedReason = `Under ${threshold} hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
           } else if (user.interactingHoursDecimal >= threshold) {
             user.recommendedLicense = 'Named';
             user.recommendedReason = `Over ${threshold} hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
-          } else if (user.interactingHoursDecimal === 0 && user.rawLastLogin) {
-            user.recommendedLicense = 'Hourly Interacting';
-            user.recommendedReason = 'Logged in but no interaction hours';
           } else {
+            // FIXED: Users with 0 hours (even if logged in) get NOLOGIN
             user.recommendedLicense = 'NOLOGIN';
-            user.recommendedReason = 'No activity detected';
+            user.recommendedReason = 'No interaction hours detected';
           }
 
           if (user.recommendedLicense === 'Hourly Interacting') {
@@ -2156,7 +2158,7 @@
         el.statActiveUsers.textContent = activeUsers;
         el.statNamedUsers.textContent = namedUsers;
         
-        // FIXED: Show user count in main value, hours in subvalue
+        // Show user count in main value, hours in subvalue
         el.statHiUsers.textContent = hiUsers;
         el.statHiHours.textContent = `${Math.round(hiHours)} hours`;
         
@@ -2190,9 +2192,10 @@
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         logMessage('SUCCESS', 'Analysis complete', `${namedUsers} Named, ${hiUsers} Hourly Interacting users (${Math.round(hiHours)} hours)`);
-        logMessage('INFO', 'Hourly Interacting details', `${hiUsers} users, ${Math.round(hiHours)} hours, ${appState.hourlyCurrencySymbol}${hourlyCost.toFixed(2)} cost`);
+        logMessage('INFO', 'Hourly Interacting details', `${hiUsers} users with >0 hours, ${Math.round(hiHours)} total hours, ${appState.hourlyCurrencySymbol}${hourlyCost.toFixed(2)} cost`);
+        logMessage('INFO', 'NOLOGIN users', `${nologinUsers} users with 0 hours (correctly classified)`);
         logMessage('INFO', 'Cost analysis', `All Named: ${appState.currencySymbol}${allNamedCost}, Hybrid: ${appState.currencySymbol}${hybridCost}, Savings: ${savings}%`);
-        showStatusMessage(`✅ Analysis complete: ${hiUsers} Hourly users (${Math.round(hiHours)} hours), ${savings}% savings`, 'success');
+        showStatusMessage(`✅ Analysis complete: ${hiUsers} Hourly users (with >0 hours), ${savings}% savings`, 'success');
         el.btnExport.disabled = false;
 
       } catch (error) {
