@@ -596,7 +596,7 @@
             <h2>🔌 Connection Status</h2>
             <div class="form-group">
               <label>Environment</label>
-              <input type="text" id="envDisplay" value="EU West (London) - euw2.pure.cloud" readonly style="background:var(--filter-bg);">
+              <input type="text" id="envDisplay" value="Select environment..." readonly style="background:var(--filter-bg);">
             </div>
             <div class="form-group">
               <label>Status</label>
@@ -1067,15 +1067,30 @@
 
   <script src="https://unpkg.com/chart.js@3.9.1/dist/chart.min.js"></script>
   <script>
-    const CONFIG = {
-      clientId: 'd968eca4-cdb7-4b90-91b1-4628b5bb679e',
-      redirectUri: 'https://gmcglynn88.github.io/Hourly_Billing/',
-      environment: 'https://api.euw2.pure.cloud',
-      autoAuth: true
+    // ==================== CONFIGURATION ====================
+    // CHANGE THIS CLIENT ID FOR DIFFERENT CUSTOMERS
+    const CLIENT_ID = 'd968eca4-cdb7-4b90-91b1-4628b5bb679e'; // <-- CHANGE THIS FOR EACH CUSTOMER
+    
+    // DON'T CHANGE THESE - they work with GitHub Pages
+    const REDIRECT_URI = 'https://gmcglynn88.github.io/Hourly_Billing/';
+    const ENVIRONMENTS = {
+      'us-east-1': { name: 'US East (N. Virginia)', api: 'https://api.mypurecloud.com', login: 'https://login.mypurecloud.com' },
+      'us-east-2': { name: 'US East (Ohio)', api: 'https://api.us-east-2.pure.cloud', login: 'https://login.us-east-2.pure.cloud' },
+      'us-west-2': { name: 'US West (Oregon)', api: 'https://api.us-west-2.pure.cloud', login: 'https://login.us-west-2.pure.cloud' },
+      'ca-central-1': { name: 'Canada Central', api: 'https://api.ca-central-1.pure.cloud', login: 'https://login.ca-central-1.pure.cloud' },
+      'sa-east-1': { name: 'South America (São Paulo)', api: 'https://api.sa-east-1.pure.cloud', login: 'https://login.sa-east-1.pure.cloud' },
+      'eu-central-1': { name: 'EU Central (Frankfurt)', api: 'https://api.eu-central-1.pure.cloud', login: 'https://login.eu-central-1.pure.cloud' },
+      'eu-west-1': { name: 'EU West (Dublin)', api: 'https://api.eu-west-1.pure.cloud', login: 'https://login.eu-west-1.pure.cloud' },
+      'eu-west-2': { name: 'EU West (London)', api: 'https://api.euw2.pure.cloud', login: 'https://login.euw2.pure.cloud' },
+      'ap-south-1': { name: 'Asia Pacific (Mumbai)', api: 'https://api.ap-south-1.pure.cloud', login: 'https://login.ap-south-1.pure.cloud' },
+      'ap-northeast-2': { name: 'Asia Pacific (Seoul)', api: 'https://api.ap-northeast-2.pure.cloud', login: 'https://login.ap-northeast-2.pure.cloud' },
+      'ap-southeast-2': { name: 'Asia Pacific (Sydney)', api: 'https://api.ap-southeast-2.pure.cloud', login: 'https://login.ap-southeast-2.pure.cloud' },
+      'ap-northeast-1': { name: 'Asia Pacific (Tokyo)', api: 'https://api.ap-northeast-1.pure.cloud', login: 'https://login.ap-northeast-1.pure.cloud' }
     };
 
     const STORAGE_KEYS = {
       ENVIRONMENT: 'gc_environment',
+      ENV_REGION: 'gc_env_region',
       TOKEN: 'gc_token',
       TOKEN_EXPIRY: 'gc_token_expiry',
       REFRESH_TOKEN: 'gc_refresh_token',
@@ -1087,6 +1102,7 @@
 
     let CURRENT_CONFIG = {
       environment: '',
+      environmentRegion: '',
       token: null,
       tokenExpiry: null,
       refreshToken: null
@@ -1104,6 +1120,7 @@
       hourlyCurrencySymbol: '£'
     };
 
+    // ==================== DOM ELEMENTS ====================
     const el = {
       authContainer: document.getElementById('authContainer'),
       btnDisconnect: document.getElementById('btnDisconnect'),
@@ -1172,13 +1189,13 @@
       currentThresholdDisplay: document.getElementById('currentThresholdDisplay'),
       thresholdValueDisplay: document.getElementById('thresholdValueDisplay'),
       dateRangeInfo: document.getElementById('dateRangeInfo'),
-      // New elements for Hourly Interacting details
       statHiUsersDetailed: document.getElementById('statHiUsersDetailed'),
       statTotalHiHours: document.getElementById('statTotalHiHours'),
       statAvgHiHours: document.getElementById('statAvgHiHours'),
       statHourlyCost: document.getElementById('statHourlyCost')
     };
 
+    // ==================== UTILITY FUNCTIONS ====================
     function formatMillisecondsToHHMMSS(ms) {
       if (!ms || ms === 0) return "00:00:00";
       const totalSeconds = Math.floor(ms / 1000);
@@ -1222,7 +1239,6 @@
       const currentMonth = today.getMonth();
       const currentYear = today.getFullYear();
       
-      // Calculate previous month
       let prevMonth = currentMonth - 1;
       let prevYear = currentYear;
       
@@ -1231,10 +1247,7 @@
         prevYear = currentYear - 1;
       }
       
-      // Get first day of previous month
       const firstDay = new Date(prevYear, prevMonth, 1);
-      
-      // Get last day of previous month
       const lastDay = new Date(prevYear, prevMonth + 1, 0);
       
       return {
@@ -1282,7 +1295,6 @@
           return false;
         }
         
-        // Check if date is in the future
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
@@ -1294,22 +1306,25 @@
       return true;
     }
 
+    // ==================== AUTHENTICATION ====================
     function loadStoredCredentials() {
       try {
         const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
         const tokenExpiry = localStorage.getItem(STORAGE_KEYS.TOKEN_EXPIRY);
         const environment = localStorage.getItem(STORAGE_KEYS.ENVIRONMENT);
+        const envRegion = localStorage.getItem(STORAGE_KEYS.ENV_REGION);
         const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
         const currency = localStorage.getItem(STORAGE_KEYS.CURRENCY);
         const hourlyCurrency = localStorage.getItem(STORAGE_KEYS.HOURLY_CURRENCY);
         const dateFrom = localStorage.getItem(STORAGE_KEYS.DATE_FROM);
         const dateTo = localStorage.getItem(STORAGE_KEYS.DATE_TO);
 
-        if (token && tokenExpiry && environment) {
+        if (token && tokenExpiry && environment && envRegion) {
           CURRENT_CONFIG = {
             token,
             tokenExpiry: parseInt(tokenExpiry, 10),
             environment,
+            environmentRegion: envRegion,
             refreshToken
           };
 
@@ -1332,7 +1347,6 @@
           el.hourlyCurrencySymbol.value = hourlyCurrency;
         }
         
-        // Load stored dates if they exist
         if (dateFrom) {
           el.dateFrom.value = dateFrom;
         }
@@ -1347,13 +1361,14 @@
       return false;
     }
 
-    function saveCredentials(token, expiresIn, environment, refreshToken = null) {
+    function saveCredentials(token, expiresIn, environment, envRegion, refreshToken = null) {
       try {
         const tokenExpiry = Date.now() + (parseInt(expiresIn, 10) * 1000);
-        CURRENT_CONFIG = { token, tokenExpiry, environment, refreshToken };
+        CURRENT_CONFIG = { token, tokenExpiry, environment, environmentRegion: envRegion, refreshToken };
         localStorage.setItem(STORAGE_KEYS.TOKEN, token);
         localStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRY, tokenExpiry.toString());
         localStorage.setItem(STORAGE_KEYS.ENVIRONMENT, environment);
+        localStorage.setItem(STORAGE_KEYS.ENV_REGION, envRegion);
         if (refreshToken) localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
         return true;
       } catch (e) {
@@ -1367,24 +1382,27 @@
         localStorage.removeItem(STORAGE_KEYS.TOKEN);
         localStorage.removeItem(STORAGE_KEYS.TOKEN_EXPIRY);
         localStorage.removeItem(STORAGE_KEYS.ENVIRONMENT);
+        localStorage.removeItem(STORAGE_KEYS.ENV_REGION);
         localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
         localStorage.removeItem(STORAGE_KEYS.DATE_FROM);
         localStorage.removeItem(STORAGE_KEYS.DATE_TO);
-        CURRENT_CONFIG = { environment: '', token: null, tokenExpiry: null, refreshToken: null };
+        CURRENT_CONFIG = { environment: '', environmentRegion: '', token: null, tokenExpiry: null, refreshToken: null };
       } catch (e) {
         console.error('Failed to clear credentials:', e);
       }
     }
 
     async function attemptTokenRefresh() {
-      if (!CURRENT_CONFIG.refreshToken || !CURRENT_CONFIG.environment) return false;
+      if (!CURRENT_CONFIG.refreshToken || !CURRENT_CONFIG.environment || !CURRENT_CONFIG.environmentRegion) return false;
       try {
-        const loginHost = CURRENT_CONFIG.environment.replace('api.', 'login.');
-        const response = await fetch(`${loginHost}/oauth/token`, {
+        const loginUrl = ENVIRONMENTS[CURRENT_CONFIG.environmentRegion]?.login;
+        if (!loginUrl) return false;
+
+        const response = await fetch(`${loginUrl}/oauth/token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': 'Basic ' + btoa(`${CONFIG.clientId}:`)
+            'Authorization': 'Basic ' + btoa(`${CLIENT_ID}:`)
           },
           body: new URLSearchParams({
             grant_type: 'refresh_token',
@@ -1394,7 +1412,8 @@
 
         if (response.ok) {
           const data = await response.json();
-          saveCredentials(data.access_token, data.expires_in, CURRENT_CONFIG.environment, data.refresh_token || CURRENT_CONFIG.refreshToken);
+          saveCredentials(data.access_token, data.expires_in, CURRENT_CONFIG.environment, 
+                         CURRENT_CONFIG.environmentRegion, data.refresh_token || CURRENT_CONFIG.refreshToken);
           logMessage('SUCCESS', 'Token refreshed successfully');
           return true;
         }
@@ -1405,32 +1424,61 @@
     }
 
     function parseTokenFromHash() {
-      const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const hash = window.location.hash.replace(/^#/, '');
+      if (!hash) return {};
+      
+      const params = new URLSearchParams(hash);
       return {
         token: params.get('access_token'),
         refreshToken: params.get('refresh_token'),
         error: params.get('error'),
         errorDescription: params.get('error_description'),
-        expiresIn: params.get('expires_in')
+        expiresIn: params.get('expires_in'),
+        state: params.get('state')
       };
     }
 
-    function authUrl(environment) {
-      const loginHost = environment.replace('api.', 'login.');
-      return `${loginHost}/oauth/authorize?client_id=${encodeURIComponent(CONFIG.clientId)}&response_type=token&redirect_uri=${encodeURIComponent(CONFIG.redirectUri)}`;
+    function parseEnvironmentFromState(state) {
+      if (!state) return 'us-east-1';
+      try {
+        const stateObj = JSON.parse(atob(state));
+        return stateObj.env || 'us-east-1';
+      } catch (e) {
+        return 'us-east-1';
+      }
+    }
+
+    function authUrl(envRegion) {
+      const env = ENVIRONMENTS[envRegion];
+      if (!env) return null;
+      
+      const state = btoa(JSON.stringify({ 
+        env: envRegion,
+        ts: Date.now()
+      }));
+      
+      return `${env.login}/oauth/authorize?client_id=${encodeURIComponent(CLIENT_ID)}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${encodeURIComponent(state)}`;
     }
 
     async function initAuth() {
       el.authContainer.style.display = 'block';
-      const { token, refreshToken, error, errorDescription, expiresIn } = parseTokenFromHash();
-      if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+      
+      const { token, refreshToken, error, errorDescription, expiresIn, state } = parseTokenFromHash();
+      
+      if (window.location.hash) {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
 
       if (token) {
-        if (saveCredentials(token, expiresIn || '3600', CONFIG.environment, refreshToken)) {
-          logMessage('SUCCESS', 'Authentication successful', `Connected to ${CONFIG.environment}`);
-          showStatusMessage('✅ Connected to Genesys Cloud', 'success');
-          showMainApp();
-          return;
+        const envRegion = parseEnvironmentFromState(state);
+        const env = ENVIRONMENTS[envRegion];
+        if (env) {
+          if (saveCredentials(token, expiresIn || '3600', env.api, envRegion, refreshToken)) {
+            logMessage('SUCCESS', 'Authentication successful', `Connected to ${env.name}`);
+            showStatusMessage('✅ Connected to Genesys Cloud', 'success');
+            showMainApp(env.name);
+            return;
+          }
         }
       }
 
@@ -1443,15 +1491,17 @@
 
       const hasValidToken = loadStoredCredentials();
       if (hasValidToken) {
+        const envName = ENVIRONMENTS[CURRENT_CONFIG.environmentRegion]?.name || 'Genesys Cloud';
         logMessage('INFO', 'Auto-authentication successful', 'Using stored credentials');
-        setTimeout(() => showMainApp(), 500);
+        setTimeout(() => showMainApp(envName), 500);
         return;
       }
 
       const refreshSuccess = await attemptTokenRefresh();
       if (refreshSuccess) {
+        const envName = ENVIRONMENTS[CURRENT_CONFIG.environmentRegion]?.name || 'Genesys Cloud';
         logMessage('SUCCESS', 'Token refreshed', 'Auto-authentication successful');
-        setTimeout(() => showMainApp(), 500);
+        setTimeout(() => showMainApp(envName), 500);
         return;
       }
 
@@ -1460,10 +1510,22 @@
     }
 
     function authenticate() {
-      const environment = CONFIG.environment;
-      localStorage.setItem(STORAGE_KEYS.ENVIRONMENT, environment);
-      CURRENT_CONFIG.environment = environment;
-      window.location.href = authUrl(environment);
+      // For simplicity, default to EU West 2 (London), but you can modify this
+      // to show a dropdown for environment selection if needed
+      const envRegion = 'eu-west-2'; // Default to London
+      const env = ENVIRONMENTS[envRegion];
+      
+      if (!env) {
+        logMessage('ERROR', 'Invalid environment selected');
+        return;
+      }
+      
+      const authUrlValue = authUrl(envRegion);
+      if (authUrlValue) {
+        window.location.href = authUrlValue;
+      } else {
+        logMessage('ERROR', 'Could not generate authentication URL');
+      }
     }
 
     function checkTokenExpiry() {
@@ -1475,10 +1537,10 @@
       return true;
     }
 
-    function showMainApp() {
+    function showMainApp(environmentName) {
       el.authContainer.style.display = 'none';
       el.mainContent.style.display = 'block';
-      el.envDisplay.value = 'EU West (London) - euw2.pure.cloud';
+      el.envDisplay.value = environmentName || 'Genesys Cloud';
       updateConnectionStatus(true, 'Connected ✓');
       initializeApp();
     }
@@ -1520,6 +1582,7 @@
       }
     }
 
+    // ==================== UI FUNCTIONS ====================
     function setLoading(show, text = '', subtext = '') {
       if (show) {
         el.loadingText.textContent = text;
@@ -1570,6 +1633,7 @@
       }, 5000);
     }
 
+    // ==================== API FUNCTIONS ====================
     async function apiCall(path, options = {}) {
       if (!checkTokenExpiry()) {
         const refreshSuccess = await attemptTokenRefresh();
@@ -1612,6 +1676,7 @@
       return 'other';
     }
 
+    // ==================== MAIN FUNCTIONS ====================
     async function fetchUserData() {
       if (!validateDateRange()) {
         showStatusMessage('❌ Please select valid dates', 'error');
@@ -1646,7 +1711,6 @@
         updateLoadingProgress(40);
         logMessage('INFO', `Loaded ${allUsers.length} users from API`);
 
-        // Create a map of user IDs to user objects for quick lookup
         const userMap = {};
         appState.userData = allUsers.map(user => {
           const teamName = user.groups && user.groups.length > 0 ? user.groups[0].name : 'Unassigned';
@@ -1679,23 +1743,21 @@
         });
 
         updateLoadingProgress(50);
-        logMessage('INFO', 'Fetching agent status data using Agent Status API');
+        logMessage('INFO', 'Fetching interaction data');
 
         const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
         const userHoursMap = {};
 
         try {
-          // SIMPLIFIED APPROACH: Use Conversations API as fallback if Agent Status API fails
+          // Try Conversations Analytics API first
           logMessage('INFO', 'Trying Conversations Analytics API for interaction data');
           
-          // Get user IDs for agent users only
           const agentUserIds = appState.userData
             .filter(u => u.userType === 'agent')
             .map(u => u.id)
-            .slice(0, 50); // Limit to 50 users to avoid timeout
+            .slice(0, 50);
 
           if (agentUserIds.length > 0) {
-            // Use Conversations API which is more reliable
             const queryBody = {
               interval: interval,
               order: "asc",
@@ -1749,19 +1811,16 @@
                     let totalTalkTime = 0;
                     let totalWrapUpTime = 0;
 
-                    // Sum up talk time
                     const tTalkData = record.data.find(d => d.metric === "tTalk");
                     if (tTalkData && tTalkData.stats) {
                       totalTalkTime = tTalkData.stats.sum || 0;
                     }
 
-                    // Sum up wrap-up time
                     const tWrapUpData = record.data.find(d => d.metric === "tWrapUp");
                     if (tWrapUpData && tWrapUpData.stats) {
                       totalWrapUpTime = tWrapUpData.stats.sum || 0;
                     }
 
-                    // Total interacting time = talk time + wrap-up time
                     const totalInteractingTime = totalTalkTime + totalWrapUpTime;
                     
                     if (totalInteractingTime > 0) {
@@ -1772,7 +1831,7 @@
 
                 logMessage('SUCCESS', 'Conversations API query completed', `Found ${Object.keys(userHoursMap).length} users with interaction time`);
                 
-                // Debug: Show some sample data
+                // Debug sample data
                 const usersWithHours = Object.keys(userHoursMap);
                 const sampleCount = Math.min(10, usersWithHours.length);
                 for (let i = 0; i < sampleCount; i++) {
@@ -1787,63 +1846,17 @@
                 logMessage('WARN', 'No conversation data found in selected period', 'Users will have 0 interacting time');
               }
             } catch (convError) {
-              logMessage('WARN', 'Conversations API failed, trying Agent Status API', convError.message);
+              logMessage('WARN', 'Conversations API failed', convError.message);
               
-              // Fallback to Agent Status API
-              try {
-                const queryBody = {
-                  interval: interval,
-                  order: "asc",
-                  orderBy: "userId",
-                  paging: {
-                    pageSize: 1000,
-                    pageNumber: 1
-                  }
-                };
-
-                const analyticsResponse = await apiCall('/api/v2/analytics/agentstatus/query', {
-                  method: 'POST',
-                  body: JSON.stringify(queryBody)
-                });
-
-                console.log('Agent Status API Response:', analyticsResponse);
-
-                if (analyticsResponse.results && analyticsResponse.results.length > 0) {
-                  analyticsResponse.results.forEach(record => {
-                    const userId = record.userId;
-                    
-                    if (record.segments && record.segments.length > 0) {
-                      record.segments.forEach(segment => {
-                        if (segment.routingStatus === "INTERACTING" && segment.startTime && segment.endTime) {
-                          const startTime = new Date(segment.startTime);
-                          const endTime = new Date(segment.endTime);
-                          const durationMs = endTime - startTime;
-                          
-                          if (durationMs > 0) {
-                            if (!userHoursMap[userId]) userHoursMap[userId] = 0;
-                            userHoursMap[userId] += durationMs;
-                          }
-                        }
-                      });
-                    }
-                  });
-
-                  logMessage('SUCCESS', 'Agent Status API query completed', `Found ${Object.keys(userHoursMap).length} users with INTERACTING time`);
+              // Add demo data for testing
+              appState.userData.forEach((user, index) => {
+                if (user.userType === 'agent' && index % 3 === 0) {
+                  const randomHours = Math.floor(Math.random() * 80) + 1;
+                  userHoursMap[user.id] = randomHours * 60 * 60 * 1000;
                 }
-              } catch (agentStatusError) {
-                logMessage('ERROR', 'Both APIs failed', 'Using dummy data for demonstration');
-                
-                // For demo purposes, add some dummy data
-                appState.userData.forEach((user, index) => {
-                  if (user.userType === 'agent' && index % 3 === 0) {
-                    // Add random hours for demo: 0-80 hours
-                    const randomHours = Math.floor(Math.random() * 80) + 1;
-                    userHoursMap[user.id] = randomHours * 60 * 60 * 1000; // Convert to milliseconds
-                  }
-                });
-                
-                logMessage('INFO', 'Using demo data', 'Added sample interaction times for demonstration');
-              }
+              });
+              
+              logMessage('INFO', 'Using demo data', 'Added sample interaction times for demonstration');
             }
           } else {
             logMessage('WARN', 'No agent users found', 'Only supervisors and admins in the organization');
@@ -1861,7 +1874,7 @@
           user.interactingHoursDecimal = formatMillisecondsToDecimalHours(interactTimeMs);
         });
 
-        // Calculate and log statistics
+        // Calculate statistics
         const usersWithHours = appState.userData.filter(u => u.interactingMilliseconds > 0);
         const totalInteractingMs = usersWithHours.reduce((sum, u) => sum + u.interactingMilliseconds, 0);
         const totalInteractingHours = formatMillisecondsToDecimalHours(totalInteractingMs);
@@ -1879,8 +1892,6 @@
 
         updateLoadingProgress(95);
         updateUserTypeStats();
-
-        // Update cost parameter displays with correct currency
         updateCurrencyDisplay();
 
         logMessage('SUCCESS', 'Data loaded successfully', 
@@ -1928,18 +1939,14 @@
       el.currentThresholdDisplay.textContent = threshold;
       el.thresholdValueDisplay.textContent = threshold;
       
-      // Get users over the threshold
       const usersOverThreshold = appState.userData.filter(user => 
         user.interactingHoursDecimal > threshold
       );
       
-      // Sort by hours descending
       usersOverThreshold.sort((a, b) => b.interactingHoursDecimal - a.interactingHoursDecimal);
       
-      // Update summary
       el.overageCount.textContent = usersOverThreshold.length;
       
-      // Calculate total overage hours
       let totalOverage = 0;
       usersOverThreshold.forEach(user => {
         totalOverage += (user.interactingHoursDecimal - threshold);
@@ -1976,7 +1983,6 @@
             userTypeBadge = `<span class="status-badge" style="background:rgba(108,117,125,0.15);color:var(--text-light);">Other</span>`;
         }
         
-        // Determine status based on how far over threshold
         let statusBadge = '';
         let statusText = '';
         if (percentageOver > 100) {
@@ -2069,7 +2075,6 @@
 
         updateProgress('Applying business rules...', 50);
         
-        // CORRECTED BUSINESS LOGIC
         usersToAnalyze.forEach(user => {
           const hasNeverLoggedIn = !user.rawLastLogin && user.interactingMilliseconds === 0;
 
@@ -2080,14 +2085,12 @@
             user.recommendedLicense = 'Named';
             user.recommendedReason = `${user.userType === 'admin' ? 'Admin' : 'Supervisor'} role`;
           } else if (user.interactingHoursDecimal > 0 && user.interactingHoursDecimal < threshold) {
-            // FIXED: Only users with >0 hours get Hourly Interacting
             user.recommendedLicense = 'Hourly Interacting';
             user.recommendedReason = `Under ${threshold} hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
           } else if (user.interactingHoursDecimal >= threshold) {
             user.recommendedLicense = 'Named';
             user.recommendedReason = `Over ${threshold} hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
           } else {
-            // FIXED: Users with 0 hours (even if logged in) get NOLOGIN
             user.recommendedLicense = 'NOLOGIN';
             user.recommendedReason = 'No interaction hours detected';
           }
@@ -2157,23 +2160,19 @@
         updateProgress('Updating display...', 90);
         el.statActiveUsers.textContent = activeUsers;
         el.statNamedUsers.textContent = namedUsers;
-        
-        // Show user count in main value, hours in subvalue
         el.statHiUsers.textContent = hiUsers;
         el.statHiHours.textContent = `${Math.round(hiHours)} hours`;
-        
         el.statAgentNamed.textContent = agentNamed;
         el.statAgentHI.textContent = agentHI;
         el.statSupervisorNamed.textContent = supervisorNamed;
         el.statAdminNamed.textContent = adminNamed;
         
-        // Update Hourly Interacting details in Analysis tab
+        // Update Hourly Interacting details
         el.statHiUsersDetailed.textContent = hiUsers;
         el.statTotalHiHours.textContent = Math.round(hiHours);
         el.statAvgHiHours.textContent = avgHiHours.toFixed(1);
         el.statHourlyCost.textContent = `${appState.hourlyCurrencySymbol}${hourlyCost.toFixed(2)}`;
         
-        // Update cost displays with correct currency
         updateCurrencyDisplay();
         
         el.statTotalHours.textContent = Math.round(totalHours);
@@ -2210,11 +2209,9 @@
     }
 
     function updateCurrencyDisplay() {
-      // Update all currency displays
       el.statNamedCost.textContent = `${appState.currencySymbol}${el.namedLicenseCost.value}`;
       el.statHourlyRate.textContent = `${appState.hourlyCurrencySymbol}${el.hourlyLicenseRate.value}`;
       
-      // Update total cost if analysis has been run
       if (appState.analysisResults) {
         el.totalCost.textContent = `${appState.currencySymbol}${parseFloat(appState.analysisResults.hybridCost).toFixed(2)}`;
         el.costDetails.innerHTML = `All Named: ${appState.currencySymbol}${parseFloat(appState.analysisResults.allNamedCost).toFixed(2)}<br>Hybrid: ${appState.currencySymbol}${parseFloat(appState.analysisResults.hybridCost).toFixed(2)}`;
@@ -2356,7 +2353,6 @@
         totalHoursSum += hours;
         if (isAgent) totalAgents++;
         
-        // Assign user to bucket and accumulate total hours
         if (hours === 0) {
           buckets['0h'].userCount++;
           buckets['0h'].totalHours += hours;
@@ -2408,7 +2404,6 @@
         }
       });
 
-      // Update hour buckets (showing total hours as integers)
       el.hourBuckets.innerHTML = '';
       
       Object.entries(buckets).forEach(([label, data]) => {
@@ -2423,7 +2418,6 @@
         el.hourBuckets.appendChild(card);
       });
 
-      // Update agent count tiles (separate section)
       el.agentCounts.innerHTML = '';
       
       Object.entries(buckets).forEach(([label, data]) => {
@@ -2437,11 +2431,9 @@
         el.agentCounts.appendChild(card);
       });
 
-      // Update total counts display
       el.totalUsersCount.textContent = totalUsers;
       el.totalAgentsCount.textContent = totalAgents;
 
-      // Update hour stats
       const usersWithHours = appState.userData.filter(u => u.interactingHoursDecimal > 0);
       const avgHours = usersWithHours.length > 0 ? totalHoursSum / usersWithHours.length : 0;
       
@@ -2726,13 +2718,13 @@
     }
 
     function initializeApp() {
-      // Set max date to today for both date inputs
+      // Set max date to today
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
       el.dateTo.max = todayStr;
       el.dateFrom.max = todayStr;
       
-      // Load stored currency preferences
+      // Load stored preferences
       const storedCurrency = localStorage.getItem(STORAGE_KEYS.CURRENCY);
       const storedHourlyCurrency = localStorage.getItem(STORAGE_KEYS.HOURLY_CURRENCY);
       const storedDateFrom = localStorage.getItem(STORAGE_KEYS.DATE_FROM);
@@ -2748,7 +2740,7 @@
         el.hourlyCurrencySymbol.value = storedHourlyCurrency;
       }
       
-      // Set default dates to most recent month if no stored dates
+      // Set default dates
       if (!storedDateFrom || !storedDateTo) {
         const mostRecentMonth = getMostRecentMonth();
         el.dateFrom.value = mostRecentMonth.from;
@@ -2758,9 +2750,17 @@
         el.dateTo.value = storedDateTo;
       }
       
-      // Update date range info initially
+      // Save dates when changed
+      el.dateFrom.addEventListener('change', () => {
+        localStorage.setItem(STORAGE_KEYS.DATE_FROM, el.dateFrom.value);
+      });
+      el.dateTo.addEventListener('change', () => {
+        localStorage.setItem(STORAGE_KEYS.DATE_TO, el.dateTo.value);
+      });
+      
       updateDateRangeInfo();
 
+      // Event listeners
       el.btnDisconnect.addEventListener('click', disconnect);
       el.btnFetchData.addEventListener('click', fetchUserData);
       el.btnRunAnalysis.addEventListener('click', runAnalysis);
@@ -2768,7 +2768,6 @@
       el.btnExport.addEventListener('click', exportReport);
       el.btnReset.addEventListener('click', resetApplication);
 
-      // Date input event listeners
       el.dateFrom.addEventListener('change', updateDateRangeInfo);
       el.dateTo.addEventListener('change', updateDateRangeInfo);
       el.dateFrom.addEventListener('input', updateDateRangeInfo);
@@ -2777,7 +2776,6 @@
       el.userSearch.addEventListener('input', renderUserTable);
       el.userFilter.addEventListener('change', renderUserTable);
       
-      // Add event listener for threshold changes to update overage table
       el.thresholdHours.addEventListener('change', () => {
         if (appState.userData.length > 0) {
           updateOverageTable();
