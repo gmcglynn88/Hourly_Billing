@@ -810,7 +810,7 @@
               <div class="stat-card">
                 <div class="stat-label">Hourly Interacting</div>
                 <div class="stat-value" id="statHiUsers">0</div>
-                <div style="font-size:12px;color:var(--text-light);">Hourly Interacting Users</div>
+                <div style="font-size:12px;color:var(--text-light);">Users: <span id="statHiUsersCount">0</span> | Hours: <span id="statHiUsersHours">0</span></div>
               </div>
             </div>
 
@@ -1063,6 +1063,33 @@
                 </div>
               </div>
             </div>
+
+            <!-- NEW: Hourly Interacting Details Card -->
+            <div class="card" style="margin-top:24px;">
+              <h2>⏱️ Hourly Interacting Details</h2>
+              <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+                <div class="stat-card">
+                  <div class="stat-label">Hourly Users</div>
+                  <div class="stat-value" id="statHiUsersDetailed">0</div>
+                  <div style="font-size:12px;color:var(--text-light);">Users on Hourly licences</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Total Hourly Hours</div>
+                  <div class="stat-value" id="statTotalHiHours">0</div>
+                  <div style="font-size:12px;color:var(--text-light);">Billable hours</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Avg Hours per User</div>
+                  <div class="stat-value" id="statAvgHiHours">0</div>
+                  <div style="font-size:12px;color:var(--text-light);">Average per Hourly user</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-label">Hourly Cost</div>
+                  <div class="stat-value" id="statHourlyCost">£0</div>
+                  <div style="font-size:12px;color:var(--text-light);">Hourly licence cost</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div id="tab-logs" class="tab-content">
@@ -1174,6 +1201,8 @@
       statActiveUsers: document.getElementById('statActiveUsers'),
       statNamedUsers: document.getElementById('statNamedUsers'),
       statHiUsers: document.getElementById('statHiUsers'),
+      statHiUsersCount: document.getElementById('statHiUsersCount'),
+      statHiUsersHours: document.getElementById('statHiUsersHours'),
       statAgents: document.getElementById('statAgents'),
       statSupervisors: document.getElementById('statSupervisors'),
       statAdmins: document.getElementById('statAdmins'),
@@ -1220,7 +1249,12 @@
       thresholdValueDisplay: document.getElementById('thresholdValueDisplay'),
       selectedRangeInfo: document.getElementById('selectedRangeInfo'),
       dateRangeDisplay: document.getElementById('dateRangeDisplay'),
-      dateRangeText: document.getElementById('dateRangeText')
+      dateRangeText: document.getElementById('dateRangeText'),
+      // New elements for Hourly Interacting details
+      statHiUsersDetailed: document.getElementById('statHiUsersDetailed'),
+      statTotalHiHours: document.getElementById('statTotalHiHours'),
+      statAvgHiHours: document.getElementById('statAvgHiHours'),
+      statHourlyCost: document.getElementById('statHourlyCost')
     };
 
     function formatMillisecondsToHHMMSS(ms) {
@@ -2155,16 +2189,19 @@
         const nologinUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'NOLOGIN').length;
         const totalHours = usersToAnalyze.reduce((sum, u) => sum + u.interactingHoursDecimal, 0);
 
+        // Calculate Hourly Interacting details
+        const hiUsersList = usersToAnalyze.filter(u => u.recommendedLicense === 'Hourly Interacting');
+        const hiHours = hiUsersList.reduce((sum, u) => sum + u.interactingHoursDecimal, 0);
+        const avgHiHours = hiUsers > 0 ? hiHours / hiUsers : 0;
+        const hourlyCost = hiHours * hourlyLicenseRate;
+
         const agentNamed = usersToAnalyze.filter(u => u.userType === 'agent' && u.recommendedLicense === 'Named').length;
         const agentHI = usersToAnalyze.filter(u => u.userType === 'agent' && u.recommendedLicense === 'Hourly Interacting').length;
         const supervisorNamed = usersToAnalyze.filter(u => u.userType === 'supervisor' && u.recommendedLicense === 'Named').length;
         const adminNamed = usersToAnalyze.filter(u => u.userType === 'admin' && u.recommendedLicense === 'Named').length;
 
         const allNamedCost = totalUsers * namedLicenseCost;
-        const hiHours = usersToAnalyze
-          .filter(u => u.recommendedLicense === 'Hourly Interacting')
-          .reduce((sum, u) => sum + u.interactingHoursDecimal, 0);
-        const hybridCost = (namedUsers * namedLicenseCost) + (hiHours * hourlyLicenseRate);
+        const hybridCost = (namedUsers * namedLicenseCost) + hourlyCost;
         const savings = allNamedCost > 0 ? ((allNamedCost - hybridCost) / allNamedCost * 100).toFixed(1) : 0;
 
         let optimalModel = 'Hybrid';
@@ -2178,6 +2215,9 @@
           activeUsers,
           namedUsers,
           hiUsers,
+          hiHours,
+          avgHiHours,
+          hourlyCost,
           nologinUsers,
           totalHours: totalHours.toFixed(2),
           threshold,
@@ -2197,11 +2237,22 @@
         updateProgress('Updating display...', 90);
         el.statActiveUsers.textContent = activeUsers;
         el.statNamedUsers.textContent = namedUsers;
+        
+        // UPDATED: Show both count and hours in the Hourly Interacting tile
         el.statHiUsers.textContent = hiUsers;
+        el.statHiUsersCount.textContent = hiUsers;
+        el.statHiUsersHours.textContent = Math.round(hiHours);
+        
         el.statAgentNamed.textContent = agentNamed;
         el.statAgentHI.textContent = agentHI;
         el.statSupervisorNamed.textContent = supervisorNamed;
         el.statAdminNamed.textContent = adminNamed;
+        
+        // Update Hourly Interacting details in Analysis tab
+        el.statHiUsersDetailed.textContent = hiUsers;
+        el.statTotalHiHours.textContent = Math.round(hiHours);
+        el.statAvgHiHours.textContent = avgHiHours.toFixed(1);
+        el.statHourlyCost.textContent = `${appState.hourlyCurrencySymbol}${hourlyCost.toFixed(2)}`;
         
         // Update cost displays with correct currency
         updateCurrencyDisplay();
@@ -2221,9 +2272,10 @@
         updateProgress('Analysis complete!', 100);
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        logMessage('SUCCESS', 'Analysis complete', `${namedUsers} Named, ${hiUsers} Hourly Interacting users`);
+        logMessage('SUCCESS', 'Analysis complete', `${namedUsers} Named, ${hiUsers} Hourly Interacting users (${Math.round(hiHours)} hours)`);
+        logMessage('INFO', 'Hourly Interacting details', `${hiUsers} users, ${Math.round(hiHours)} hours, ${appState.hourlyCurrencySymbol}${hourlyCost.toFixed(2)} cost`);
         logMessage('INFO', 'Cost analysis', `All Named: ${appState.currencySymbol}${allNamedCost}, Hybrid: ${appState.currencySymbol}${hybridCost}, Savings: ${savings}%`);
-        showStatusMessage(`✅ Analysis complete: ${savings}% cost savings`, 'success');
+        showStatusMessage(`✅ Analysis complete: ${hiUsers} Hourly users (${Math.round(hiHours)} hours), ${savings}% savings`, 'success');
         el.btnExport.disabled = false;
 
       } catch (error) {
@@ -2246,6 +2298,7 @@
       if (appState.analysisResults) {
         el.totalCost.textContent = `${appState.currencySymbol}${parseFloat(appState.analysisResults.hybridCost).toFixed(2)}`;
         el.costDetails.innerHTML = `All Named: ${appState.currencySymbol}${parseFloat(appState.analysisResults.allNamedCost).toFixed(2)}<br>Hybrid: ${appState.currencySymbol}${parseFloat(appState.analysisResults.hybridCost).toFixed(2)}`;
+        el.statHourlyCost.textContent = `${appState.hourlyCurrencySymbol}${appState.analysisResults.hourlyCost.toFixed(2)}`;
       }
     }
 
@@ -2648,12 +2701,21 @@
       csv += `Active Users,${results.activeUsers}\n`;
       csv += `Named Users,${results.namedUsers}\n`;
       csv += `Hourly Interacting Users,${results.hiUsers}\n`;
+      csv += `Hourly Interacting Hours,${Math.round(results.hiHours)}\n`;
+      csv += `Hourly Interacting Cost,${appState.hourlyCurrencySymbol}${results.hourlyCost.toFixed(2)}\n`;
       csv += `NOLOGIN Users,${results.nologinUsers}\n`;
       csv += `Total Hours,${Math.round(results.totalHours)}\n`;
       csv += `All Named Cost,${appState.currencySymbol}${results.allNamedCost}\n`;
       csv += `Hybrid Cost,${appState.currencySymbol}${results.hybridCost}\n`;
       csv += `Cost Savings,${results.savings}%\n`;
       csv += `Optimal Model,${results.optimalModel}\n\n`;
+
+      csv += 'HOURLY INTERACTING DETAILS\n';
+      csv += 'Metric,Value\n';
+      csv += `Hourly Users,${results.hiUsers}\n`;
+      csv += `Total Hourly Hours,${Math.round(results.hiHours)}\n`;
+      csv += `Average Hours per User,${results.avgHiHours.toFixed(1)}\n`;
+      csv += `Hourly Cost,${appState.hourlyCurrencySymbol}${results.hourlyCost.toFixed(2)}\n\n`;
 
       csv += 'ROLE-BASED ANALYSIS\n';
       csv += 'Role Type,Metric,Value\n';
@@ -2692,6 +2754,8 @@
         el.statActiveUsers.textContent = '0';
         el.statNamedUsers.textContent = '0';
         el.statHiUsers.textContent = '0';
+        el.statHiUsersCount.textContent = '0';
+        el.statHiUsersHours.textContent = '0';
         el.statAgents.textContent = '0';
         el.statSupervisors.textContent = '0';
         el.statAdmins.textContent = '0';
@@ -2700,7 +2764,11 @@
         el.statAgentHI.textContent = '0';
         el.statSupervisorNamed.textContent = '0';
         el.statAdminNamed.textContent = '0';
-        el.totalCost.textContent = '£0';
+        el.statHiUsersDetailed.textContent = '0';
+        el.statTotalHiHours.textContent = '0';
+        el.statAvgHiHours.textContent = '0';
+        el.statHourlyCost.textContent = `${appState.hourlyCurrencySymbol}0`;
+        el.totalCost.textContent = `${appState.currencySymbol}0`;
         el.savings.textContent = '0% savings';
         el.costDetails.innerHTML = '';
         el.licenseModel.textContent = 'Hybrid';
