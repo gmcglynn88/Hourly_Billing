@@ -429,59 +429,27 @@
       font-size: 15px;
     }
 
-    /* New styles for improved date selector */
-    .date-range-container {
-      background: var(--light-bg);
-      border-radius: 10px;
-      padding: 20px;
-      margin-bottom: 24px;
-      border: 1px solid var(--border-color);
-    }
-    
-    .date-range-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-    }
-    
-    .date-range-header h3 {
-      margin: 0;
-      color: var(--primary-color);
-      font-size: 18px;
-      font-weight: 600;
-      font-family:'Aptos','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
-    }
-    
-    .date-range-fields {
+    /* Simplified date range styles */
+    .date-range-simple {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 20px;
+      gap: 16px;
       margin-bottom: 20px;
     }
     
-    .date-field {
+    .date-field-simple {
       position: relative;
     }
     
-    .date-field label {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 14px;
+    .date-field-simple label {
+      display: block;
       font-weight: 600;
+      margin-bottom: 8px;
       color: var(--text-color);
-      margin-bottom: 10px;
-      font-family:'Aptos','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
+      font-size: 14px;
     }
     
-    .date-field label svg {
-      width: 18px;
-      height: 18px;
-      color: var(--primary-color);
-    }
-    
-    .date-field input[type="date"] {
+    .date-field-simple input[type="date"] {
       padding: 14px;
       border: 1px solid var(--border-color);
       border-radius: 8px;
@@ -493,54 +461,15 @@
       font-family:'Aptos','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
     }
     
-    .date-field input[type="date"]:focus {
+    .date-field-simple input[type="date"]:focus {
       outline: none;
       border-color: var(--primary-color);
       box-shadow: 0 0 0 3px rgba(99, 171, 143, 0.1);
     }
     
-    .date-field input[type="date"]::placeholder {
-      color: var(--text-light);
-    }
-    
-    .date-field input[type="date"]:not(:placeholder-shown) {
-      background: var(--card-bg);
-      border-color: var(--primary-color);
-    }
-    
-    .date-range-divider {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-light);
-      font-weight: 600;
-      font-size: 15px;
-      font-family:'Aptos','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
-    }
-    
-    .date-range-selected {
-      font-size: 14px;
-      color: var(--text-light);
-      padding: 12px;
-      background: var(--pill);
-      border-radius: 8px;
-      border: 1px solid rgba(99, 171, 143, 0.2);
-      text-align: center;
-      font-family:'Aptos','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
-    }
-    
-    .date-range-selected strong {
-      color: var(--primary-color);
-      font-weight: 600;
-    }
-    
     @media (max-width: 768px) {
-      .date-range-fields {
+      .date-range-simple {
         grid-template-columns: 1fr;
-      }
-      
-      .date-range-divider {
-        display: none;
       }
     }
 
@@ -622,6 +551,21 @@
         gap: 40px;
       }
     }
+    
+    /* New styles for enhanced stat cards */
+    .stat-subvalue {
+      font-size: 16px;
+      color: var(--secondary-color);
+      font-weight: 600;
+      margin-top: 8px;
+      font-family:'Aptos','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
+    }
+    
+    .stat-subtitle {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 4px;
+    }
   </style>
 </head>
 <body>
@@ -643,6 +587,7 @@
     <div class="container">
       <header>
         <h1>📊 Genesys Cloud - Hourly Billing Calculator</h1>
+        <p class="subtitle">Calculate optimal licence distribution based on user interaction data</p>
       </header>
 
       <div class="main-grid">
@@ -665,49 +610,28 @@
             </button>
           </div>
 
-          <!-- Updated Date Range Card -->
+          <!-- Simplified Date Range Card -->
           <div class="card">
             <h2>📅 Analysis Period</h2>
             
-            <div class="date-range-container">
-              <div class="date-range-header">
-                <h3>Select Date Range</h3>
-                <div style="font-size:13px;color:var(--text-light);">
-                  <span id="selectedRangeInfo">Most Recent Month</span>
-                </div>
+            <div class="date-range-simple">
+              <div class="date-field-simple">
+                <label for="dateFrom">From Date</label>
+                <input type="date" id="dateFrom" required>
               </div>
               
-              <div class="date-range-fields">
-                <div class="date-field">
-                  <label for="dateFrom">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12.75 12.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM7.5 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM8.25 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM9.75 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM10.5 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM12.75 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM14.25 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM15 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM16.5 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM15 12.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM16.5 13.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
-                      <path fill-rule="evenodd" d="M6.75 2.25A.75.75 0 017.5 3v1.5h9V3A.75.75 0 0118 3v1.5h.75a3 3 0 013 3v11.25a3 3 0 01-3 3H5.25a3 3 0 01-3-3V7.5a3 3 0 013-3H6V3a.75.75 0 01.75-.75zm13.5 9a1.5 1.5 0 00-1.5-1.5H5.25a1.5 1.5 0 00-1.5 1.5v7.5a1.5 1.5 0 001.5 1.5h13.5a1.5 1.5 0 001.5-1.5v-7.5z" clip-rule="evenodd" />
-                    </svg>
-                    From Date
-                  </label>
-                  <input type="date" id="dateFrom" required>
-                </div>
-                
-                <div class="date-field">
-                  <label for="dateTo">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12.75 12.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM7.5 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM8.25 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM9.75 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM10.5 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM12.75 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM14.25 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM15 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM16.5 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM15 12.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM16.5 13.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
-                      <path fill-rule="evenodd" d="M6.75 2.25A.75.75 0 017.5 3v1.5h9V3A.75.75 0 0118 3v1.5h.75a3 3 0 013 3v11.25a3 3 0 01-3 3H5.25a3 3 0 01-3-3V7.5a3 3 0 013-3H6V3a.75.75 0 01.75-.75zm13.5 9a1.5 1.5 0 00-1.5-1.5H5.25a1.5 1.5 0 00-1.5 1.5v7.5a1.5 1.5 0 001.5 1.5h13.5a1.5 1.5 0 001.5-1.5v-7.5z" clip-rule="evenodd" />
-                    </svg>
-                    To Date
-                  </label>
-                  <input type="date" id="dateTo" required>
-                </div>
-              </div>
-              
-              <div class="date-range-selected" id="dateRangeDisplay">
-                <strong>Selected:</strong> <span id="dateRangeText">Most Recent Month (Auto-selected)</span>
+              <div class="date-field-simple">
+                <label for="dateTo">To Date</label>
+                <input type="date" id="dateTo" required>
               </div>
             </div>
             
-            <div style="font-size:13px;color:var(--text-light);margin-top:16px;padding:14px;background:var(--pill);border-radius:8px;">
-              <strong>💡 Tip:</strong> The date range defaults to the most recent complete month. Adjust as needed for your analysis period.
+            <div id="dateRangeInfo" style="font-size:13px;color:var(--text-light);text-align:center;margin-top:12px;padding:10px;background:var(--pill);border-radius:6px;">
+              Most Recent Month Selected
+            </div>
+            
+            <div style="font-size:13px;color:var(--text-light);margin-top:16px;padding:14px;background:rgba(99,171,143,0.05);border-radius:8px;">
+              <strong>💡 Tip:</strong> Select a date range to analyse. Defaults to most recent complete month.
             </div>
           </div>
 
@@ -809,7 +733,8 @@
               <div class="stat-card">
                 <div class="stat-label">Hourly Interacting</div>
                 <div class="stat-value" id="statHiUsers">0</div>
-                <div style="font-size:12px;color:var(--text-light);">Users: <span id="statHiUsersCount">0</span> | Hours: <span id="statHiUsersHours">0</span></div>
+                <div class="stat-subvalue" id="statHiHours">0 hours</div>
+                <div style="font-size:12px;color:var(--text-light);">Users on Hourly licences</div>
               </div>
             </div>
 
@@ -1200,8 +1125,7 @@
       statActiveUsers: document.getElementById('statActiveUsers'),
       statNamedUsers: document.getElementById('statNamedUsers'),
       statHiUsers: document.getElementById('statHiUsers'),
-      statHiUsersCount: document.getElementById('statHiUsersCount'),
-      statHiUsersHours: document.getElementById('statHiUsersHours'),
+      statHiHours: document.getElementById('statHiHours'),
       statAgents: document.getElementById('statAgents'),
       statSupervisors: document.getElementById('statSupervisors'),
       statAdmins: document.getElementById('statAdmins'),
@@ -1246,9 +1170,7 @@
       totalOverageHours: document.getElementById('totalOverageHours'),
       currentThresholdDisplay: document.getElementById('currentThresholdDisplay'),
       thresholdValueDisplay: document.getElementById('thresholdValueDisplay'),
-      selectedRangeInfo: document.getElementById('selectedRangeInfo'),
-      dateRangeDisplay: document.getElementById('dateRangeDisplay'),
-      dateRangeText: document.getElementById('dateRangeText'),
+      dateRangeInfo: document.getElementById('dateRangeInfo'),
       // New elements for Hourly Interacting details
       statHiUsersDetailed: document.getElementById('statHiUsersDetailed'),
       statTotalHiHours: document.getElementById('statTotalHiHours'),
@@ -1274,10 +1196,9 @@
       if (!dateString) return '';
       const date = new Date(dateString);
       return date.toLocaleDateString('en-GB', {
-        weekday: 'short',
-        year: 'numeric',
+        day: 'numeric',
         month: 'short',
-        day: 'numeric'
+        year: 'numeric'
       });
     }
 
@@ -1290,7 +1211,7 @@
       const start = new Date(fromDate);
       const end = new Date(toDate);
       const diffTime = Math.abs(end - start);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
       
       return diffDays;
     }
@@ -1323,28 +1244,27 @@
       };
     }
 
-    function updateDateRangeDisplay() {
+    function updateDateRangeInfo() {
       const fromDate = el.dateFrom.value;
       const toDate = el.dateTo.value;
       
       if (fromDate && toDate) {
         const days = calculateDateRangeDays();
-        
         const fromDisplay = formatDateForDisplay(fromDate);
         const toDisplay = formatDateForDisplay(toDate);
         
-        el.selectedRangeInfo.textContent = `${fromDisplay} → ${toDisplay}`;
-        el.dateRangeText.textContent = `${fromDisplay} to ${toDisplay} (${days} days)`;
-        
-        // Enable fetch button if both dates are selected
-        el.btnFetchData.disabled = false;
-        
-        // Save dates to localStorage
-        localStorage.setItem(STORAGE_KEYS.DATE_FROM, fromDate);
-        localStorage.setItem(STORAGE_KEYS.DATE_TO, toDate);
+        if (days <= 0) {
+          el.dateRangeInfo.textContent = 'Invalid date range';
+          el.dateRangeInfo.style.color = 'var(--danger)';
+          el.btnFetchData.disabled = true;
+        } else {
+          el.dateRangeInfo.innerHTML = `<strong>Selected:</strong> ${fromDisplay} to ${toDisplay} (${days} days)`;
+          el.dateRangeInfo.style.color = 'var(--text-light)';
+          el.btnFetchData.disabled = false;
+        }
       } else {
-        el.selectedRangeInfo.textContent = 'Most Recent Month';
-        el.dateRangeText.textContent = 'Most Recent Month (Auto-selected)';
+        el.dateRangeInfo.textContent = 'Most Recent Month Selected';
+        el.dateRangeInfo.style.color = 'var(--text-light)';
         el.btnFetchData.disabled = false;
       }
     }
@@ -1496,7 +1416,6 @@
 
     function authUrl(environment) {
       const loginHost = environment.replace('api.', 'login.');
-      // Removed the scope parameter that was causing the error
       return `${loginHost}/oauth/authorize?client_id=${encodeURIComponent(CONFIG.clientId)}&response_type=token&redirect_uri=${encodeURIComponent(CONFIG.redirectUri)}`;
     }
 
@@ -2237,10 +2156,9 @@
         el.statActiveUsers.textContent = activeUsers;
         el.statNamedUsers.textContent = namedUsers;
         
-        // UPDATED: Show both count and hours in the Hourly Interacting tile
+        // FIXED: Show user count in main value, hours in subvalue
         el.statHiUsers.textContent = hiUsers;
-        el.statHiUsersCount.textContent = hiUsers;
-        el.statHiUsersHours.textContent = Math.round(hiHours);
+        el.statHiHours.textContent = `${Math.round(hiHours)} hours`;
         
         el.statAgentNamed.textContent = agentNamed;
         el.statAgentHI.textContent = agentHI;
@@ -2753,8 +2671,7 @@
         el.statActiveUsers.textContent = '0';
         el.statNamedUsers.textContent = '0';
         el.statHiUsers.textContent = '0';
-        el.statHiUsersCount.textContent = '0';
-        el.statHiUsersHours.textContent = '0';
+        el.statHiHours.textContent = '0 hours';
         el.statAgents.textContent = '0';
         el.statSupervisors.textContent = '0';
         el.statAdmins.textContent = '0';
@@ -2838,8 +2755,8 @@
         el.dateTo.value = storedDateTo;
       }
       
-      // Update date range display initially
-      updateDateRangeDisplay();
+      // Update date range info initially
+      updateDateRangeInfo();
 
       el.btnDisconnect.addEventListener('click', disconnect);
       el.btnFetchData.addEventListener('click', fetchUserData);
@@ -2849,18 +2766,10 @@
       el.btnReset.addEventListener('click', resetApplication);
 
       // Date input event listeners
-      el.dateFrom.addEventListener('change', function() {
-        updateDateRangeDisplay();
-        validateDateRange();
-      });
-      
-      el.dateTo.addEventListener('change', function() {
-        updateDateRangeDisplay();
-        validateDateRange();
-      });
-      
-      el.dateFrom.addEventListener('input', updateDateRangeDisplay);
-      el.dateTo.addEventListener('input', updateDateRangeDisplay);
+      el.dateFrom.addEventListener('change', updateDateRangeInfo);
+      el.dateTo.addEventListener('change', updateDateRangeInfo);
+      el.dateFrom.addEventListener('input', updateDateRangeInfo);
+      el.dateTo.addEventListener('input', updateDateRangeInfo);
 
       el.userSearch.addEventListener('input', renderUserTable);
       el.userFilter.addEventListener('change', renderUserTable);
