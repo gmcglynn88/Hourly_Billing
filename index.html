@@ -1453,12 +1453,12 @@
     }
 
     function parseEnvironmentFromState(state) {
-      if (!state) return 'us-east-1';
+      if (!state) return 'eu-west-2'; // FIXED: Changed from 'us-east-1' to 'eu-west-2' (London)
       try {
         const stateObj = JSON.parse(atob(state));
-        return stateObj.env || 'us-east-1';
+        return stateObj.env || 'eu-west-2'; // FIXED: Changed default from 'us-east-1' to 'eu-west-2'
       } catch (e) {
-        return 'us-east-1';
+        return 'eu-west-2'; // FIXED: Changed from 'us-east-1' to 'eu-west-2'
       }
     }
 
@@ -1531,9 +1531,8 @@
     }
 
     function authenticate() {
-      // For simplicity, default to EU West 2 (London), but you can modify this
-      // to show a dropdown for environment selection if needed
-      const envRegion = 'eu-west-2'; // Default to London
+      // Default to EU West 2 (London) - this is correct for UK deployments
+      const envRegion = 'eu-west-2'; // London is the correct default
       const env = ENVIRONMENTS[envRegion];
       
       if (!env) {
