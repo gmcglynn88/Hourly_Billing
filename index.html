@@ -429,10 +429,10 @@
       font-size: 15px;
     }
 
-    /* Simplified date range styles */
+    /* FIXED: Date range styles - stacked on mobile, side-by-side on desktop */
     .date-range-simple {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
+      flex-direction: column;
       gap: 16px;
       margin-bottom: 20px;
     }
@@ -467,9 +467,14 @@
       box-shadow: 0 0 0 3px rgba(99, 171, 143, 0.1);
     }
     
-    @media (max-width: 768px) {
+    @media (min-width: 768px) {
       .date-range-simple {
-        grid-template-columns: 1fr;
+        flex-direction: row;
+        gap: 16px;
+      }
+      
+      .date-field-simple {
+        flex: 1;
       }
     }
 
@@ -610,7 +615,7 @@
             </button>
           </div>
 
-          <!-- Simplified Date Range Card -->
+          <!-- Simplified Date Range Card - FIXED: Now stacked on mobile -->
           <div class="card">
             <h2>📅 Analysis Period</h2>
             
@@ -1696,6 +1701,40 @@
       return 'other';
     }
 
+    // ==================== NEW FUNCTION: FETCH USER PRESENCE STATUS ====================
+    async function fetchUserPresenceStatus(userIds) {
+      try {
+        const batchSize = 50;
+        const presenceResults = {};
+        
+        for (let i = 0; i < userIds.length; i += batchSize) {
+          const batch = userIds.slice(i, i + batchSize);
+          const response = await apiCall(`/api/v2/users?pageSize=${batchSize}&pageNumber=1&id=${batch.join(',')}&expand=presence`);
+          
+          if (response.entities) {
+            response.entities.forEach(user => {
+              if (user.presence) {
+                presenceResults[user.id] = {
+                  presence: user.presence.presenceDefinition?.systemPresence || 'Unknown',
+                  isCommunicating: ['BUSY', 'BUSY_OTHER', 'ON_QUEUE', 'INTERRUPTIBLE', 'COMMUNICATING'].includes(
+                    user.presence.presenceDefinition?.systemPresence || ''
+                  )
+                };
+              }
+            });
+          }
+          
+          // Add delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        return presenceResults;
+      } catch (error) {
+        logMessage('WARN', 'Failed to fetch user presence', error.message);
+        return {};
+      }
+    }
+
     // ==================== MAIN FUNCTIONS ====================
     async function fetchUserData() {
       if (!validateDateRange()) {
@@ -1807,6 +1846,16 @@
                       value: "message"
                     }
                   ]
+                },
+                {
+                  type: "or",
+                  predicates: [
+                    {
+                      dimension: "queueId",
+                      operator: "exists",
+                      value: null
+                    }
+                  ]
                 }
               ],
               groupBy: ["userId"],
@@ -1894,10 +1943,35 @@
           user.interactingHoursDecimal = formatMillisecondsToDecimalHours(interactTimeMs);
         });
 
+        // Fetch user presence status to check for communicating users
+        updateLoadingProgress(70);
+        logMessage('INFO', 'Fetching user presence status');
+        
+        const userIds = appState.userData.map(u => u.id);
+        const presenceData = await fetchUserPresenceStatus(userIds);
+        
+        // Update user status based on presence
+        appState.userData.forEach(user => {
+          const presence = presenceData[user.id];
+          if (presence) {
+            user.presenceStatus = presence.presence;
+            user.isCommunicating = presence.isCommunicating;
+            
+            // Log if user is currently communicating
+            if (user.isCommunicating) {
+              logMessage('INFO', `User ${user.name} is currently ${user.presenceStatus}`, 'This user may be actively communicating');
+            }
+          }
+        });
+
         // Calculate statistics
         const usersWithHours = appState.userData.filter(u => u.interactingMilliseconds > 0);
         const totalInteractingMs = usersWithHours.reduce((sum, u) => sum + u.interactingMilliseconds, 0);
         const totalInteractingHours = formatMillisecondsToDecimalHours(totalInteractingMs);
+        
+        // Count communicating users
+        const communicatingUsers = appState.userData.filter(u => u.isCommunicating).length;
+        logMessage('INFO', `Communicating users detected`, `${communicatingUsers} users are currently in a communicating state`);
         
         logMessage('INFO', `Interacting time distribution`, 
           `${usersWithHours.length} users have > 0 interacting time, ${appState.userData.length - usersWithHours.length} users have 0 interacting time`);
@@ -1915,7 +1989,7 @@
         updateCurrencyDisplay();
 
         logMessage('SUCCESS', 'Data loaded successfully', 
-          `${appState.userData.length} users loaded, ${usersWithHours.length} with interacting time, total ${totalInteractingHours.toFixed(2)} hours`);
+          `${appState.userData.length} users loaded, ${usersWithHours.length} with interacting time, ${communicatingUsers} currently communicating, total ${totalInteractingHours.toFixed(2)} hours`);
 
         el.statTotalUsers.textContent = appState.userData.length;
         el.totalCount.textContent = appState.userData.length;
@@ -1931,7 +2005,7 @@
         updateLoadingProgress(100);
         await new Promise(resolve => setTimeout(resolve, 500));
         setLoading(false);
-        showStatusMessage(`✅ Loaded ${appState.userData.length} users (${usersWithHours.length} with interacting time)`, 'success');
+        showStatusMessage(`✅ Loaded ${appState.userData.length} users (${usersWithHours.length} with interacting time, ${communicatingUsers} communicating)`, 'success');
 
       } catch (error) {
         setLoading(false);
