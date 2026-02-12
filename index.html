@@ -346,7 +346,6 @@
       border-color: var(--primary-color);
     }
     
-    /* New styles for agent count tiles */
     .agent-count-container {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -391,7 +390,6 @@
       font-weight: 600;
     }
     
-    /* New styles for overage table */
     .overage-table-container {
       margin-top: 24px;
     }
@@ -429,7 +427,6 @@
       font-size: 15px;
     }
 
-    /* FIXED: Date range styles - stacked on mobile, side-by-side on desktop */
     .date-range-simple {
       display: flex;
       flex-direction: column;
@@ -478,7 +475,6 @@
       }
     }
 
-    /* Improved layout for better screen usage */
     .left-column {
       display: flex;
       flex-direction: column;
@@ -495,7 +491,6 @@
       width: 100%;
     }
     
-    /* Enhanced typography */
     .info-text {
       font-size: 13px;
       color: var(--text-light);
@@ -503,29 +498,24 @@
       font-family:'Aptos','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
     }
     
-    /* Card content spacing */
     .card-content {
       padding: 4px 0;
     }
     
-    /* Better spacing for form elements */
     .form-spacing {
       margin-top: 8px;
     }
     
-    /* Ensure consistent font usage */
     input, select, textarea, button {
       font-family: 'Aptos', 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
     }
     
-    /* Chart container improvements */
     .chart-container {
       height: 340px;
       position: relative;
       margin-top: 24px;
     }
     
-    /* Wider layout for larger screens */
     @media (min-width: 1400px) {
       .container {
         max-width: 1600px;
@@ -557,7 +547,6 @@
       }
     }
     
-    /* New styles for enhanced stat cards */
     .stat-subvalue {
       font-size: 16px;
       color: var(--secondary-color);
@@ -614,7 +603,6 @@
             </button>
           </div>
 
-          <!-- Simplified Date Range Card - FIXED: Now stacked on mobile -->
           <div class="card">
             <h2>📅 Analysis Period</h2>
             
@@ -856,7 +844,7 @@
                       <th>Interacting Time</th>
                       <th>Licence</th>
                       <th>Status</th>
-                      <th>Current Presence</th>
+                      <th>Presence (Period)</th>
                     </tr>
                   </thead>
                   <tbody id="usersTableBody">
@@ -868,7 +856,6 @@
               </div>
             </div>
             
-            <!-- New Overage Table Card -->
             <div class="card" style="margin-top:24px;">
               <h2>📈 Overage Analysis</h2>
               <div style="margin-bottom:18px;">
@@ -995,7 +982,6 @@
               </div>
             </div>
 
-            <!-- NEW: Hourly Interacting Details Card -->
             <div class="card" style="margin-top:24px;">
               <h2>⏱️ Hourly Interacting Details</h2>
               <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
@@ -1071,27 +1057,10 @@
     </div>
   </div>
 
-  <!-- FIXED: Changed Chart.js CDN to jsDelivr to avoid tracking prevention warnings -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script>
     // ==================== TROUBLESHOOTING GUIDE ====================
-    // If you're seeing CORS errors:
-    // 1. Log into Genesys Cloud Admin
-    // 2. Go to Admin > Integrations > OAuth
-    // 3. Find your OAuth client (ID: d968eca4-cdb7-4b90-91b1-4628b5bb679e)
-    // 4. Add this URL to Authorized Redirect URIs:
-    //    https://gmcglynn88.github.io/Hourly_Billing/
-    // 5. Make sure Grant Type is "Token (Implicit Grant)"
-    // 6. Save the OAuth client
-    // 7. Clear browser cache and localStorage:
-    //    localStorage.clear();
-    //    location.reload();
-
-    // ==================== CONFIGURATION ====================
-    // CHANGE THIS CLIENT ID FOR DIFFERENT CUSTOMERS
-    const CLIENT_ID = 'd968eca4-cdb7-4b90-91b1-4628b5bb679e'; // <-- CHANGE THIS FOR EACH CUSTOMER
-    
-    // DON'T CHANGE THESE - they work with GitHub Pages
+    const CLIENT_ID = 'd968eca4-cdb7-4b90-91b1-4628b5bb679e';
     const REDIRECT_URI = 'https://gmcglynn88.github.io/Hourly_Billing/';
     const ENVIRONMENTS = {
       'us-east-1': { name: 'US East (N. Virginia)', api: 'https://api.mypurecloud.com', login: 'https://login.mypurecloud.com' },
@@ -1243,14 +1212,11 @@
     function calculateDateRangeDays() {
       const fromDate = el.dateFrom.value;
       const toDate = el.dateTo.value;
-      
       if (!fromDate || !toDate) return 0;
-      
       const start = new Date(fromDate);
       const end = new Date(toDate);
       const diffTime = Math.abs(end - start);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      
       return diffDays;
     }
 
@@ -1258,18 +1224,14 @@
       const today = new Date();
       const currentMonth = today.getMonth();
       const currentYear = today.getFullYear();
-      
       let prevMonth = currentMonth - 1;
       let prevYear = currentYear;
-      
       if (prevMonth < 0) {
         prevMonth = 11;
         prevYear = currentYear - 1;
       }
-      
       const firstDay = new Date(prevYear, prevMonth, 1);
       const lastDay = new Date(prevYear, prevMonth + 1, 0);
-      
       return {
         from: firstDay.toISOString().split('T')[0],
         to: lastDay.toISOString().split('T')[0],
@@ -1281,12 +1243,10 @@
     function updateDateRangeInfo() {
       const fromDate = el.dateFrom.value;
       const toDate = el.dateTo.value;
-      
       if (fromDate && toDate) {
         const days = calculateDateRangeDays();
         const fromDisplay = formatDateForDisplay(fromDate);
         const toDisplay = formatDateForDisplay(toDate);
-        
         if (days <= 0) {
           el.dateRangeInfo.textContent = 'Invalid date range';
           el.dateRangeInfo.style.color = 'var(--danger)';
@@ -1306,23 +1266,14 @@
     function validateDateRange() {
       const fromDate = el.dateFrom.value;
       const toDate = el.dateTo.value;
-      
       if (fromDate && toDate) {
         const start = new Date(fromDate);
         const end = new Date(toDate);
-        
-        if (start > end) {
-          return false;
-        }
-        
+        if (start > end) return false;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
-        if (end > today) {
-          return false;
-        }
+        if (end > today) return false;
       }
-      
       return true;
     }
 
@@ -1347,34 +1298,23 @@
             environmentRegion: envRegion,
             refreshToken
           };
-
           if (Date.now() < CURRENT_CONFIG.tokenExpiry - (5 * 60 * 1000)) {
             return true;
           }
-
           if (refreshToken) {
             return false;
           }
         }
-        
         if (currency) {
           appState.currencySymbol = currency;
           el.currencySymbol.value = currency;
         }
-        
         if (hourlyCurrency) {
           appState.hourlyCurrencySymbol = hourlyCurrency;
           el.hourlyCurrencySymbol.value = hourlyCurrency;
         }
-        
-        if (dateFrom) {
-          el.dateFrom.value = dateFrom;
-        }
-        
-        if (dateTo) {
-          el.dateTo.value = dateTo;
-        }
-        
+        if (dateFrom) el.dateFrom.value = dateFrom;
+        if (dateTo) el.dateTo.value = dateTo;
       } catch (e) {
         console.warn('Failed to load stored credentials:', e);
       }
@@ -1417,7 +1357,6 @@
       try {
         const loginUrl = ENVIRONMENTS[CURRENT_CONFIG.environmentRegion]?.login;
         if (!loginUrl) return false;
-
         const response = await fetch(`${loginUrl}/oauth/token`, {
           method: 'POST',
           headers: {
@@ -1429,7 +1368,6 @@
             refresh_token: CURRENT_CONFIG.refreshToken
           })
         });
-
         if (response.ok) {
           const data = await response.json();
           saveCredentials(data.access_token, data.expires_in, CURRENT_CONFIG.environment, 
@@ -1446,7 +1384,6 @@
     function parseTokenFromHash() {
       const hash = window.location.hash.replace(/^#/, '');
       if (!hash) return {};
-      
       const params = new URLSearchParams(hash);
       return {
         token: params.get('access_token'),
@@ -1471,24 +1408,16 @@
     function authUrl(envRegion) {
       const env = ENVIRONMENTS[envRegion];
       if (!env) return null;
-      
-      const state = btoa(JSON.stringify({ 
-        env: envRegion,
-        ts: Date.now()
-      }));
-      
+      const state = btoa(JSON.stringify({ env: envRegion, ts: Date.now() }));
       return `${env.login}/oauth/authorize?client_id=${encodeURIComponent(CLIENT_ID)}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${encodeURIComponent(state)}`;
     }
 
     async function initAuth() {
       el.authContainer.style.display = 'block';
-      
       const { token, refreshToken, error, errorDescription, expiresIn, state } = parseTokenFromHash();
-      
       if (window.location.hash) {
         history.replaceState(null, '', window.location.pathname + window.location.search);
       }
-
       if (token) {
         const envRegion = parseEnvironmentFromState(state);
         const env = ENVIRONMENTS[envRegion];
@@ -1501,20 +1430,16 @@
           }
         }
       }
-
       if (error) {
         logMessage('ERROR', 'Authentication failed', `${error}: ${errorDescription}`);
         showStatusMessage(`❌ Authentication failed: ${error}`, 'error');
-        
         if (errorDescription && errorDescription.includes('CORS') || error === 'access_denied') {
           showStatusMessage('🔧 Please check OAuth client configuration in Genesys Cloud', 'warn');
           logMessage('INFO', 'CORS Issue Detected', 'Make sure your GitHub Pages URL is added to the OAuth client\'s Authorized Redirect URIs');
         }
-        
         setTimeout(() => authenticate(), 2000);
         return;
       }
-
       const hasValidToken = loadStoredCredentials();
       if (hasValidToken) {
         const envName = ENVIRONMENTS[CURRENT_CONFIG.environmentRegion]?.name || 'Genesys Cloud';
@@ -1522,7 +1447,6 @@
         setTimeout(() => showMainApp(envName), 500);
         return;
       }
-
       const refreshSuccess = await attemptTokenRefresh();
       if (refreshSuccess) {
         const envName = ENVIRONMENTS[CURRENT_CONFIG.environmentRegion]?.name || 'Genesys Cloud';
@@ -1530,7 +1454,6 @@
         setTimeout(() => showMainApp(envName), 500);
         return;
       }
-
       logMessage('INFO', 'No valid credentials found', 'Redirecting to authentication...');
       setTimeout(() => authenticate(), 1500);
     }
@@ -1538,12 +1461,10 @@
     function authenticate() {
       const envRegion = 'eu-west-2';
       const env = ENVIRONMENTS[envRegion];
-      
       if (!env) {
         logMessage('ERROR', 'Invalid environment selected');
         return;
       }
-      
       const authUrlValue = authUrl(envRegion);
       if (authUrlValue) {
         window.location.href = authUrlValue;
@@ -1675,12 +1596,23 @@
       });
 
       if (response.status === 401 || response.status === 403) throw new Error(`Authentication error (${response.status}). Please reconnect.`);
+      
+      // FIXED: Much better rate limit handling with exponential backoff
       if (response.status === 429) {
-        const retryAfter = response.headers.get('Retry-After') || 5;
-        logMessage('WARN', `Rate limit exceeded`, `Retrying after ${retryAfter} seconds`);
-        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-        return apiCall(path, options);
+        const retryAfter = response.headers.get('Retry-After') || 1;
+        // Exponential backoff with jitter - starts at 1s, then 2s, 4s, 8s, 16s, 32s
+        const retryCount = options.retryCount || 0;
+        const waitTime = (Math.pow(2, retryCount) * 1000) + (Math.random() * 1000);
+        const waitSeconds = Math.round(waitTime / 1000);
+        
+        logMessage('WARN', `Rate limit exceeded`, `Retry ${retryCount + 1}, waiting ${waitSeconds}s`);
+        
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        
+        // Retry with incremented retry count
+        return apiCall(path, { ...options, retryCount: retryCount + 1 });
       }
+      
       if (!response.ok) {
         const errorText = await response.text().catch(() => '');
         throw new Error(`API Error: ${response.status} ${response.statusText}${errorText ? ` - ${errorText.slice(0,200)}` : ''}`);
@@ -1700,74 +1632,92 @@
       return 'other';
     }
 
-    // ==================== NEW CONCURRENT API FUNCTION: USER PRESENCE AGGREGATES ====================
+    // ==================== OPTIMIZED: BULK PRESENCE QUERY (FIXES RATE LIMITING) ====================
     async function fetchUserPresenceAggregates(userIds, interval) {
       if (!userIds || userIds.length === 0) return {};
       
-      logMessage('INFO', 'Fetching presence aggregates', `Querying ${userIds.length} users in parallel batches`);
+      logMessage('INFO', 'Fetching presence aggregates', `Querying ${userIds.length} users in BULK MODE (optimized)`);
       
       const results = {};
-      const BATCH_SIZE = 10;
-      const batches = [];
+      const BULK_BATCH_SIZE = 100; // Genesys supports up to 100 per batch
       
-      for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
-        batches.push(userIds.slice(i, i + BATCH_SIZE));
-      }
-      
-      let completed = 0;
-      
-      for (const batch of batches) {
-        const batchPromises = batch.map(async (userId) => {
-          try {
-            const queryBody = {
-              interval: interval,
-              granularity: "PT60M",
-              groupBy: ["userId"],
-              metrics: ["tSystemPresence"],
-              filter: {
-                type: "or",
-                predicates: [
-                  {
-                    dimension: "userId",
-                    operator: "matches",
-                    value: userId
-                  }
-                ]
-              }
-            };
+      // Process in bulk batches of 100 users per call
+      for (let i = 0; i < userIds.length; i += BULK_BATCH_SIZE) {
+        const batch = userIds.slice(i, i + BULK_BATCH_SIZE);
+        
+        // Create a single query for up to 100 users
+        const predicates = batch.map(userId => ({
+          dimension: "userId",
+          operator: "matches",
+          value: userId
+        }));
+        
+        const queryBody = {
+          interval: interval,
+          granularity: "PT60M",
+          groupBy: ["userId"],
+          metrics: ["tSystemPresence"],
+          filter: {
+            type: "or",
+            predicates: predicates
+          }
+        };
 
+        let retryCount = 0;
+        let success = false;
+        
+        while (!success && retryCount < 5) {
+          try {
             const response = await apiCall('/api/v2/analytics/users/aggregates/query', {
               method: 'POST',
-              body: JSON.stringify(queryBody)
+              body: JSON.stringify(queryBody),
+              retryCount: retryCount // Pass retry count for exponential backoff
             });
 
-            if (response.results && response.results.length > 0) {
-              const record = response.results[0];
-              if (record.group && record.group.userId) {
-                const presenceData = record.data.find(d => d.metric === "tSystemPresence");
-                if (presenceData && presenceData.stats) {
-                  results[userId] = {
-                    count: presenceData.stats.count || 0,
-                    sum: presenceData.stats.sum || 0,
-                    min: presenceData.stats.min || 0,
-                    max: presenceData.stats.max || 0
-                  };
+            // Process all results from this bulk query
+            if (response.results) {
+              response.results.forEach(record => {
+                if (record.group && record.group.userId) {
+                  const userId = record.group.userId;
+                  const presenceData = record.data.find(d => d.metric === "tSystemPresence");
+                  if (presenceData && presenceData.stats) {
+                    results[userId] = {
+                      count: presenceData.stats.count || 0,
+                      sum: presenceData.stats.sum || 0,
+                      min: presenceData.stats.min || 0,
+                      max: presenceData.stats.max || 0
+                    };
+                  }
                 }
-              }
+              });
             }
+            
+            success = true;
+            logMessage('SUCCESS', `Bulk query processed`, `${batch.length} users in one call (${Math.floor((i + batch.length) / userIds.length * 100)}% complete)`);
+            
           } catch (error) {
-            logMessage('WARN', `Presence query failed for user ${userId}`, error.message);
+            if (error.message.includes('429')) {
+              retryCount++;
+              // Already handled by apiCall exponential backoff, just wait a bit extra
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            } else {
+              logMessage('WARN', `Bulk query failed`, error.message);
+              break;
+            }
           }
-        });
-
-        await Promise.all(batchPromises);
-        completed += batch.length;
-        updateLoadingProgress(70 + Math.floor((completed / userIds.length) * 20));
+        }
         
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Delay between bulk batches to avoid hitting rate limits
+        if (i + BULK_BATCH_SIZE < userIds.length) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        updateLoadingProgress(70 + Math.floor(((i + batch.length) / userIds.length) * 20));
       }
       
-      logMessage('SUCCESS', 'Presence aggregates fetched', `Processed ${Object.keys(results).length} users with presence data`);
+      logMessage('SUCCESS', 'Presence aggregates fetched', 
+        `Processed ${userIds.length} users in ${Math.ceil(userIds.length/BULK_BATCH_SIZE)} bulk calls, found ${Object.keys(results).length} with presence data`);
+      
       return results;
     }
 
@@ -1846,126 +1796,114 @@
         const userHoursMap = {};
 
         try {
-          logMessage('INFO', 'Trying Conversations Analytics API for interaction data');
+          logMessage('INFO', 'Querying Conversations Analytics API for interaction data');
           
           const agentUserIds = appState.userData
             .filter(u => u.userType === 'agent')
-            .map(u => u.id)
-            .slice(0, 50);
+            .map(u => u.id);
 
           if (agentUserIds.length > 0) {
-            const queryBody = {
-              interval: interval,
-              order: "asc",
-              orderBy: "userId",
-              paging: {
-                pageSize: 1000,
-                pageNumber: 1
-              },
-              segmentFilters: [
-                {
-                  type: "or",
-                  predicates: [
-                    {
-                      dimension: "mediaType",
-                      value: "voice"
-                    },
-                    {
-                      dimension: "mediaType",
-                      value: "chat"
-                    },
-                    {
-                      dimension: "mediaType",
-                      value: "email"
-                    },
-                    {
-                      dimension: "mediaType",
-                      value: "message"
-                    }
-                  ]
+            // Process agents in batches of 100 for conversation data
+            const BATCH_SIZE = 100;
+            for (let i = 0; i < agentUserIds.length; i += BATCH_SIZE) {
+              const batch = agentUserIds.slice(i, i + BATCH_SIZE);
+              
+              const predicates = batch.map(userId => ({
+                dimension: "userId",
+                operator: "matches",
+                value: userId
+              }));
+
+              const queryBody = {
+                interval: interval,
+                order: "asc",
+                orderBy: "userId",
+                paging: {
+                  pageSize: 1000,
+                  pageNumber: 1
                 },
-                {
-                  type: "or",
-                  predicates: [
-                    {
-                      dimension: "queueId",
-                      operator: "exists",
-                      value: null
-                    }
-                  ]
-                }
-              ],
-              groupBy: ["userId"],
-              metrics: ["tTalk", "tWrapUp"]
-            };
-
-            updateLoadingProgress(60);
-            logMessage('INFO', 'Querying Conversations Analytics API');
-
-            try {
-              const analyticsResponse = await apiCall('/api/v2/analytics/conversations/aggregates/query', {
-                method: 'POST',
-                body: JSON.stringify(queryBody)
-              });
-
-              if (analyticsResponse.results && analyticsResponse.results.length > 0) {
-                analyticsResponse.results.forEach(record => {
-                  if (record.group && record.group.userId) {
-                    const userId = record.group.userId;
-                    let totalTalkTime = 0;
-                    let totalWrapUpTime = 0;
-
-                    const tTalkData = record.data.find(d => d.metric === "tTalk");
-                    if (tTalkData && tTalkData.stats) {
-                      totalTalkTime = tTalkData.stats.sum || 0;
-                    }
-
-                    const tWrapUpData = record.data.find(d => d.metric === "tWrapUp");
-                    if (tWrapUpData && tWrapUpData.stats) {
-                      totalWrapUpTime = tWrapUpData.stats.sum || 0;
-                    }
-
-                    const totalInteractingTime = totalTalkTime + totalWrapUpTime;
-                    
-                    if (totalInteractingTime > 0) {
-                      userHoursMap[userId] = totalInteractingTime;
-                    }
+                segmentFilters: [
+                  {
+                    type: "or",
+                    predicates: [
+                      { dimension: "mediaType", value: "voice" },
+                      { dimension: "mediaType", value: "chat" },
+                      { dimension: "mediaType", value: "email" },
+                      { dimension: "mediaType", value: "message" }
+                    ]
+                  },
+                  {
+                    type: "or",
+                    predicates: [
+                      { dimension: "queueId", operator: "exists", value: null }
+                    ]
                   }
+                ],
+                groupBy: ["userId"],
+                metrics: ["tTalk", "tWrapUp"],
+                filter: {
+                  type: "or",
+                  predicates: predicates
+                }
+              };
+
+              try {
+                const analyticsResponse = await apiCall('/api/v2/analytics/conversations/aggregates/query', {
+                  method: 'POST',
+                  body: JSON.stringify(queryBody)
                 });
 
-                logMessage('SUCCESS', 'Conversations API query completed', `Found ${Object.keys(userHoursMap).length} users with interaction time`);
-                
-                const usersWithHours = Object.keys(userHoursMap);
-                const sampleCount = Math.min(10, usersWithHours.length);
-                for (let i = 0; i < sampleCount; i++) {
-                  const userId = usersWithHours[i];
-                  const user = userMap[userId];
-                  const userName = user ? user.name : userId;
-                  const hoursFormatted = formatMillisecondsToHHMMSS(userHoursMap[userId]);
-                  const hoursDecimal = formatMillisecondsToDecimalHours(userHoursMap[userId]);
-                  logMessage('DEBUG', `User: ${userName}`, `Interaction time: ${hoursFormatted} (${hoursDecimal.toFixed(2)} hours)`);
+                if (analyticsResponse.results) {
+                  analyticsResponse.results.forEach(record => {
+                    if (record.group && record.group.userId) {
+                      const userId = record.group.userId;
+                      let totalTalkTime = 0;
+                      let totalWrapUpTime = 0;
+
+                      const tTalkData = record.data.find(d => d.metric === "tTalk");
+                      if (tTalkData && tTalkData.stats) {
+                        totalTalkTime = tTalkData.stats.sum || 0;
+                      }
+
+                      const tWrapUpData = record.data.find(d => d.metric === "tWrapUp");
+                      if (tWrapUpData && tWrapUpData.stats) {
+                        totalWrapUpTime = tWrapUpData.stats.sum || 0;
+                      }
+
+                      const totalInteractingTime = totalTalkTime + totalWrapUpTime;
+                      
+                      if (totalInteractingTime > 0) {
+                        userHoursMap[userId] = totalInteractingTime;
+                      }
+                    }
+                  });
                 }
-              } else {
-                logMessage('WARN', 'No conversation data found in selected period', 'Users will have 0 interacting time');
+              } catch (convError) {
+                logMessage('WARN', `Batch conversation query failed for batch ${i}`, convError.message);
               }
-            } catch (convError) {
-              logMessage('WARN', 'Conversations API failed', convError.message);
               
-              appState.userData.forEach((user, index) => {
-                if (user.userType === 'agent' && index % 3 === 0) {
-                  const randomHours = Math.floor(Math.random() * 80) + 1;
-                  userHoursMap[user.id] = randomHours * 60 * 60 * 1000;
-                }
-              });
+              // Progress update
+              updateLoadingProgress(50 + Math.floor((i + batch.length) / agentUserIds.length * 20));
               
-              logMessage('INFO', 'Using demo data', 'Added sample interaction times for demonstration');
+              // Delay between batches
+              await new Promise(resolve => setTimeout(resolve, 500));
             }
+
+            logMessage('SUCCESS', 'Conversations API query completed', `Found ${Object.keys(userHoursMap).length} users with interaction time`);
           } else {
             logMessage('WARN', 'No agent users found', 'Only supervisors and admins in the organization');
           }
         } catch (analyticsError) {
           logMessage('ERROR', 'Analytics API query failed', analyticsError.message);
-          console.error('Analytics API error details:', analyticsError);
+          
+          // Demo data fallback
+          appState.userData.forEach((user, index) => {
+            if (user.userType === 'agent' && index % 3 === 0) {
+              const randomHours = Math.floor(Math.random() * 80) + 1;
+              userHoursMap[user.id] = randomHours * 60 * 60 * 1000;
+            }
+          });
+          logMessage('INFO', 'Using demo data', 'Added sample interaction times for demonstration');
         }
 
         appState.userData.forEach(user => {
@@ -1975,9 +1913,8 @@
           user.interactingHoursDecimal = formatMillisecondsToDecimalHours(interactTimeMs);
         });
 
-        // ========== NEW: Fetch presence aggregates using concurrent batch processing ==========
+        // ========== OPTIMIZED: Fetch presence aggregates using BULK queries ==========
         updateLoadingProgress(70);
-        logMessage('INFO', 'Fetching presence aggregates for all users with concurrency');
         
         const userIds = appState.userData.map(u => u.id);
         const presenceData = await fetchUserPresenceAggregates(userIds, interval);
@@ -1991,7 +1928,6 @@
               min: data.min,
               max: data.max
             };
-            
             user.isCommunicating = data.sum > 0;
             user.presencePercentage = user.interactingMilliseconds > 0 
               ? ((data.sum / user.interactingMilliseconds) * 100).toFixed(1)
@@ -2002,7 +1938,6 @@
         const usersWithHours = appState.userData.filter(u => u.interactingMilliseconds > 0);
         const totalInteractingMs = usersWithHours.reduce((sum, u) => sum + u.interactingMilliseconds, 0);
         const totalInteractingHours = formatMillisecondsToDecimalHours(totalInteractingMs);
-        
         const communicatingUsers = appState.userData.filter(u => u.presenceData?.sum > 0).length;
         
         logMessage('INFO', 'Presence analysis complete', 
@@ -2011,12 +1946,6 @@
           `${usersWithHours.length} users have > 0 interacting time, ${appState.userData.length - usersWithHours.length} users have 0 interacting time`);
         logMessage('INFO', `Total interacting time`, 
           `${formatMillisecondsToHHMMSS(totalInteractingMs)} (${totalInteractingHours.toFixed(2)} hours)`);
-
-        if (usersWithHours.length > 0) {
-          const avgMs = totalInteractingMs / usersWithHours.length;
-          const avgHoursFormatted = formatMillisecondsToHHMMSS(avgMs);
-          logMessage('INFO', `Average per user`, `${avgHoursFormatted} per active user`);
-        }
 
         updateLoadingProgress(95);
         updateUserTypeStats();
@@ -2098,17 +2027,10 @@
         
         let userTypeBadge = '';
         switch(user.userType) {
-          case 'agent':
-            userTypeBadge = `<span class="status-badge" style="background:rgba(99,171,143,0.15);color:var(--primary-color);">Agent</span>`;
-            break;
-          case 'supervisor':
-            userTypeBadge = `<span class="status-badge" style="background:rgba(255,193,7,0.15);color:#d39e00;">Supervisor</span>`;
-            break;
-          case 'admin':
-            userTypeBadge = `<span class="status-badge" style="background:rgba(220,53,69,0.15);color:var(--danger);">Admin</span>`;
-            break;
-          default:
-            userTypeBadge = `<span class="status-badge" style="background:rgba(108,117,125,0.15);color:var(--text-light);">Other</span>`;
+          case 'agent': userTypeBadge = `<span class="status-badge" style="background:rgba(99,171,143,0.15);color:var(--primary-color);">Agent</span>`; break;
+          case 'supervisor': userTypeBadge = `<span class="status-badge" style="background:rgba(255,193,7,0.15);color:#d39e00;">Supervisor</span>`; break;
+          case 'admin': userTypeBadge = `<span class="status-badge" style="background:rgba(220,53,69,0.15);color:var(--danger);">Admin</span>`; break;
+          default: userTypeBadge = `<span class="status-badge" style="background:rgba(108,117,125,0.15);color:var(--text-light);">Other</span>`;
         }
         
         let statusBadge = '';
@@ -2238,17 +2160,11 @@
         const totalUsers = usersToAnalyze.length;
         const activeUsers = usersToAnalyze.filter(u => u.interactingMilliseconds > 0).length;
         const namedUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'Named').length;
-        
-        const hiUsers = usersToAnalyze.filter(u => 
-          u.recommendedLicense === 'Hourly Interacting' && u.userType === 'agent'
-        ).length;
-        
+        const hiUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'Hourly Interacting' && u.userType === 'agent').length;
         const nologinUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'NOLOGIN').length;
         const totalHours = usersToAnalyze.reduce((sum, u) => sum + u.interactingHoursDecimal, 0);
 
-        const hiUsersList = usersToAnalyze.filter(u => 
-          u.recommendedLicense === 'Hourly Interacting' && u.userType === 'agent'
-        );
+        const hiUsersList = usersToAnalyze.filter(u => u.recommendedLicense === 'Hourly Interacting' && u.userType === 'agent');
         const hiHours = hiUsersList.reduce((sum, u) => sum + u.interactingHoursDecimal, 0);
         const avgHiHours = hiUsers > 0 ? hiHours / hiUsers : 0;
         const hourlyCost = hiHours * hourlyLicenseRate;
@@ -2269,27 +2185,10 @@
         else if (namedUsers === 0) optimalModel = 'All Hourly Interacting';
 
         appState.analysisResults = {
-          totalUsers,
-          activeUsers,
-          namedUsers,
-          hiUsers,
-          hiHours,
-          avgHiHours,
-          hourlyCost,
-          nologinUsers,
-          totalHours: totalHours.toFixed(2),
-          threshold,
-          namedLicenseCost,
-          hourlyLicenseRate,
-          allNamedCost: allNamedCost.toFixed(2),
-          hybridCost: hybridCost.toFixed(2),
-          savings,
-          optimalModel,
-          agentNamed,
-          agentHI,
-          supervisorNamed,
-          adminNamed,
-          users: usersToAnalyze
+          totalUsers, activeUsers, namedUsers, hiUsers, hiHours, avgHiHours, hourlyCost,
+          nologinUsers, totalHours: totalHours.toFixed(2), threshold, namedLicenseCost, hourlyLicenseRate,
+          allNamedCost: allNamedCost.toFixed(2), hybridCost: hybridCost.toFixed(2), savings, optimalModel,
+          agentNamed, agentHI, supervisorNamed, adminNamed, users: usersToAnalyze
         };
 
         updateProgress('Updating display...', 90);
@@ -2301,14 +2200,11 @@
         el.statAgentHI.textContent = agentHI;
         el.statSupervisorNamed.textContent = supervisorNamed;
         el.statAdminNamed.textContent = adminNamed;
-        
         el.statHiUsersDetailed.textContent = hiUsers;
         el.statTotalHiHours.textContent = Math.round(hiHours);
         el.statAvgHiHours.textContent = avgHiHours.toFixed(1);
         el.statHourlyCost.textContent = `${appState.hourlyCurrencySymbol}${hourlyCost.toFixed(2)}`;
-        
         updateCurrencyDisplay();
-        
         el.statTotalHours.textContent = Math.round(totalHours);
         el.totalCost.textContent = `${appState.currencySymbol}${parseFloat(hybridCost).toFixed(2)}`;
         el.savings.textContent = `${savings}% savings`;
@@ -2325,10 +2221,7 @@
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         logMessage('SUCCESS', 'Analysis complete', `${namedUsers} Named, ${hiUsers} Hourly Interacting agents (${Math.round(hiHours)} hours)`);
-        logMessage('INFO', 'Hourly Interacting details', `${hiUsers} agents with >0 hours, ${Math.round(hiHours)} total hours, ${appState.hourlyCurrencySymbol}${hourlyCost.toFixed(2)} cost`);
-        logMessage('INFO', 'NOLOGIN users', `${nologinUsers} users with 0 hours (correctly classified)`);
-        logMessage('INFO', 'Cost analysis', `All Named: ${appState.currencySymbol}${allNamedCost}, Hybrid: ${appState.currencySymbol}${hybridCost}, Savings: ${savings}%`);
-        showStatusMessage(`✅ Analysis complete: ${hiUsers} Hourly Interacting agents (with >0 hours), ${savings}% savings`, 'success');
+        showStatusMessage(`✅ Analysis complete: ${hiUsers} Hourly Interacting agents, ${savings}% savings`, 'success');
         el.btnExport.disabled = false;
 
       } catch (error) {
@@ -2345,7 +2238,6 @@
     function updateCurrencyDisplay() {
       el.statNamedCost.textContent = `${appState.currencySymbol}${el.namedLicenseCost.value}`;
       el.statHourlyRate.textContent = `${appState.hourlyCurrencySymbol}${el.hourlyLicenseRate.value}`;
-      
       if (appState.analysisResults) {
         el.totalCost.textContent = `${appState.currencySymbol}${parseFloat(appState.analysisResults.hybridCost).toFixed(2)}`;
         el.costDetails.innerHTML = `All Named: ${appState.currencySymbol}${parseFloat(appState.analysisResults.allNamedCost).toFixed(2)}<br>Hybrid: ${appState.currencySymbol}${parseFloat(appState.analysisResults.hybridCost).toFixed(2)}`;
@@ -2399,18 +2291,9 @@
 
         if (user.recommendedLicense) {
           switch(user.recommendedLicense) {
-            case 'Named':
-              badgeClass = 'status-named';
-              licenseBadge = `<span class="status-badge ${badgeClass}">Named</span>`;
-              break;
-            case 'Hourly Interacting':
-              badgeClass = 'status-hi';
-              licenseBadge = `<span class="status-badge ${badgeClass}">Hourly Interacting</span>`;
-              break;
-            case 'NOLOGIN':
-              badgeClass = 'status-nologin';
-              licenseBadge = `<span class="status-badge ${badgeClass}">NOLOGIN</span>`;
-              break;
+            case 'Named': badgeClass = 'status-named'; licenseBadge = `<span class="status-badge ${badgeClass}">Named</span>`; break;
+            case 'Hourly Interacting': badgeClass = 'status-hi'; licenseBadge = `<span class="status-badge ${badgeClass}">Hourly Interacting</span>`; break;
+            case 'NOLOGIN': badgeClass = 'status-nologin'; licenseBadge = `<span class="status-badge ${badgeClass}">NOLOGIN</span>`; break;
           }
         } else {
           if (user.interactingMilliseconds === 0) licenseBadge = `<span class="status-badge status-nologin">NOLOGIN</span>`;
@@ -2419,17 +2302,10 @@
 
         let userTypeBadge = '';
         switch(user.userType) {
-          case 'agent':
-            userTypeBadge = `<span class="status-badge" style="background:rgba(99,171,143,0.15);color:var(--primary-color);">Agent</span>`;
-            break;
-          case 'supervisor':
-            userTypeBadge = `<span class="status-badge" style="background:rgba(255,193,7,0.15);color:#d39e00;">Supervisor</span>`;
-            break;
-          case 'admin':
-            userTypeBadge = `<span class="status-badge" style="background:rgba(220,53,69,0.15);color:var(--danger);">Admin</span>`;
-            break;
-          default:
-            userTypeBadge = `<span class="status-badge" style="background:rgba(108,117,125,0.15);color:var(--text-light);">Other</span>`;
+          case 'agent': userTypeBadge = `<span class="status-badge" style="background:rgba(99,171,143,0.15);color:var(--primary-color);">Agent</span>`; break;
+          case 'supervisor': userTypeBadge = `<span class="status-badge" style="background:rgba(255,193,7,0.15);color:#d39e00;">Supervisor</span>`; break;
+          case 'admin': userTypeBadge = `<span class="status-badge" style="background:rgba(220,53,69,0.15);color:var(--danger);">Admin</span>`; break;
+          default: userTypeBadge = `<span class="status-badge" style="background:rgba(108,117,125,0.15);color:var(--text-light);">Other</span>`;
         }
 
         let presenceDisplay = 'No data';
@@ -2494,86 +2370,52 @@
       (appState.userData || []).forEach(user => {
         const hours = user.interactingHoursDecimal || 0;
         const isAgent = user.userType === 'agent';
-        
         totalUsers++;
         totalHoursSum += hours;
         if (isAgent) totalAgents++;
         
         if (hours === 0) {
-          buckets['0h'].userCount++;
-          buckets['0h'].totalHours += hours;
-          if (isAgent) buckets['0h'].agentCount++;
-        } else if (hours > 0 && hours <= 10) {
-          buckets['1-10h'].userCount++;
-          buckets['1-10h'].totalHours += hours;
-          if (isAgent) buckets['1-10h'].agentCount++;
-        } else if (hours > 10 && hours <= 20) {
-          buckets['11-20h'].userCount++;
-          buckets['11-20h'].totalHours += hours;
-          if (isAgent) buckets['11-20h'].agentCount++;
-        } else if (hours > 20 && hours <= 30) {
-          buckets['21-30h'].userCount++;
-          buckets['21-30h'].totalHours += hours;
-          if (isAgent) buckets['21-30h'].agentCount++;
-        } else if (hours > 30 && hours <= 40) {
-          buckets['31-40h'].userCount++;
-          buckets['31-40h'].totalHours += hours;
-          if (isAgent) buckets['31-40h'].agentCount++;
-        } else if (hours > 40 && hours <= 50) {
-          buckets['41-50h'].userCount++;
-          buckets['41-50h'].totalHours += hours;
-          if (isAgent) buckets['41-50h'].agentCount++;
-        } else if (hours > 50 && hours <= 60) {
-          buckets['51-60h'].userCount++;
-          buckets['51-60h'].totalHours += hours;
-          if (isAgent) buckets['51-60h'].agentCount++;
-        } else if (hours > 60 && hours <= 70) {
-          buckets['61-70h'].userCount++;
-          buckets['61-70h'].totalHours += hours;
-          if (isAgent) buckets['61-70h'].agentCount++;
-        } else if (hours > 70 && hours <= 80) {
-          buckets['71-80h'].userCount++;
-          buckets['71-80h'].totalHours += hours;
-          if (isAgent) buckets['71-80h'].agentCount++;
-        } else if (hours > 80 && hours <= 90) {
-          buckets['81-90h'].userCount++;
-          buckets['81-90h'].totalHours += hours;
-          if (isAgent) buckets['81-90h'].agentCount++;
-        } else if (hours > 90 && hours <= 100) {
-          buckets['91-100h'].userCount++;
-          buckets['91-100h'].totalHours += hours;
-          if (isAgent) buckets['91-100h'].agentCount++;
-        } else if (hours > 100) {
-          buckets['100+h'].userCount++;
-          buckets['100+h'].totalHours += hours;
-          if (isAgent) buckets['100+h'].agentCount++;
+          buckets['0h'].userCount++; buckets['0h'].totalHours += hours; if (isAgent) buckets['0h'].agentCount++;
+        } else if (hours <= 10) {
+          buckets['1-10h'].userCount++; buckets['1-10h'].totalHours += hours; if (isAgent) buckets['1-10h'].agentCount++;
+        } else if (hours <= 20) {
+          buckets['11-20h'].userCount++; buckets['11-20h'].totalHours += hours; if (isAgent) buckets['11-20h'].agentCount++;
+        } else if (hours <= 30) {
+          buckets['21-30h'].userCount++; buckets['21-30h'].totalHours += hours; if (isAgent) buckets['21-30h'].agentCount++;
+        } else if (hours <= 40) {
+          buckets['31-40h'].userCount++; buckets['31-40h'].totalHours += hours; if (isAgent) buckets['31-40h'].agentCount++;
+        } else if (hours <= 50) {
+          buckets['41-50h'].userCount++; buckets['41-50h'].totalHours += hours; if (isAgent) buckets['41-50h'].agentCount++;
+        } else if (hours <= 60) {
+          buckets['51-60h'].userCount++; buckets['51-60h'].totalHours += hours; if (isAgent) buckets['51-60h'].agentCount++;
+        } else if (hours <= 70) {
+          buckets['61-70h'].userCount++; buckets['61-70h'].totalHours += hours; if (isAgent) buckets['61-70h'].agentCount++;
+        } else if (hours <= 80) {
+          buckets['71-80h'].userCount++; buckets['71-80h'].totalHours += hours; if (isAgent) buckets['71-80h'].agentCount++;
+        } else if (hours <= 90) {
+          buckets['81-90h'].userCount++; buckets['81-90h'].totalHours += hours; if (isAgent) buckets['81-90h'].agentCount++;
+        } else if (hours <= 100) {
+          buckets['91-100h'].userCount++; buckets['91-100h'].totalHours += hours; if (isAgent) buckets['91-100h'].agentCount++;
+        } else {
+          buckets['100+h'].userCount++; buckets['100+h'].totalHours += hours; if (isAgent) buckets['100+h'].agentCount++;
         }
       });
 
       el.hourBuckets.innerHTML = '';
-      
       Object.entries(buckets).forEach(([label, data]) => {
         const card = document.createElement('div');
         card.className = 'bucket-card';
         card.title = `Bucket: ${label}\nUsers: ${data.userCount}\nAgents: ${data.agentCount}\nTotal Hours: ${Math.round(data.totalHours)}`;
-        card.innerHTML = `
-          <div class="bucket-count">${Math.round(data.totalHours)}</div>
-          <div class="bucket-agent-count">👥 ${data.userCount} users</div>
-          <div class="bucket-label">${label}</div>
-        `;
+        card.innerHTML = `<div class="bucket-count">${Math.round(data.totalHours)}</div><div class="bucket-agent-count">👥 ${data.userCount} users</div><div class="bucket-label">${label}</div>`;
         el.hourBuckets.appendChild(card);
       });
 
       el.agentCounts.innerHTML = '';
-      
       Object.entries(buckets).forEach(([label, data]) => {
         const card = document.createElement('div');
         card.className = 'agent-count-card';
         card.title = `Bucket: ${label}\nAgent Count: ${data.agentCount}\nTotal Hours: ${Math.round(data.totalHours)}`;
-        card.innerHTML = `
-          <div class="agent-count-value">${data.agentCount}</div>
-          <div class="agent-count-label">${label}</div>
-        `;
+        card.innerHTML = `<div class="agent-count-value">${data.agentCount}</div><div class="agent-count-label">${label}</div>`;
         el.agentCounts.appendChild(card);
       });
 
@@ -2582,14 +2424,7 @@
 
       const usersWithHours = appState.userData.filter(u => u.interactingHoursDecimal > 0);
       const avgHours = usersWithHours.length > 0 ? totalHoursSum / usersWithHours.length : 0;
-      
-      el.hourStats.innerHTML = `
-        <div style="display:flex;justify-content:center;gap:24px;">
-          <div>Users with hours: <strong>${usersWithHours.length}</strong></div>
-          <div>Total hours: <strong>${Math.round(totalHoursSum)}</strong></div>
-          <div>Avg per user: <strong>${Math.round(avgHours)}</strong></div>
-        </div>
-      `;
+      el.hourStats.innerHTML = `<div style="display:flex;justify-content:center;gap:24px;"><div>Users with hours: <strong>${usersWithHours.length}</strong></div><div>Total hours: <strong>${Math.round(totalHoursSum)}</strong></div><div>Avg per user: <strong>${Math.round(avgHours)}</strong></div></div>`;
     }
 
     function updateHourBarChart() {
@@ -2611,55 +2446,30 @@
       (appState.userData || []).forEach(user => {
         const hours = user.interactingHoursDecimal || 0;
         const isAgent = user.userType === 'agent';
-        
         if (hours === 0) {
-          buckets['0h'].userCount++;
-          buckets['0h'].totalHours += hours;
-          if (isAgent) buckets['0h'].agentCount++;
-        } else if (hours > 0 && hours <= 10) {
-          buckets['1-10h'].userCount++;
-          buckets['1-10h'].totalHours += hours;
-          if (isAgent) buckets['1-10h'].agentCount++;
-        } else if (hours > 10 && hours <= 20) {
-          buckets['11-20h'].userCount++;
-          buckets['11-20h'].totalHours += hours;
-          if (isAgent) buckets['11-20h'].agentCount++;
-        } else if (hours > 20 && hours <= 30) {
-          buckets['21-30h'].userCount++;
-          buckets['21-30h'].totalHours += hours;
-          if (isAgent) buckets['21-30h'].agentCount++;
-        } else if (hours > 30 && hours <= 40) {
-          buckets['31-40h'].userCount++;
-          buckets['31-40h'].totalHours += hours;
-          if (isAgent) buckets['31-40h'].agentCount++;
-        } else if (hours > 40 && hours <= 50) {
-          buckets['41-50h'].userCount++;
-          buckets['41-50h'].totalHours += hours;
-          if (isAgent) buckets['41-50h'].agentCount++;
-        } else if (hours > 50 && hours <= 60) {
-          buckets['51-60h'].userCount++;
-          buckets['51-60h'].totalHours += hours;
-          if (isAgent) buckets['51-60h'].agentCount++;
-        } else if (hours > 60 && hours <= 70) {
-          buckets['61-70h'].userCount++;
-          buckets['61-70h'].totalHours += hours;
-          if (isAgent) buckets['61-70h'].agentCount++;
-        } else if (hours > 70 && hours <= 80) {
-          buckets['71-80h'].userCount++;
-          buckets['71-80h'].totalHours += hours;
-          if (isAgent) buckets['71-80h'].agentCount++;
-        } else if (hours > 80 && hours <= 90) {
-          buckets['81-90h'].userCount++;
-          buckets['81-90h'].totalHours += hours;
-          if (isAgent) buckets['81-90h'].agentCount++;
-        } else if (hours > 90 && hours <= 100) {
-          buckets['91-100h'].userCount++;
-          buckets['91-100h'].totalHours += hours;
-          if (isAgent) buckets['91-100h'].agentCount++;
-        } else if (hours > 100) {
-          buckets['100+h'].userCount++;
-          buckets['100+h'].totalHours += hours;
-          if (isAgent) buckets['100+h'].agentCount++;
+          buckets['0h'].userCount++; buckets['0h'].totalHours += hours; if (isAgent) buckets['0h'].agentCount++;
+        } else if (hours <= 10) {
+          buckets['1-10h'].userCount++; buckets['1-10h'].totalHours += hours; if (isAgent) buckets['1-10h'].agentCount++;
+        } else if (hours <= 20) {
+          buckets['11-20h'].userCount++; buckets['11-20h'].totalHours += hours; if (isAgent) buckets['11-20h'].agentCount++;
+        } else if (hours <= 30) {
+          buckets['21-30h'].userCount++; buckets['21-30h'].totalHours += hours; if (isAgent) buckets['21-30h'].agentCount++;
+        } else if (hours <= 40) {
+          buckets['31-40h'].userCount++; buckets['31-40h'].totalHours += hours; if (isAgent) buckets['31-40h'].agentCount++;
+        } else if (hours <= 50) {
+          buckets['41-50h'].userCount++; buckets['41-50h'].totalHours += hours; if (isAgent) buckets['41-50h'].agentCount++;
+        } else if (hours <= 60) {
+          buckets['51-60h'].userCount++; buckets['51-60h'].totalHours += hours; if (isAgent) buckets['51-60h'].agentCount++;
+        } else if (hours <= 70) {
+          buckets['61-70h'].userCount++; buckets['61-70h'].totalHours += hours; if (isAgent) buckets['61-70h'].agentCount++;
+        } else if (hours <= 80) {
+          buckets['71-80h'].userCount++; buckets['71-80h'].totalHours += hours; if (isAgent) buckets['71-80h'].agentCount++;
+        } else if (hours <= 90) {
+          buckets['81-90h'].userCount++; buckets['81-90h'].totalHours += hours; if (isAgent) buckets['81-90h'].agentCount++;
+        } else if (hours <= 100) {
+          buckets['91-100h'].userCount++; buckets['91-100h'].totalHours += hours; if (isAgent) buckets['91-100h'].agentCount++;
+        } else {
+          buckets['100+h'].userCount++; buckets['100+h'].totalHours += hours; if (isAgent) buckets['100+h'].agentCount++;
         }
       });
 
@@ -2674,10 +2484,7 @@
         bar.className = 'hour-bar';
         bar.style.height = `${barHeight}%`;
         bar.title = `${label}\nTotal Hours: ${Math.round(data.totalHours)}\nUsers: ${data.userCount}\nAgents: ${data.agentCount}`;
-        bar.innerHTML = `
-          <div class="hour-bar-value">${Math.round(data.totalHours)}h</div>
-          <div class="hour-bar-label">${label}</div>
-        `;
+        bar.innerHTML = `<div class="hour-bar-value">${Math.round(data.totalHours)}h</div><div class="hour-bar-label">${label}</div>`;
         el.hourBarChart.appendChild(bar);
       });
     }
@@ -2712,17 +2519,7 @@
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: {
-              position: 'bottom',
-              labels: { 
-                padding: 20, 
-                usePointStyle: true,
-                font: {
-                  family: "'Aptos', 'Segoe UI', system-ui, -apple-system, Arial, sans-serif",
-                  size: 14
-                }
-              }
-            },
+            legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, font: { family: "'Aptos', 'Segoe UI', system-ui, -apple-system, Arial, sans-serif", size: 14 } } },
             tooltip: {
               callbacks: {
                 label: function(context) {
@@ -2839,27 +2636,16 @@
         el.btnRunAnalysis.disabled = true;
         el.btnExport.disabled = true;
 
-        el.usersTableBody.innerHTML = `
-          <tr><td colspan="9" style="text-align:center;padding:48px;color:var(--text-light);">
-            No data loaded. Connect and fetch data first.
-          </td></tr>
-        `;
-
+        el.usersTableBody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:48px;color:var(--text-light);">No data loaded. Connect and fetch data first.</td></tr>`;
         el.hourBuckets.innerHTML = '';
         el.agentCounts.innerHTML = '';
         el.hourBarChart.innerHTML = '';
         el.hourStats.innerHTML = '';
-        
-        el.overageTableBody.innerHTML = `
-          <tr><td colspan="8" class="no-overage-message">
-            No data available. Fetch user data and run analysis first.
-          </td></tr>
-        `;
+        el.overageTableBody.innerHTML = `<tr><td colspan="8" class="no-overage-message">No data available. Fetch user data and run analysis first.</td></tr>`;
         el.overageCount.textContent = '0';
         el.totalOverageHours.textContent = '0';
 
         if (appState.chartInstances.license) appState.chartInstances.license.destroy();
-
         logMessage('INFO', 'Application reset', 'All data cleared');
         showStatusMessage('🔄 Application reset', 'info');
       }
@@ -2880,7 +2666,6 @@
         appState.currencySymbol = storedCurrency;
         el.currencySymbol.value = storedCurrency;
       }
-      
       if (storedHourlyCurrency) {
         appState.hourlyCurrencySymbol = storedHourlyCurrency;
         el.hourlyCurrencySymbol.value = storedHourlyCurrency;
@@ -2897,10 +2682,14 @@
       
       el.dateFrom.addEventListener('change', () => {
         localStorage.setItem(STORAGE_KEYS.DATE_FROM, el.dateFrom.value);
+        updateDateRangeInfo();
       });
       el.dateTo.addEventListener('change', () => {
         localStorage.setItem(STORAGE_KEYS.DATE_TO, el.dateTo.value);
+        updateDateRangeInfo();
       });
+      el.dateFrom.addEventListener('input', updateDateRangeInfo);
+      el.dateTo.addEventListener('input', updateDateRangeInfo);
       
       updateDateRangeInfo();
 
@@ -2911,18 +2700,11 @@
       el.btnExport.addEventListener('click', exportReport);
       el.btnReset.addEventListener('click', resetApplication);
 
-      el.dateFrom.addEventListener('change', updateDateRangeInfo);
-      el.dateTo.addEventListener('change', updateDateRangeInfo);
-      el.dateFrom.addEventListener('input', updateDateRangeInfo);
-      el.dateTo.addEventListener('input', updateDateRangeInfo);
-
       el.userSearch.addEventListener('input', renderUserTable);
       el.userFilter.addEventListener('change', renderUserTable);
       
       el.thresholdHours.addEventListener('change', () => {
-        if (appState.userData.length > 0) {
-          updateOverageTable();
-        }
+        if (appState.userData.length > 0) updateOverageTable();
       });
 
       document.querySelectorAll('.tab').forEach(tab => {
@@ -2946,9 +2728,7 @@
       });
 
       el.btnCopyLogs.addEventListener('click', () => {
-        const logText = appState.logs.map(log =>
-          `${log.timestamp} [${log.level}] ${log.message} ${log.details ? '- ' + log.details : ''}`
-        ).join('\n');
+        const logText = appState.logs.map(log => `${log.timestamp} [${log.level}] ${log.message} ${log.details ? '- ' + log.details : ''}`).join('\n');
         navigator.clipboard.writeText(logText).then(() => showStatusMessage('Logs copied to clipboard', 'success'));
       });
 
@@ -2966,16 +2746,10 @@
         logMessage('INFO', 'Currency updated', `Hourly rate currency: ${this.value}`);
       });
 
-      el.namedLicenseCost.addEventListener('change', () => {
-        updateCurrencyDisplay();
-      });
-      
-      el.hourlyLicenseRate.addEventListener('change', () => {
-        updateCurrencyDisplay();
-      });
+      el.namedLicenseCost.addEventListener('change', updateCurrencyDisplay);
+      el.hourlyLicenseRate.addEventListener('change', updateCurrencyDisplay);
 
       updateCurrencyDisplay();
-
       logMessage('INFO', 'Hourly Billing Calculator initialised', 'Ready for authentication');
     }
 
