@@ -856,10 +856,11 @@
                       <th>Interacting Time</th>
                       <th>Licence</th>
                       <th>Status</th>
+                      <th>Current Presence</th>
                     </tr>
                   </thead>
                   <tbody id="usersTableBody">
-                    <tr><td colspan="8" style="text-align:center;padding:48px;color:var(--text-light);">
+                    <tr><td colspan="9" style="text-align:center;padding:48px;color:var(--text-light);">
                       No data loaded. Connect and fetch data first.
                     </td></tr>
                   </tbody>
@@ -1701,38 +1702,78 @@
       return 'other';
     }
 
-    // ==================== NEW FUNCTION: FETCH USER PRESENCE STATUS ====================
-    async function fetchUserPresenceStatus(userIds) {
-      try {
-        const batchSize = 50;
-        const presenceResults = {};
-        
-        for (let i = 0; i < userIds.length; i += batchSize) {
-          const batch = userIds.slice(i, i + batchSize);
-          const response = await apiCall(`/api/v2/users?pageSize=${batchSize}&pageNumber=1&id=${batch.join(',')}&expand=presence`);
-          
-          if (response.entities) {
-            response.entities.forEach(user => {
-              if (user.presence) {
-                presenceResults[user.id] = {
-                  presence: user.presence.presenceDefinition?.systemPresence || 'Unknown',
-                  isCommunicating: ['BUSY', 'BUSY_OTHER', 'ON_QUEUE', 'INTERRUPTIBLE', 'COMMUNICATING'].includes(
-                    user.presence.presenceDefinition?.systemPresence || ''
-                  )
-                };
-              }
-            });
-          }
-          
-          // Add delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
-        return presenceResults;
-      } catch (error) {
-        logMessage('WARN', 'Failed to fetch user presence', error.message);
-        return {};
+    // ==================== NEW CONCURRENT API FUNCTION: USER PRESENCE AGGREGATES ====================
+    async function fetchUserPresenceAggregates(userIds, interval) {
+      if (!userIds || userIds.length === 0) return {};
+      
+      logMessage('INFO', 'Fetching presence aggregates', `Querying ${userIds.length} users in parallel batches`);
+      
+      const results = {};
+      const BATCH_SIZE = 10; // Concurrent batch size for optimal throughput
+      const batches = [];
+      
+      for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
+        batches.push(userIds.slice(i, i + BATCH_SIZE));
       }
+      
+      let completed = 0;
+      
+      for (const batch of batches) {
+        // Process each batch in parallel using Promise.all
+        const batchPromises = batch.map(async (userId) => {
+          try {
+            const queryBody = {
+              interval: interval,
+              granularity: "PT60M",
+              groupBy: ["userId"],
+              metrics: ["tSystemPresence"],
+              filter: {
+                type: "or",
+                predicates: [
+                  {
+                    type: "dimension",
+                    dimension: "userId",
+                    operator: "matches",
+                    value: userId
+                  }
+                ]
+              }
+            };
+
+            const response = await apiCall('/api/v2/analytics/users/aggregates/query', {
+              method: 'POST',
+              body: JSON.stringify(queryBody)
+            });
+
+            if (response.results && response.results.length > 0) {
+              const record = response.results[0];
+              if (record.group && record.group.userId) {
+                const presenceData = record.data.find(d => d.metric === "tSystemPresence");
+                if (presenceData && presenceData.stats) {
+                  results[userId] = {
+                    count: presenceData.stats.count || 0,
+                    sum: presenceData.stats.sum || 0,
+                    min: presenceData.stats.min || 0,
+                    max: presenceData.stats.max || 0
+                  };
+                }
+              }
+            }
+          } catch (error) {
+            logMessage('WARN', `Presence query failed for user ${userId}`, error.message);
+          }
+        }));
+
+        await Promise.all(batchPromises);
+        completed += batch.length;
+        updateLoadingProgress(70 + Math.floor((completed / userIds.length) * 20));
+        
+        // Small delay to avoid flooding the API
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      logMessage('SUCCESS', 'Presence aggregates fetched', `Processed ${Object.keys(results).length} users with presence data`);
+      return results;
     }
 
     // ==================== MAIN FUNCTIONS ====================
@@ -1749,6 +1790,8 @@
         const dateFrom = el.dateFrom.value;
         const dateTo = el.dateTo.value;
         if (!dateFrom || !dateTo) throw new Error('Please select a date range');
+        
+        const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
 
         updateLoadingProgress(20);
         logMessage('INFO', 'Fetching user list');
@@ -1794,7 +1837,8 @@
             interactingHoursFormatted: '00:00:00',
             interactingHoursDecimal: 0,
             isSupervisor: userType === 'supervisor' || userType === 'admin',
-            status: 'Unknown'
+            status: 'Unknown',
+            presenceData: null
           };
 
           userMap[user.id] = userObj;
@@ -1804,7 +1848,6 @@
         updateLoadingProgress(50);
         logMessage('INFO', 'Fetching interaction data');
 
-        const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
         const userHoursMap = {};
 
         try {
@@ -1870,8 +1913,6 @@
                 method: 'POST',
                 body: JSON.stringify(queryBody)
               });
-
-              console.log('Conversations API Response:', analyticsResponse);
 
               if (analyticsResponse.results && analyticsResponse.results.length > 0) {
                 analyticsResponse.results.forEach(record => {
@@ -1943,24 +1984,30 @@
           user.interactingHoursDecimal = formatMillisecondsToDecimalHours(interactTimeMs);
         });
 
-        // Fetch user presence status to check for communicating users
+        // ========== NEW: Fetch presence aggregates using concurrent batch processing ==========
         updateLoadingProgress(70);
-        logMessage('INFO', 'Fetching user presence status');
+        logMessage('INFO', 'Fetching presence aggregates for all users with concurrency');
         
         const userIds = appState.userData.map(u => u.id);
-        const presenceData = await fetchUserPresenceStatus(userIds);
+        const presenceData = await fetchUserPresenceAggregates(userIds, interval);
         
-        // Update user status based on presence
+        // Update user data with presence aggregates
         appState.userData.forEach(user => {
-          const presence = presenceData[user.id];
-          if (presence) {
-            user.presenceStatus = presence.presence;
-            user.isCommunicating = presence.isCommunicating;
+          const data = presenceData[user.id];
+          if (data) {
+            user.presenceData = {
+              count: data.count,
+              sum: data.sum,
+              min: data.min,
+              max: data.max
+            };
             
-            // Log if user is currently communicating
-            if (user.isCommunicating) {
-              logMessage('INFO', `User ${user.name} is currently ${user.presenceStatus}`, 'This user may be actively communicating');
-            }
+            // Determine if user was communicating during the period based on presence sum
+            // tSystemPresence sum represents milliseconds in communicating state
+            user.isCommunicating = data.sum > 0;
+            user.presencePercentage = user.interactingMilliseconds > 0 
+              ? ((data.sum / user.interactingMilliseconds) * 100).toFixed(1)
+              : 0;
           }
         });
 
@@ -1969,11 +2016,12 @@
         const totalInteractingMs = usersWithHours.reduce((sum, u) => sum + u.interactingMilliseconds, 0);
         const totalInteractingHours = formatMillisecondsToDecimalHours(totalInteractingMs);
         
-        // Count communicating users
-        const communicatingUsers = appState.userData.filter(u => u.isCommunicating).length;
-        logMessage('INFO', `Communicating users detected`, `${communicatingUsers} users are currently in a communicating state`);
+        // Count communicating users based on presence data
+        const communicatingUsers = appState.userData.filter(u => u.presenceData?.sum > 0).length;
         
-        logMessage('INFO', `Interacting time distribution`, 
+        logMessage('INFO', 'Presence analysis complete', 
+          `${communicatingUsers} users with positive tSystemPresence (communicating state)`);
+        logMessage('INFO', 'Interacting time distribution', 
           `${usersWithHours.length} users have > 0 interacting time, ${appState.userData.length - usersWithHours.length} users have 0 interacting time`);
         logMessage('INFO', `Total interacting time`, 
           `${formatMillisecondsToHHMMSS(totalInteractingMs)} (${totalInteractingHours.toFixed(2)} hours)`);
@@ -1989,7 +2037,7 @@
         updateCurrencyDisplay();
 
         logMessage('SUCCESS', 'Data loaded successfully', 
-          `${appState.userData.length} users loaded, ${usersWithHours.length} with interacting time, ${communicatingUsers} currently communicating, total ${totalInteractingHours.toFixed(2)} hours`);
+          `${appState.userData.length} users loaded, ${usersWithHours.length} with interacting time, ${communicatingUsers} with presence data, total ${totalInteractingHours.toFixed(2)} hours`);
 
         el.statTotalUsers.textContent = appState.userData.length;
         el.totalCount.textContent = appState.userData.length;
@@ -2005,7 +2053,7 @@
         updateLoadingProgress(100);
         await new Promise(resolve => setTimeout(resolve, 500));
         setLoading(false);
-        showStatusMessage(`✅ Loaded ${appState.userData.length} users (${usersWithHours.length} with interacting time, ${communicatingUsers} communicating)`, 'success');
+        showStatusMessage(`✅ Loaded ${appState.userData.length} users (${usersWithHours.length} with interacting time, ${communicatingUsers} with presence data)`, 'success');
 
       } catch (error) {
         setLoading(false);
@@ -2360,7 +2408,7 @@
 
       if (usersToDisplay.length === 0) {
         const row = document.createElement('tr');
-        row.innerHTML = `<td colspan="8" style="text-align:center;padding:48px;color:var(--text-light);">${appState.userData.length === 0 ? 'No data loaded. Connect and fetch data first.' : 'No users match your search/filter.'}</td>`;
+        row.innerHTML = `<td colspan="9" style="text-align:center;padding:48px;color:var(--text-light);">${appState.userData.length === 0 ? 'No data loaded. Connect and fetch data first.' : 'No users match your search/filter.'}</td>`;
         tbody.appendChild(row);
         return;
       }
@@ -2405,6 +2453,16 @@
             userTypeBadge = `<span class="status-badge" style="background:rgba(108,117,125,0.15);color:var(--text-light);">Other</span>`;
         }
 
+        // Format presence data for display
+        let presenceDisplay = 'No data';
+        if (user.presenceData) {
+          const presenceHours = formatMillisecondsToDecimalHours(user.presenceData.sum);
+          presenceDisplay = `${presenceHours.toFixed(2)} hrs`;
+          if (user.presencePercentage) {
+            presenceDisplay += ` (${user.presencePercentage}%)`;
+          }
+        }
+
         row.innerHTML = `
           <td>
             <div style="font-weight:600;">${user.name || 'Unknown'}</div>
@@ -2426,6 +2484,9 @@
             <span style="font-size:12px;color:var(--text-light);">
               ${user.recommendedReason || 'Pending analysis'}
             </span>
+          </td>
+          <td style="text-align:center;">
+            ${presenceDisplay}
           </td>
         `;
         tbody.appendChild(row);
@@ -2744,10 +2805,12 @@
       csv += `Admin,Named Users,${results.adminNamed}\n\n`;
 
       csv += 'USER DETAILS\n';
-      csv += 'Name,Email,Team,Role Type,Roles,Last Login,Interacting Time (HH:MM:SS),Interacting Time (hours),Recommended Licence,Reason,Estimated Cost\n';
+      csv += 'Name,Email,Team,Role Type,Roles,Last Login,Interacting Time (HH:MM:SS),Interacting Time (hours),Recommended Licence,Reason,Estimated Cost,Presence Hours,Presence %\n';
 
       results.users.forEach(user => {
-        csv += `"${user.name || ''}","${user.email || ''}","${user.team || ''}","${user.userType || ''}","${user.role || ''}","${user.lastLogin || 'Never'}","${user.interactingHoursFormatted}",${Math.round(user.interactingHoursDecimal)},"${user.recommendedLicense || ''}","${user.recommendedReason || ''}",${(user.estimatedCost || 0).toFixed(2)}\n`;
+        const presenceHours = user.presenceData ? formatMillisecondsToDecimalHours(user.presenceData.sum).toFixed(2) : 0;
+        const presencePct = user.presencePercentage || 0;
+        csv += `"${user.name || ''}","${user.email || ''}","${user.team || ''}","${user.userType || ''}","${user.role || ''}","${user.lastLogin || 'Never'}","${user.interactingHoursFormatted}",${Math.round(user.interactingHoursDecimal)},"${user.recommendedLicense || ''}","${user.recommendedReason || ''}",${(user.estimatedCost || 0).toFixed(2)},${presenceHours},${presencePct}\n`;
       });
 
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -2799,7 +2862,7 @@
         el.btnExport.disabled = true;
 
         el.usersTableBody.innerHTML = `
-          <tr><td colspan="8" style="text-align:center;padding:48px;color:var(--text-light);">
+          <tr><td colspan="9" style="text-align:center;padding:48px;color:var(--text-light);">
             No data loaded. Connect and fetch data first.
           </td></tr>
         `;
