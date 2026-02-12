@@ -685,7 +685,8 @@
                 • Admins/Supervisors = Named (always)<br>
                 • NOLOGIN = No licence consumption (0 hours)<br>
                 • Users with 0 hours = NOLOGIN (even if logged in)<br>
-                • Based on total interacting time in selected period
+                • Based on total interacting time in selected period<br>
+                • <strong>Hourly Interacting recommendation only applies to agents</strong>
               </div>
             </div>
           </div>
@@ -733,13 +734,13 @@
               <div class="stat-card">
                 <div class="stat-label">Recommended Named Users</div>
                 <div class="stat-value" id="statNamedUsers">0</div>
-                <div style="font-size:12px;color:var(--text-light);">Recommended based on 0hr interacting agents/supervsiors + agents above threshold</div>
+                <div style="font-size:12px;color:var(--text-light);">Recommended based on 0hr interacting agents/supervisors + agents above threshold</div>
               </div>
               <div class="stat-card">
                 <div class="stat-label">Recommended Hourly Interacting Users</div>
                 <div class="stat-value" id="statHiUsers">0</div>
                 <div class="stat-subvalue" id="statHiHours">0 hours</div>
-                <div style="font-size:12px;color:var(--text-light);">Users with &gt;0 hours but &lt; threshold</div>
+                <div style="font-size:12px;color:var(--text-light);">Agents with &gt;0 hours but &lt; threshold</div>
               </div>
             </div>
 
@@ -1000,7 +1001,7 @@
                 <div class="stat-card">
                   <div class="stat-label">Hourly Users</div>
                   <div class="stat-value" id="statHiUsersDetailed">0</div>
-                  <div style="font-size:12px;color:var(--text-light);">Users with &gt;0 but &lt; threshold hours</div>
+                  <div style="font-size:12px;color:var(--text-light);">Agents with &gt;0 but &lt; threshold hours</div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-label">Total Hourly Hours</div>
@@ -2177,12 +2178,18 @@
           } else if (user.userType === 'admin' || user.userType === 'supervisor') {
             user.recommendedLicense = 'Named';
             user.recommendedReason = `${user.userType === 'admin' ? 'Admin' : 'Supervisor'} role`;
-          } else if (user.interactingHoursDecimal > 0 && user.interactingHoursDecimal < threshold) {
+          } else if (user.userType === 'agent' && user.interactingHoursDecimal > 0 && user.interactingHoursDecimal < threshold) {
+            // FIXED: Only agents can get Hourly Interacting license
             user.recommendedLicense = 'Hourly Interacting';
-            user.recommendedReason = `Under ${threshold} hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
-          } else if (user.interactingHoursDecimal >= threshold) {
+            user.recommendedReason = `Agent under ${threshold} hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
+          } else if (user.userType === 'agent' && user.interactingHoursDecimal >= threshold) {
+            // FIXED: Only agents get Named based on hours
             user.recommendedLicense = 'Named';
-            user.recommendedReason = `Over ${threshold} hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
+            user.recommendedReason = `Agent over ${threshold} hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
+          } else if (user.userType === 'other' && user.interactingHoursDecimal > 0) {
+            // FIXED: Other users with hours get Named
+            user.recommendedLicense = 'Named';
+            user.recommendedReason = `Other role with hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
           } else {
             user.recommendedLicense = 'NOLOGIN';
             user.recommendedReason = 'No interaction hours detected';
@@ -2201,18 +2208,25 @@
         const totalUsers = usersToAnalyze.length;
         const activeUsers = usersToAnalyze.filter(u => u.interactingMilliseconds > 0).length;
         const namedUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'Named').length;
-        const hiUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'Hourly Interacting').length;
+        
+        // FIXED: Only count agents for Hourly Interacting statistic
+        const hiUsers = usersToAnalyze.filter(u => 
+          u.recommendedLicense === 'Hourly Interacting' && u.userType === 'agent'
+        ).length;
+        
         const nologinUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'NOLOGIN').length;
         const totalHours = usersToAnalyze.reduce((sum, u) => sum + u.interactingHoursDecimal, 0);
 
-        // Calculate Hourly Interacting details
-        const hiUsersList = usersToAnalyze.filter(u => u.recommendedLicense === 'Hourly Interacting');
+        // FIXED: Only include agents in Hourly Interacting details
+        const hiUsersList = usersToAnalyze.filter(u => 
+          u.recommendedLicense === 'Hourly Interacting' && u.userType === 'agent'
+        );
         const hiHours = hiUsersList.reduce((sum, u) => sum + u.interactingHoursDecimal, 0);
         const avgHiHours = hiUsers > 0 ? hiHours / hiUsers : 0;
         const hourlyCost = hiHours * hourlyLicenseRate;
 
         const agentNamed = usersToAnalyze.filter(u => u.userType === 'agent' && u.recommendedLicense === 'Named').length;
-        const agentHI = usersToAnalyze.filter(u => u.userType === 'agent' && u.recommendedLicense === 'Hourly Interacting').length;
+        const agentHI = hiUsers; // Already filtered for agents only
         const supervisorNamed = usersToAnalyze.filter(u => u.userType === 'supervisor' && u.recommendedLicense === 'Named').length;
         const adminNamed = usersToAnalyze.filter(u => u.userType === 'admin' && u.recommendedLicense === 'Named').length;
 
@@ -2283,11 +2297,11 @@
         updateProgress('Analysis complete!', 100);
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        logMessage('SUCCESS', 'Analysis complete', `${namedUsers} Named, ${hiUsers} Hourly Interacting users (${Math.round(hiHours)} hours)`);
-        logMessage('INFO', 'Hourly Interacting details', `${hiUsers} users with >0 hours, ${Math.round(hiHours)} total hours, ${appState.hourlyCurrencySymbol}${hourlyCost.toFixed(2)} cost`);
+        logMessage('SUCCESS', 'Analysis complete', `${namedUsers} Named, ${hiUsers} Hourly Interacting agents (${Math.round(hiHours)} hours)`);
+        logMessage('INFO', 'Hourly Interacting details', `${hiUsers} agents with >0 hours, ${Math.round(hiHours)} total hours, ${appState.hourlyCurrencySymbol}${hourlyCost.toFixed(2)} cost`);
         logMessage('INFO', 'NOLOGIN users', `${nologinUsers} users with 0 hours (correctly classified)`);
         logMessage('INFO', 'Cost analysis', `All Named: ${appState.currencySymbol}${allNamedCost}, Hybrid: ${appState.currencySymbol}${hybridCost}, Savings: ${savings}%`);
-        showStatusMessage(`✅ Analysis complete: ${hiUsers} Hourly users (with >0 hours), ${savings}% savings`, 'success');
+        showStatusMessage(`✅ Analysis complete: ${hiUsers} Hourly Interacting agents (with >0 hours), ${savings}% savings`, 'success');
         el.btnExport.disabled = false;
 
       } catch (error) {
