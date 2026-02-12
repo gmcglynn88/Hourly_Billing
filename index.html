@@ -1459,12 +1459,12 @@
     }
 
     function parseEnvironmentFromState(state) {
-      if (!state) return 'eu-west-2'; // FIXED: Changed from 'us-east-1' to 'eu-west-2' (London)
+      if (!state) return 'eu-west-2';
       try {
         const stateObj = JSON.parse(atob(state));
-        return stateObj.env || 'eu-west-2'; // FIXED: Changed default from 'us-east-1' to 'eu-west-2'
+        return stateObj.env || 'eu-west-2';
       } catch (e) {
-        return 'eu-west-2'; // FIXED: Changed from 'us-east-1' to 'eu-west-2'
+        return 'eu-west-2';
       }
     }
 
@@ -1506,7 +1506,6 @@
         logMessage('ERROR', 'Authentication failed', `${error}: ${errorDescription}`);
         showStatusMessage(`❌ Authentication failed: ${error}`, 'error');
         
-        // Show specific CORS error guidance
         if (errorDescription && errorDescription.includes('CORS') || error === 'access_denied') {
           showStatusMessage('🔧 Please check OAuth client configuration in Genesys Cloud', 'warn');
           logMessage('INFO', 'CORS Issue Detected', 'Make sure your GitHub Pages URL is added to the OAuth client\'s Authorized Redirect URIs');
@@ -1537,8 +1536,7 @@
     }
 
     function authenticate() {
-      // Default to EU West 2 (London) - this is correct for UK deployments
-      const envRegion = 'eu-west-2'; // London is the correct default
+      const envRegion = 'eu-west-2';
       const env = ENVIRONMENTS[envRegion];
       
       if (!env) {
@@ -1709,7 +1707,7 @@
       logMessage('INFO', 'Fetching presence aggregates', `Querying ${userIds.length} users in parallel batches`);
       
       const results = {};
-      const BATCH_SIZE = 10; // Concurrent batch size for optimal throughput
+      const BATCH_SIZE = 10;
       const batches = [];
       
       for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
@@ -1719,7 +1717,6 @@
       let completed = 0;
       
       for (const batch of batches) {
-        // Process each batch in parallel using Promise.all
         const batchPromises = batch.map(async (userId) => {
           try {
             const queryBody = {
@@ -1731,7 +1728,6 @@
                 type: "or",
                 predicates: [
                   {
-                    type: "dimension",
                     dimension: "userId",
                     operator: "matches",
                     value: userId
@@ -1762,13 +1758,12 @@
           } catch (error) {
             logMessage('WARN', `Presence query failed for user ${userId}`, error.message);
           }
-        }));
+        });
 
         await Promise.all(batchPromises);
         completed += batch.length;
         updateLoadingProgress(70 + Math.floor((completed / userIds.length) * 20));
         
-        // Small delay to avoid flooding the API
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       
@@ -1851,7 +1846,6 @@
         const userHoursMap = {};
 
         try {
-          // Try Conversations Analytics API first
           logMessage('INFO', 'Trying Conversations Analytics API for interaction data');
           
           const agentUserIds = appState.userData
@@ -1941,7 +1935,6 @@
 
                 logMessage('SUCCESS', 'Conversations API query completed', `Found ${Object.keys(userHoursMap).length} users with interaction time`);
                 
-                // Debug sample data
                 const usersWithHours = Object.keys(userHoursMap);
                 const sampleCount = Math.min(10, usersWithHours.length);
                 for (let i = 0; i < sampleCount; i++) {
@@ -1958,7 +1951,6 @@
             } catch (convError) {
               logMessage('WARN', 'Conversations API failed', convError.message);
               
-              // Add demo data for testing
               appState.userData.forEach((user, index) => {
                 if (user.userType === 'agent' && index % 3 === 0) {
                   const randomHours = Math.floor(Math.random() * 80) + 1;
@@ -1976,7 +1968,6 @@
           console.error('Analytics API error details:', analyticsError);
         }
 
-        // Update user data with interacting time
         appState.userData.forEach(user => {
           const interactTimeMs = userHoursMap[user.id] || 0;
           user.interactingMilliseconds = interactTimeMs;
@@ -1991,7 +1982,6 @@
         const userIds = appState.userData.map(u => u.id);
         const presenceData = await fetchUserPresenceAggregates(userIds, interval);
         
-        // Update user data with presence aggregates
         appState.userData.forEach(user => {
           const data = presenceData[user.id];
           if (data) {
@@ -2002,8 +1992,6 @@
               max: data.max
             };
             
-            // Determine if user was communicating during the period based on presence sum
-            // tSystemPresence sum represents milliseconds in communicating state
             user.isCommunicating = data.sum > 0;
             user.presencePercentage = user.interactingMilliseconds > 0 
               ? ((data.sum / user.interactingMilliseconds) * 100).toFixed(1)
@@ -2011,12 +1999,10 @@
           }
         });
 
-        // Calculate statistics
         const usersWithHours = appState.userData.filter(u => u.interactingMilliseconds > 0);
         const totalInteractingMs = usersWithHours.reduce((sum, u) => sum + u.interactingMilliseconds, 0);
         const totalInteractingHours = formatMillisecondsToDecimalHours(totalInteractingMs);
         
-        // Count communicating users based on presence data
         const communicatingUsers = appState.userData.filter(u => u.presenceData?.sum > 0).length;
         
         logMessage('INFO', 'Presence analysis complete', 
@@ -2170,7 +2156,6 @@
         tbody.appendChild(row);
       });
       
-      // Add summary row
       const summaryRow = document.createElement('tr');
       summaryRow.style.backgroundColor = 'rgba(220, 53, 69, 0.05)';
       summaryRow.innerHTML = `
@@ -2227,15 +2212,12 @@
             user.recommendedLicense = 'Named';
             user.recommendedReason = `${user.userType === 'admin' ? 'Admin' : 'Supervisor'} role`;
           } else if (user.userType === 'agent' && user.interactingHoursDecimal > 0 && user.interactingHoursDecimal < threshold) {
-            // FIXED: Only agents can get Hourly Interacting license
             user.recommendedLicense = 'Hourly Interacting';
             user.recommendedReason = `Agent under ${threshold} hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
           } else if (user.userType === 'agent' && user.interactingHoursDecimal >= threshold) {
-            // FIXED: Only agents get Named based on hours
             user.recommendedLicense = 'Named';
             user.recommendedReason = `Agent over ${threshold} hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
           } else if (user.userType === 'other' && user.interactingHoursDecimal > 0) {
-            // FIXED: Other users with hours get Named
             user.recommendedLicense = 'Named';
             user.recommendedReason = `Other role with hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
           } else {
@@ -2257,7 +2239,6 @@
         const activeUsers = usersToAnalyze.filter(u => u.interactingMilliseconds > 0).length;
         const namedUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'Named').length;
         
-        // FIXED: Only count agents for Hourly Interacting statistic
         const hiUsers = usersToAnalyze.filter(u => 
           u.recommendedLicense === 'Hourly Interacting' && u.userType === 'agent'
         ).length;
@@ -2265,7 +2246,6 @@
         const nologinUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'NOLOGIN').length;
         const totalHours = usersToAnalyze.reduce((sum, u) => sum + u.interactingHoursDecimal, 0);
 
-        // FIXED: Only include agents in Hourly Interacting details
         const hiUsersList = usersToAnalyze.filter(u => 
           u.recommendedLicense === 'Hourly Interacting' && u.userType === 'agent'
         );
@@ -2274,7 +2254,7 @@
         const hourlyCost = hiHours * hourlyLicenseRate;
 
         const agentNamed = usersToAnalyze.filter(u => u.userType === 'agent' && u.recommendedLicense === 'Named').length;
-        const agentHI = hiUsers; // Already filtered for agents only
+        const agentHI = hiUsers;
         const supervisorNamed = usersToAnalyze.filter(u => u.userType === 'supervisor' && u.recommendedLicense === 'Named').length;
         const adminNamed = usersToAnalyze.filter(u => u.userType === 'admin' && u.recommendedLicense === 'Named').length;
 
@@ -2322,7 +2302,6 @@
         el.statSupervisorNamed.textContent = supervisorNamed;
         el.statAdminNamed.textContent = adminNamed;
         
-        // Update Hourly Interacting details
         el.statHiUsersDetailed.textContent = hiUsers;
         el.statTotalHiHours.textContent = Math.round(hiHours);
         el.statAvgHiHours.textContent = avgHiHours.toFixed(1);
@@ -2453,7 +2432,6 @@
             userTypeBadge = `<span class="status-badge" style="background:rgba(108,117,125,0.15);color:var(--text-light);">Other</span>`;
         }
 
-        // Format presence data for display
         let presenceDisplay = 'No data';
         if (user.presenceData) {
           const presenceHours = formatMillisecondsToDecimalHours(user.presenceData.sum);
@@ -2888,13 +2866,11 @@
     }
 
     function initializeApp() {
-      // Set max date to today
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
       el.dateTo.max = todayStr;
       el.dateFrom.max = todayStr;
       
-      // Load stored preferences
       const storedCurrency = localStorage.getItem(STORAGE_KEYS.CURRENCY);
       const storedHourlyCurrency = localStorage.getItem(STORAGE_KEYS.HOURLY_CURRENCY);
       const storedDateFrom = localStorage.getItem(STORAGE_KEYS.DATE_FROM);
@@ -2910,7 +2886,6 @@
         el.hourlyCurrencySymbol.value = storedHourlyCurrency;
       }
       
-      // Set default dates
       if (!storedDateFrom || !storedDateTo) {
         const mostRecentMonth = getMostRecentMonth();
         el.dateFrom.value = mostRecentMonth.from;
@@ -2920,7 +2895,6 @@
         el.dateTo.value = storedDateTo;
       }
       
-      // Save dates when changed
       el.dateFrom.addEventListener('change', () => {
         localStorage.setItem(STORAGE_KEYS.DATE_FROM, el.dateFrom.value);
       });
@@ -2930,7 +2904,6 @@
       
       updateDateRangeInfo();
 
-      // Event listeners
       el.btnDisconnect.addEventListener('click', disconnect);
       el.btnFetchData.addEventListener('click', fetchUserData);
       el.btnRunAnalysis.addEventListener('click', runAnalysis);
@@ -2979,7 +2952,6 @@
         navigator.clipboard.writeText(logText).then(() => showStatusMessage('Logs copied to clipboard', 'success'));
       });
 
-      // Currency change handlers
       el.currencySymbol.addEventListener('change', function() {
         appState.currencySymbol = this.value;
         localStorage.setItem(STORAGE_KEYS.CURRENCY, this.value);
@@ -2994,7 +2966,6 @@
         logMessage('INFO', 'Currency updated', `Hourly rate currency: ${this.value}`);
       });
 
-      // Update cost displays when values change
       el.namedLicenseCost.addEventListener('change', () => {
         updateCurrencyDisplay();
       });
@@ -3003,7 +2974,6 @@
         updateCurrencyDisplay();
       });
 
-      // Initial currency display update
       updateCurrencyDisplay();
 
       logMessage('INFO', 'Hourly Billing Calculator initialised', 'Ready for authentication');
