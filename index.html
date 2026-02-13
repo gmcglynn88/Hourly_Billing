@@ -81,6 +81,22 @@
     .btn-secondary{background:var(--text-light)}.btn-secondary:hover{background:#5a6268}
     .btn-export{background:var(--info)}.btn-export:hover{background:#138496}
 
+    .client-selector {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .client-selector select {
+      flex: 1;
+      background: var(--filter-bg);
+      font-weight: 600;
+      border-color: var(--primary-color);
+    }
+
     .status-container{
       position:fixed;top:20px;right:20px;z-index:1000;
       display:flex;flex-direction:column;gap:10px;
@@ -634,6 +650,16 @@
               <label>Environment</label>
               <input type="text" id="envDisplay" value="Select environment..." readonly style="background:var(--filter-bg);">
             </div>
+            
+            <!-- NEW: Client ID Selector -->
+            <div class="client-selector">
+              <select id="clientIdSelect">
+                <option value="d968eca4-cdb7-4b90-91b1-4628b5bb679e">Org 1 (Default)</option>
+                <option value="a236ffec-2893-4ccd-81bb-ef2f4a2fe316">Org 2</option>
+              </select>
+              <button id="btnSwitchClient" class="btn" style="width: auto; padding: 12px 20px; background: var(--info);">Switch</button>
+            </div>
+            
             <div class="form-group">
               <label>Status</label>
               <div style="display:flex;align-items:center;gap:10px;">
@@ -1115,7 +1141,7 @@
     // If you're seeing CORS errors:
     // 1. Log into Genesys Cloud Admin
     // 2. Go to Admin > Integrations > OAuth
-    // 3. Find your OAuth client (ID: d968eca4-cdb7-4b90-91b1-4628b5bb679e)
+    // 3. Find your OAuth client (choose from dropdown)
     // 4. Add this URL to Authorized Redirect URIs:
     //    https://gmcglynn88.github.io/Hourly_Billing/
     // 5. Make sure Grant Type is "Token (Implicit Grant)"
@@ -1125,8 +1151,14 @@
     //    location.reload();
 
     // ==================== CONFIGURATION ====================
-    // CHANGE THIS CLIENT ID FOR DIFFERENT CUSTOMERS
-    const CLIENT_ID = 'd968eca4-cdb7-4b90-91b1-4628b5bb679e'; // <-- CHANGE THIS FOR EACH CUSTOMER
+    // CLIENT IDS - Now configurable via dropdown
+    const CLIENT_IDS = {
+      'org1': 'd968eca4-cdb7-4b90-91b1-4628b5bb679e',
+      'org2': 'a236ffec-2893-4ccd-81bb-ef2f4a2fe316'
+    };
+    
+    // Default client ID
+    let CLIENT_ID = CLIENT_IDS.org1;
     
     // DON'T CHANGE THESE - they work with GitHub Pages
     const REDIRECT_URI = 'https://gmcglynn88.github.io/Hourly_Billing/';
@@ -1154,7 +1186,8 @@
       CURRENCY: 'gc_currency',
       HOURLY_CURRENCY: 'gc_hourly_currency',
       DATE_FROM: 'gc_date_from',
-      DATE_TO: 'gc_date_to'
+      DATE_TO: 'gc_date_to',
+      CLIENT_ID: 'gc_client_id' // NEW: Store selected client ID
     };
 
     let CURRENT_CONFIG = {
@@ -1192,6 +1225,8 @@
       btnRunAnalysis: document.getElementById('btnRunAnalysis'),
       btnExportUsers: document.getElementById('btnExportUsers'),
       btnExportOverage: document.getElementById('btnExportOverage'),
+      btnSwitchClient: document.getElementById('btnSwitchClient'),
+      clientIdSelect: document.getElementById('clientIdSelect'),
       dateFrom: document.getElementById('dateFrom'),
       dateTo: document.getElementById('dateTo'),
       thresholdHours: document.getElementById('thresholdHours'),
@@ -1377,6 +1412,13 @@
         const hourlyCurrency = localStorage.getItem(STORAGE_KEYS.HOURLY_CURRENCY);
         const dateFrom = localStorage.getItem(STORAGE_KEYS.DATE_FROM);
         const dateTo = localStorage.getItem(STORAGE_KEYS.DATE_TO);
+        const storedClientId = localStorage.getItem(STORAGE_KEYS.CLIENT_ID);
+
+        // Set client ID from storage or default
+        if (storedClientId) {
+          CLIENT_ID = storedClientId;
+          el.clientIdSelect.value = storedClientId === CLIENT_IDS.org1 ? CLIENT_IDS.org1 : CLIENT_IDS.org2;
+        }
 
         if (token && tokenExpiry && environment && envRegion) {
           CURRENT_CONFIG = {
@@ -1533,7 +1575,7 @@
         const env = ENVIRONMENTS[envRegion];
         if (env) {
           if (saveCredentials(token, expiresIn || '3600', env.api, envRegion, refreshToken)) {
-            logMessage('SUCCESS', 'Authentication successful', `Connected to ${env.name}`);
+            logMessage('SUCCESS', 'Authentication successful', `Connected to ${env.name} with Client ID: ${CLIENT_ID.substring(0,8)}...`);
             showStatusMessage('✅ Connected to Genesys Cloud', 'success');
             showMainApp(env.name);
             return;
@@ -1629,6 +1671,43 @@
         updateConnectionStatus(false, 'Not Connected');
         logMessage('INFO', 'Disconnected from Genesys Cloud');
         setTimeout(() => initAuth(), 500);
+      }
+    }
+
+    function switchClient() {
+      const selectedClientId = el.clientIdSelect.value;
+      const previousClientId = CLIENT_ID;
+      
+      if (selectedClientId === previousClientId) {
+        showStatusMessage('Already using this client ID', 'info');
+        return;
+      }
+      
+      if (confirm('Switch organisation? This will disconnect your current session and clear all data.')) {
+        // Update the client ID
+        CLIENT_ID = selectedClientId;
+        localStorage.setItem(STORAGE_KEYS.CLIENT_ID, CLIENT_ID);
+        
+        // Clear credentials and data
+        clearCredentials();
+        appState.userData = [];
+        appState.analysisResults = null;
+        
+        // Hide main content and show auth
+        el.mainContent.style.display = 'none';
+        el.authContainer.style.display = 'block';
+        updateConnectionStatus(false, 'Not Connected');
+        
+        // Log the switch
+        const orgName = CLIENT_ID === CLIENT_IDS.org1 ? 'Org 1 (Default)' : 'Org 2';
+        logMessage('INFO', 'Switched organisation', `Now using ${orgName} (${CLIENT_ID.substring(0,8)}...)`);
+        showStatusMessage(`🔄 Switched to ${orgName}`, 'info');
+        
+        // Re-initialise auth
+        setTimeout(() => initAuth(), 500);
+      } else {
+        // Reset dropdown to previous value
+        el.clientIdSelect.value = previousClientId;
       }
     }
 
@@ -3003,6 +3082,7 @@
 
       // Event listeners
       el.btnDisconnect.addEventListener('click', disconnect);
+      el.btnSwitchClient.addEventListener('click', switchClient);
       el.btnFetchData.addEventListener('click', fetchUserData);
       el.btnRunAnalysis.addEventListener('click', runAnalysis);
       el.btnAnalyze.addEventListener('click', runAnalysis);
@@ -3079,7 +3159,7 @@
       // Initial currency display update
       updateCurrencyDisplay();
 
-      logMessage('INFO', 'Hourly Billing Calculator initialised', 'Ready for authentication');
+      logMessage('INFO', 'Hourly Billing Calculator initialised', `Active Client ID: ${CLIENT_ID.substring(0,8)}...`);
     }
 
     document.addEventListener('DOMContentLoaded', function() {
