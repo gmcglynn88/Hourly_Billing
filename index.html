@@ -79,6 +79,7 @@
     .btn-block{width:100%;padding:14px}
     .btn-success{background:var(--success)}.btn-success:hover{background:#218838}
     .btn-secondary{background:var(--text-light)}.btn-secondary:hover{background:#5a6268}
+    .btn-export{background:var(--info)}.btn-export:hover{background:#138496}
 
     .status-container{
       position:fixed;top:20px;right:20px;z-index:1000;
@@ -571,6 +572,37 @@
       color: var(--text-light);
       margin-top: 4px;
     }
+
+    /* Export button container styles */
+    .export-buttons-container {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    
+    .btn-export-users {
+      background: var(--info);
+      padding: 10px 16px;
+      font-size: 13px;
+      width: auto;
+    }
+    
+    .btn-export-overage {
+      background: var(--warning);
+      color: var(--text-color);
+      padding: 10px 16px;
+      font-size: 13px;
+      width: auto;
+    }
+    
+    .btn-export-users:hover {
+      background: #138496;
+    }
+    
+    .btn-export-overage:hover {
+      background: #e0a800;
+      color: var(--text-color);
+    }
   </style>
 </head>
 <body>
@@ -702,7 +734,7 @@
             </button>
             <div style="height:14px;"></div>
             <button id="btnExport" class="btn btn-secondary btn-block" disabled>
-              <span>📊 Export Report</span>
+              <span>📊 Export Full Report</span>
             </button>
             <div style="height:14px;"></div>
             <button id="btnReset" class="btn btn-block" style="background:var(--danger);">
@@ -823,7 +855,10 @@
             <div class="card">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
                 <h2 style="margin:0;">👥 User Details</h2>
-                <div style="display:flex;gap:12px;align-items:center;">
+                <div class="export-buttons-container">
+                  <button id="btnExportUsers" class="btn-export-users" disabled>
+                    <span>📥 Export Users</span>
+                  </button>
                   <input type="text" id="userSearch" placeholder="🔍 Search users..." style="width:280px;padding:12px;">
                   <select id="userFilter" style="width:160px;padding:12px;">
                     <option value="all">All Users</option>
@@ -870,8 +905,8 @@
             <!-- New Overage Table Card -->
             <div class="card" style="margin-top:24px;">
               <h2>📈 Overage Analysis</h2>
-              <div style="margin-bottom:18px;">
-                <div class="overage-summary">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+                <div class="overage-summary" style="flex:1;">
                   <div style="display:flex;justify-content:space-between;align-items:center;">
                     <div>
                       <span style="font-weight:600;">Threshold:</span> 
@@ -890,6 +925,9 @@
                     Shows users whose interacting hours exceed the threshold (<span id="thresholdValueDisplay">40</span> hours) for the selected date range
                   </div>
                 </div>
+                <button id="btnExportOverage" class="btn-export-overage" disabled style="margin-left:12px;">
+                  <span>📤 Export Overage</span>
+                </button>
               </div>
               
               <div class="table-container">
@@ -1152,6 +1190,8 @@
       btnExport: document.getElementById('btnExport'),
       btnReset: document.getElementById('btnReset'),
       btnRunAnalysis: document.getElementById('btnRunAnalysis'),
+      btnExportUsers: document.getElementById('btnExportUsers'),
+      btnExportOverage: document.getElementById('btnExportOverage'),
       dateFrom: document.getElementById('dateFrom'),
       dateTo: document.getElementById('dateTo'),
       thresholdHours: document.getElementById('thresholdHours'),
@@ -1599,11 +1639,16 @@
         el.statusText.textContent = message || 'Connected ✓';
         el.statusText.style.color = 'var(--success)';
         el.btnFetchData.disabled = !(el.dateFrom.value && el.dateTo.value);
+        if (appState.userData.length > 0) {
+          el.btnExportUsers.disabled = false;
+        }
       } else {
         el.statusIndicator.style.background = 'var(--danger)';
         el.statusText.textContent = message || 'Not Connected';
         el.statusText.style.color = 'var(--danger)';
         el.btnFetchData.disabled = true;
+        el.btnExportUsers.disabled = true;
+        el.btnExportOverage.disabled = true;
       }
     }
 
@@ -1996,6 +2041,7 @@
         el.visibleCount.textContent = appState.userData.length;
         el.btnAnalyze.disabled = false;
         el.btnRunAnalysis.disabled = false;
+        el.btnExportUsers.disabled = false;
 
         renderUserTable();
         updateHourBuckets();
@@ -2053,7 +2099,9 @@
           No users exceed the threshold of ${threshold} hours for the selected date range.
         </td>`;
         tbody.appendChild(row);
-        return;
+        el.btnExportOverage.disabled = true;
+      } else {
+        el.btnExportOverage.disabled = false;
       }
       
       usersOverThreshold.forEach(user => {
@@ -2150,9 +2198,9 @@
       appState.isAnalyzing = true;
       el.btnRunAnalysis.disabled = true;
       el.btnRunAnalysis.innerHTML = '<span>⏳ Analysing...</span>';
-      updateProgress('Starting analysis...', 10);
 
       try {
+        updateProgress('Starting analysis...', 10);
         const threshold = parseFloat(el.thresholdHours.value);
         const namedLicenseCost = parseFloat(el.namedLicenseCost.value);
         const hourlyLicenseRate = parseFloat(el.hourlyLicenseRate.value);
@@ -2765,6 +2813,90 @@
       showStatusMessage('✅ Report exported to CSV', 'success');
     }
 
+    function exportUsersTable() {
+      if (!appState.userData || appState.userData.length === 0) {
+        showStatusMessage('No user data to export', 'warn');
+        return;
+      }
+
+      let csv = 'Genesys Cloud User Data Export\n';
+      csv += `Generated: ${new Date().toLocaleString()}\n`;
+      csv += `Period: ${el.dateFrom.value} to ${el.dateTo.value}\n`;
+      csv += `Total Users: ${appState.userData.length}\n\n`;
+
+      csv += 'Name,Email,Team,Role Type,Roles,Last Login,Interacting Time (HH:MM:SS),Interacting Time (hours),Recommended Licence,Reason,Estimated Cost\n';
+
+      appState.userData.forEach(user => {
+        csv += `"${user.name || ''}","${user.email || ''}","${user.team || ''}","${user.userType || ''}","${user.role || ''}","${user.lastLogin || 'Never'}","${user.interactingHoursFormatted}",${Math.round(user.interactingHoursDecimal)},"${user.recommendedLicense || ''}","${user.recommendedReason || ''}",${(user.estimatedCost || 0).toFixed(2)}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateStr = new Date().toISOString().split('T')[0];
+      a.href = url;
+      a.download = `genesys_users_${dateStr}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      logMessage('SUCCESS', 'Users table exported', `${appState.userData.length} users exported`);
+      showStatusMessage(`✅ Exported ${appState.userData.length} users to CSV`, 'success');
+    }
+
+    function exportOverageTable() {
+      const threshold = parseFloat(el.thresholdHours.value) || 40;
+      const usersOverThreshold = appState.userData.filter(user => 
+        user.interactingHoursDecimal > threshold
+      );
+
+      if (usersOverThreshold.length === 0) {
+        showStatusMessage('No overage data to export', 'warn');
+        return;
+      }
+
+      let csv = 'Genesys Cloud Overage Analysis Export\n';
+      csv += `Generated: ${new Date().toLocaleString()}\n`;
+      csv += `Period: ${el.dateFrom.value} to ${el.dateTo.value}\n`;
+      csv += `Threshold: ${threshold} hours\n`;
+      csv += `Users Over Threshold: ${usersOverThreshold.length}\n\n`;
+
+      csv += 'Name,Email,Team,Role Type,Roles,Interacting Hours,Over Threshold By,Percentage Over,Status\n';
+
+      usersOverThreshold.sort((a, b) => b.interactingHoursDecimal - a.interactingHoursDecimal).forEach(user => {
+        const overageHours = user.interactingHoursDecimal - threshold;
+        const percentageOver = ((overageHours / threshold) * 100).toFixed(1);
+        
+        let statusText = '';
+        if (percentageOver > 100) {
+          statusText = 'Significant Overage';
+        } else if (percentageOver > 50) {
+          statusText = 'High Overage';
+        } else if (percentageOver > 25) {
+          statusText = 'Moderate Overage';
+        } else {
+          statusText = 'Minor Overage';
+        }
+
+        csv += `"${user.name || ''}","${user.email || ''}","${user.team || ''}","${user.userType || ''}","${user.role || ''}",${Math.round(user.interactingHoursDecimal)},${Math.round(overageHours)},${percentageOver}%,"${statusText}"\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateStr = new Date().toISOString().split('T')[0];
+      a.href = url;
+      a.download = `genesys_overage_${dateStr}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      logMessage('SUCCESS', 'Overage table exported', `${usersOverThreshold.length} users exported`);
+      showStatusMessage(`✅ Exported ${usersOverThreshold.length} overage users to CSV`, 'success');
+    }
+
     function resetApplication() {
       if (confirm('Reset the application? This will clear all data but keep the connection.')) {
         appState.userData = [];
@@ -2797,6 +2929,8 @@
         el.btnAnalyze.disabled = true;
         el.btnRunAnalysis.disabled = true;
         el.btnExport.disabled = true;
+        el.btnExportUsers.disabled = true;
+        el.btnExportOverage.disabled = true;
 
         el.usersTableBody.innerHTML = `
           <tr><td colspan="8" style="text-align:center;padding:48px;color:var(--text-light);">
@@ -2873,6 +3007,8 @@
       el.btnRunAnalysis.addEventListener('click', runAnalysis);
       el.btnAnalyze.addEventListener('click', runAnalysis);
       el.btnExport.addEventListener('click', exportReport);
+      el.btnExportUsers.addEventListener('click', exportUsersTable);
+      el.btnExportOverage.addEventListener('click', exportOverageTable);
       el.btnReset.addEventListener('click', resetApplication);
 
       el.dateFrom.addEventListener('change', updateDateRangeInfo);
