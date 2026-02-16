@@ -1859,6 +1859,98 @@
       }
     }
 
+    // ==================== NEW FUNCTION: FETCH CONVERSATION DETAILS ====================
+    async function fetchConversationDetails(userIds, dateFrom, dateTo) {
+      const userHoursMap = {};
+      
+      try {
+        // Try Conversations Analytics API first
+        logMessage('INFO', 'Trying Conversations Analytics API for interaction data');
+        
+        const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
+        
+        // Process users in batches to avoid API limits
+        const batchSize = 50;
+        
+        for (let i = 0; i < userIds.length; i += batchSize) {
+          const batchUserIds = userIds.slice(i, i + batchSize);
+          
+          const queryBody = {
+            interval: interval,
+            order: "asc",
+            orderBy: "userId",
+            paging: {
+              pageSize: 100,
+              pageNumber: 1
+            },
+            segmentFilters: [
+              {
+                type: "or",
+                predicates: [
+                  { dimension: "mediaType", value: "voice" },
+                  { dimension: "mediaType", value: "chat" },
+                  { dimension: "mediaType", value: "email" },
+                  { dimension: "mediaType", value: "message" }
+                ]
+              }
+            ],
+            groupBy: ["userId"],
+            metrics: ["tTalk", "tWrapUp"]
+          };
+
+          logMessage('INFO', 'Querying Conversations Analytics API', `Batch ${i/batchSize + 1} of ${Math.ceil(userIds.length/batchSize)}`);
+
+          try {
+            const analyticsResponse = await apiCall('/api/v2/analytics/conversations/aggregates/query', {
+              method: 'POST',
+              body: JSON.stringify(queryBody)
+            });
+
+            if (analyticsResponse.results && analyticsResponse.results.length > 0) {
+              analyticsResponse.results.forEach(record => {
+                if (record.group && record.group.userId) {
+                  const userId = record.group.userId;
+                  let totalTalkTime = 0;
+                  let totalWrapUpTime = 0;
+
+                  const tTalkData = record.data.find(d => d.metric === "tTalk");
+                  if (tTalkData && tTalkData.stats) {
+                    totalTalkTime = tTalkData.stats.sum || 0;
+                  }
+
+                  const tWrapUpData = record.data.find(d => d.metric === "tWrapUp");
+                  if (tWrapUpData && tWrapUpData.stats) {
+                    totalWrapUpTime = tWrapUpData.stats.sum || 0;
+                  }
+
+                  const totalInteractingTime = totalTalkTime + totalWrapUpTime;
+                  
+                  if (totalInteractingTime > 0) {
+                    userHoursMap[userId] = (userHoursMap[userId] || 0) + totalInteractingTime;
+                  }
+                }
+              });
+            }
+            
+            // Add delay between batches
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+          } catch (batchError) {
+            logMessage('WARN', `Batch ${i/batchSize + 1} failed`, batchError.message);
+            // Continue with next batch
+          }
+        }
+
+        logMessage('SUCCESS', 'Conversations API query completed', `Found ${Object.keys(userHoursMap).length} users with interaction time`);
+        
+      } catch (error) {
+        logMessage('ERROR', 'Conversations Analytics API failed', error.message);
+        logMessage('WARN', 'No interaction data available', 'All users will have 0 interacting time. Check API permissions and query parameters.');
+      }
+      
+      return userHoursMap;
+    }
+
     // ==================== MAIN FUNCTIONS ====================
     async function fetchUserData() {
       if (!validateDateRange()) {
@@ -1928,128 +2020,18 @@
         updateLoadingProgress(50);
         logMessage('INFO', 'Fetching interaction data');
 
-        const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
-        const userHoursMap = {};
+        // Get all agent user IDs
+        const agentUserIds = appState.userData
+          .filter(u => u.userType === 'agent')
+          .map(u => u.id);
 
-        try {
-          // Try Conversations Analytics API first
-          logMessage('INFO', 'Trying Conversations Analytics API for interaction data');
-          
-          const agentUserIds = appState.userData
-            .filter(u => u.userType === 'agent')
-            .map(u => u.id)
-            .slice(0, 50);
+        let userHoursMap = {};
 
-          if (agentUserIds.length > 0) {
-            const queryBody = {
-              interval: interval,
-              order: "asc",
-              orderBy: "userId",
-              paging: {
-                pageSize: 1000,
-                pageNumber: 1
-              },
-              segmentFilters: [
-                {
-                  type: "or",
-                  predicates: [
-                    {
-                      dimension: "mediaType",
-                      value: "voice"
-                    },
-                    {
-                      dimension: "mediaType",
-                      value: "chat"
-                    },
-                    {
-                      dimension: "mediaType",
-                      value: "email"
-                    },
-                    {
-                      dimension: "mediaType",
-                      value: "message"
-                    }
-                  ]
-                },
-                {
-                  type: "or",
-                  predicates: [
-                    {
-                      dimension: "queueId",
-                      operator: "exists",
-                      value: null
-                    }
-                  ]
-                }
-              ],
-              groupBy: ["userId"],
-              metrics: ["tTalk", "tWrapUp"]
-            };
-
-            updateLoadingProgress(60);
-            logMessage('INFO', 'Querying Conversations Analytics API');
-
-            try {
-              const analyticsResponse = await apiCall('/api/v2/analytics/conversations/aggregates/query', {
-                method: 'POST',
-                body: JSON.stringify(queryBody)
-              });
-
-              console.log('Conversations API Response:', analyticsResponse);
-
-              if (analyticsResponse.results && analyticsResponse.results.length > 0) {
-                analyticsResponse.results.forEach(record => {
-                  if (record.group && record.group.userId) {
-                    const userId = record.group.userId;
-                    let totalTalkTime = 0;
-                    let totalWrapUpTime = 0;
-
-                    const tTalkData = record.data.find(d => d.metric === "tTalk");
-                    if (tTalkData && tTalkData.stats) {
-                      totalTalkTime = tTalkData.stats.sum || 0;
-                    }
-
-                    const tWrapUpData = record.data.find(d => d.metric === "tWrapUp");
-                    if (tWrapUpData && tWrapUpData.stats) {
-                      totalWrapUpTime = tWrapUpData.stats.sum || 0;
-                    }
-
-                    const totalInteractingTime = totalTalkTime + totalWrapUpTime;
-                    
-                    if (totalInteractingTime > 0) {
-                      userHoursMap[userId] = totalInteractingTime;
-                    }
-                  }
-                });
-
-                logMessage('SUCCESS', 'Conversations API query completed', `Found ${Object.keys(userHoursMap).length} users with interaction time`);
-                
-                // Debug sample data
-                const usersWithHours = Object.keys(userHoursMap);
-                const sampleCount = Math.min(10, usersWithHours.length);
-                for (let i = 0; i < sampleCount; i++) {
-                  const userId = usersWithHours[i];
-                  const user = userMap[userId];
-                  const userName = user ? user.name : userId;
-                  const hoursFormatted = formatMillisecondsToHHMMSS(userHoursMap[userId]);
-                  const hoursDecimal = formatMillisecondsToDecimalHours(userHoursMap[userId]);
-                  logMessage('DEBUG', `User: ${userName}`, `Interaction time: ${hoursFormatted} (${hoursDecimal.toFixed(2)} hours)`);
-                }
-              } else {
-                logMessage('WARN', 'No conversation data found in selected period', 'Users will have 0 interacting time');
-              }
-            } catch (convError) {
-              // ===== UPDATED SECTION: REMOVED RANDOM DATA GENERATION =====
-              logMessage('ERROR', 'Conversations API failed', convError.message);
-              logMessage('WARN', 'No interaction data available', 'All users will have 0 interacting time. Check API permissions and query parameters.');
-              // ===== END UPDATED SECTION =====
-            }
-          } else {
-            logMessage('WARN', 'No agent users found', 'Only supervisors and admins in the organization');
-          }
-        } catch (analyticsError) {
-          logMessage('ERROR', 'Analytics API query failed', analyticsError.message);
-          console.error('Analytics API error details:', analyticsError);
+        if (agentUserIds.length > 0) {
+          // Fetch conversation details for agents
+          userHoursMap = await fetchConversationDetails(agentUserIds, dateFrom, dateTo);
+        } else {
+          logMessage('WARN', 'No agent users found', 'Only supervisors and admins in the organization');
         }
 
         // Update user data with interacting time
