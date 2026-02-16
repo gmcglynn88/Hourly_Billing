@@ -1825,7 +1825,7 @@
       return 'other';
     }
 
-    // ==================== NEW FUNCTION: FETCH USER PRESENCE STATUS ====================
+    // ==================== OPTIMIZED FUNCTION: FETCH USER PRESENCE STATUS ====================
     async function fetchUserPresenceStatus(userIds) {
       try {
         const batchSize = 50;
@@ -1884,7 +1884,7 @@
       return chunks;
     }
 
-    // ==================== FIXED FUNCTION: FETCH ROUTING STATUS DATA (DAILY GRANULARITY) ====================
+    // ==================== OPTIMIZED FUNCTION: FETCH ROUTING STATUS DATA (ONLY INTERACTING & COMMUNICATING) ====================
     async function fetchRoutingStatusData(userIds, interval) {
       try {
         const routingStatusMap = {};
@@ -1898,8 +1898,9 @@
         // Split into daily chunks (API limit is 7 days, but we'll do daily to be safe)
         const dailyChunks = splitDateRangeIntoDailyChunks(startDate, endDate);
         
-        logMessage('INFO', `===== API DATA INTEGRITY CHECK =====`);
+        logMessage('INFO', `===== OPTIMIZED API DATA INTEGRITY CHECK =====`);
         logMessage('INFO', `Splitting date range into ${dailyChunks.length} daily chunks for maximum accuracy`);
+        logMessage('INFO', `Filtering only for INTERACTING and COMMUNICATING routing statuses`);
         
         let totalDaysProcessed = 0;
         
@@ -1922,7 +1923,7 @@
             const pageNum = Math.floor(i/batchSize) + 1;
             const totalPages = Math.ceil(userIds.length / batchSize);
             
-            // Create predicates for each user ID
+            // OPTIMIZED: Create predicates for each user ID
             const userPredicates = userIdBatch.map(userId => ({
               type: "dimension",
               dimension: "userId",
@@ -1930,7 +1931,8 @@
               value: userId
             }));
             
-            // Build the query body for users/details/query
+            // OPTIMIZED: Build the query body for users/details/query
+            // We're only interested in routingStatus data with INTERACTING and COMMUNICATING
             const queryBody = {
               interval: day.interval,
               userFilters: [
@@ -1957,10 +1959,11 @@
                   let totalInteractingMs = 0;
                   let interactingCount = 0;
                   
-                  // Check if user has routingStatus data
+                  // OPTIMIZED: Only look at routingStatus data (not presence or other fields)
                   if (userDetail.routingStatus && Array.isArray(userDetail.routingStatus)) {
                     userDetail.routingStatus.forEach(status => {
-                      // Only count INTERACTING and COMMUNICATING time
+                      // OPTIMIZED: Only count INTERACTING and COMMUNICATING time
+                      // This matches the schema requirements
                       if (status.routingStatus === 'INTERACTING' || status.routingStatus === 'COMMUNICATING') {
                         const startTime = new Date(status.startTime).getTime();
                         const endTime = new Date(status.endTime).getTime();
@@ -2018,11 +2021,11 @@
         }
         
         // Log comprehensive daily summary
-        logMessage('INFO', `\n========== DAILY BREAKDOWN REPORT ==========`);
+        logMessage('INFO', `\n========== OPTIMIZED DAILY BREAKDOWN REPORT ==========`);
         logMessage('INFO', `Date Range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
         logMessage('INFO', `Total days processed: ${dailyChunks.length}`);
         
-        logMessage('INFO', `\n----- DAILY HOURS -----`);
+        logMessage('INFO', `\n----- DAILY HOURS (INTERACTING & COMMUNICATING ONLY) -----`);
         let totalHoursAllDays = 0;
         let totalUsersAllDays = 0;
         
@@ -2032,8 +2035,8 @@
           totalUsersAllDays += stat.usersWithHours;
         });
         
-        logMessage('SUCCESS', `\n----- FINAL RESULTS -----`);
-        logMessage('SUCCESS', `Total unique users with hours: ${Object.keys(routingStatusMap).length}`);
+        logMessage('SUCCESS', `\n----- FINAL OPTIMIZED RESULTS -----`);
+        logMessage('SUCCESS', `Total unique users with interacting/communicating time: ${Object.keys(routingStatusMap).length}`);
         
         // Calculate overall statistics
         const usersWithHours = Object.keys(routingStatusMap);
@@ -2049,7 +2052,7 @@
           // Sort by hours (descending) to show top users
           const sortedUsers = usersWithHours.sort((a, b) => routingStatusMap[b] - routingStatusMap[a]);
           
-          logMessage('INFO', `\n----- TOP 10 USERS BY HOURS -----`);
+          logMessage('INFO', `\n----- TOP 10 USERS BY HOURS (INTERACTING/COMMUNICATING) -----`);
           for (let i = 0; i < Math.min(10, sortedUsers.length); i++) {
             const userId = sortedUsers[i];
             const user = appState.userData?.find(u => u.id === userId);
@@ -2069,7 +2072,7 @@
           logMessage('INFO', `Our max user (${formatMillisecondsToDecimalHours(routingStatusMap[sortedUsers[0]]).toFixed(2)} hours) is ${(formatMillisecondsToDecimalHours(routingStatusMap[sortedUsers[0]]) / expectedFullTimeHours * 100).toFixed(1)}% of full-time`);
           
         } else {
-          logMessage('WARN', 'No users found with interacting time');
+          logMessage('WARN', 'No users found with interacting/communicating time');
         }
         
         logMessage('INFO', `=====================================\n`);
@@ -2170,11 +2173,13 @@
 
         updateLoadingProgress(50);
         logMessage('INFO', 'Fetching routing status data from Users Details API (daily granularity)');
+        logMessage('INFO', 'OPTIMIZED: Only capturing INTERACTING and COMMUNICATING routing statuses');
 
         const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
         const allUserIds = appState.userData.map(u => u.id);
 
         // Use the Users Details API with daily granularity to ensure complete data
+        // OPTIMIZED: Now only looks for INTERACTING and COMMUNICATING routing statuses
         const routingStatusData = await fetchRoutingStatusData(allUserIds, interval);
 
         // Update user data with routing status time
@@ -2210,9 +2215,9 @@
 
         const totalInteractingHours = formatMillisecondsToDecimalHours(totalInteractingMs);
         
-        logMessage('INFO', `Interacting time distribution`, 
-          `${usersWithHours} users have > 0 interacting time, ${appState.userData.length - usersWithHours} users have 0 interacting time`);
-        logMessage('INFO', `Total interacting time`, 
+        logMessage('INFO', `Interacting/Communicating time distribution`, 
+          `${usersWithHours} users have > 0 interacting/communicating time, ${appState.userData.length - usersWithHours} users have 0 interacting/communicating time`);
+        logMessage('INFO', `Total interacting/communicating time`, 
           `${formatMillisecondsToHHMMSS(totalInteractingMs)} (${totalInteractingHours.toFixed(2)} hours)`);
 
         updateLoadingProgress(95);
@@ -2220,7 +2225,7 @@
         updateCurrencyDisplay();
 
         logMessage('SUCCESS', 'Data loaded successfully', 
-          `${appState.userData.length} users loaded, ${usersWithHours} with interacting time, total ${totalInteractingHours.toFixed(2)} hours`);
+          `${appState.userData.length} users loaded, ${usersWithHours} with interacting/communicating time, total ${totalInteractingHours.toFixed(2)} hours`);
 
         el.statTotalUsers.textContent = appState.userData.length;
         el.statTotalHours.textContent = Math.round(totalInteractingHours);
@@ -2238,7 +2243,7 @@
         updateLoadingProgress(100);
         await new Promise(resolve => setTimeout(resolve, 500));
         setLoading(false);
-        showStatusMessage(`✅ Loaded ${appState.userData.length} users (${usersWithHours} with interacting time, total ${totalInteractingHours.toFixed(2)} hours)`, 'success');
+        showStatusMessage(`✅ Loaded ${appState.userData.length} users (${usersWithHours} with interacting/communicating time, total ${totalInteractingHours.toFixed(2)} hours)`, 'success');
 
       } catch (error) {
         setLoading(false);
