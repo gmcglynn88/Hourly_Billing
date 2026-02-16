@@ -1859,7 +1859,7 @@
       }
     }
 
-    // ==================== NEW FUNCTION: FETCH ROUTING STATUS DATA ====================
+    // ==================== FIXED FUNCTION: FETCH ROUTING STATUS DATA ====================
     async function fetchRoutingStatusData(userIds, interval) {
       try {
         const routingStatusMap = {};
@@ -1868,23 +1868,34 @@
         for (let i = 0; i < userIds.length; i += batchSize) {
           const userIdBatch = userIds.slice(i, i + batchSize);
           
-          // Create filter for routing status - INTERACTING,COMMUNICATING
-          const routingStatusFilter = {
-            type: "dimension",
-            dimension: "routingStatus",
-            operator: "matches",
-            value: "INTERACTING,COMMUNICATING"
-          };
-          
+          // FIXED: Correct filter format for Users Analytics API
           const queryBody = {
             interval: interval,
             granularity: "P1D",
             metrics: ["tAgentRoutingStatus"],
-            groupBy: ["userId"],
-            filter: routingStatusFilter
+            groupBy: ["userId", "routingStatus"],
+            filter: {
+              type: "or",
+              predicates: [
+                {
+                  type: "dimension",
+                  dimension: "routingStatus",
+                  operator: "matches",
+                  value: "INTERACTING"
+                },
+                {
+                  type: "dimension",
+                  dimension: "routingStatus",
+                  operator: "matches",
+                  value: "COMMUNICATING"
+                }
+              ]
+            }
           };
 
           logMessage('INFO', `Querying Users Analytics API for routing status (batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(userIds.length/batchSize)})`);
+          
+          console.log('Sending Users Analytics query:', JSON.stringify(queryBody, null, 2));
           
           const analyticsResponse = await apiCall('/api/v2/analytics/users/aggregates/query', {
             method: 'POST',
@@ -1897,21 +1908,27 @@
             analyticsResponse.results.forEach(record => {
               if (record.group && record.group.userId) {
                 const userId = record.group.userId;
+                const routingStatus = record.group.routingStatus;
                 
-                // Process tAgentRoutingStatus metric
-                if (record.data && record.data.length > 0) {
-                  record.data.forEach(dataItem => {
-                    if (dataItem.metrics && dataItem.metrics.length > 0) {
-                      dataItem.metrics.forEach(metricItem => {
-                        if (metricItem.metric === "tAgentRoutingStatus" && metricItem.stats && metricItem.stats.sum) {
-                          routingStatusMap[userId] = (routingStatusMap[userId] || 0) + metricItem.stats.sum;
-                        }
-                      });
-                    }
-                  });
+                // Only count INTERACTING and COMMUNICATING time
+                if (routingStatus === 'INTERACTING' || routingStatus === 'COMMUNICATING') {
+                  // Process tAgentRoutingStatus metric
+                  if (record.data && record.data.length > 0) {
+                    record.data.forEach(dataItem => {
+                      if (dataItem.metrics && dataItem.metrics.length > 0) {
+                        dataItem.metrics.forEach(metricItem => {
+                          if (metricItem.metric === "tAgentRoutingStatus" && metricItem.stats && metricItem.stats.sum) {
+                            routingStatusMap[userId] = (routingStatusMap[userId] || 0) + metricItem.stats.sum;
+                          }
+                        });
+                      }
+                    });
+                  }
                 }
               }
             });
+          } else {
+            logMessage('WARN', `No results in batch ${Math.floor(i/batchSize) + 1}`, 'Check date range and ensure there is interaction data');
           }
           
           // Add delay between batches
@@ -1919,11 +1936,35 @@
         }
         
         logMessage('SUCCESS', 'Users Analytics API query completed', `Found ${Object.keys(routingStatusMap).length} users with routing status data`);
+        
+        // Debug: Show sample of data
+        const usersWithHours = Object.keys(routingStatusMap);
+        if (usersWithHours.length > 0) {
+          const sampleCount = Math.min(5, usersWithHours.length);
+          let totalSampleHours = 0;
+          
+          for (let i = 0; i < sampleCount; i++) {
+            const userId = usersWithHours[i];
+            const user = appState.userData?.find(u => u.id === userId);
+            const userName = user ? user.name : userId.substring(0,8);
+            const hoursDecimal = formatMillisecondsToDecimalHours(routingStatusMap[userId]);
+            totalSampleHours += hoursDecimal;
+            logMessage('DEBUG', `Sample user: ${userName}`, `${hoursDecimal.toFixed(2)} hours`);
+          }
+          
+          logMessage('INFO', 'Sample total', `${totalSampleHours.toFixed(2)} hours from ${sampleCount} users`);
+        } else {
+          logMessage('WARN', 'No users found with interaction time', 'This may indicate no users were in INTERACTING/COMMUNICATING status during the date range');
+        }
+        
         return routingStatusMap;
         
       } catch (error) {
         logMessage('ERROR', 'Users Analytics API query failed', error.message);
         console.error('Users Analytics API error details:', error);
+        
+        // If the query fails completely, log the error but continue with zero hours
+        logMessage('INFO', 'Continuing with zero interaction hours for all users');
         return {};
       }
     }
