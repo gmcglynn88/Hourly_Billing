@@ -1945,66 +1945,34 @@
             for (let i = 0; i < allUserIds.length; i += batchSize) {
               const userIdBatch = allUserIds.slice(i, i + batchSize);
               
+              // Create filter for user IDs using dimension type with comma-separated values
+              const userFilter = {
+                type: "dimension",
+                dimension: "userId",
+                operator: "matches",
+                value: userIdBatch.join(",")
+              };
+              
+              // Create filter for media types using dimension type with comma-separated values
+              const mediaTypeFilter = {
+                type: "dimension",
+                dimension: "mediaType",
+                operator: "matches",
+                value: "voice,callback,chat,email,message,call"
+              };
+              
               const queryBody = {
                 interval: interval,
                 granularity: "P1D",
                 filter: {
                   type: "and",
                   predicates: [
-                    {
-                      type: "or",
-                      predicates: userIdBatch.map(userId => ({
-                        type: "dimension",
-                        dimension: "userId",
-                        operator: "matches",
-                        value: userId
-                      }))
-                    },
-                    {
-                      type: "or",
-                      predicates: [
-                        {
-                          type: "dimension",
-                          dimension: "mediaType",
-                          operator: "matches",
-                          value: "voice"
-                        },
-                        {
-                          type: "dimension",
-                          dimension: "mediaType",
-                          operator: "matches",
-                          value: "callback"
-                        },
-                        {
-                          type: "dimension",
-                          dimension: "mediaType",
-                          operator: "matches",
-                          value: "chat"
-                        },
-                        {
-                          type: "dimension",
-                          dimension: "mediaType",
-                          operator: "matches",
-                          value: "email"
-                        },
-                        {
-                          type: "dimension",
-                          dimension: "mediaType",
-                          operator: "matches",
-                          value: "message"
-                        },
-                        {
-                          type: "dimension",
-                          dimension: "mediaType",
-                          operator: "matches",
-                          value: "call"
-                        }
-                      ]
-                    }
+                    userFilter,
+                    mediaTypeFilter
                   ]
                 },
                 metrics: ["tTalk", "tHeld", "tAcw"],
-                groupBy: ["userId", "mediaType"],
+                groupBy: ["userId"],
                 flattenMultivaluedDimensions: false
               };
 
