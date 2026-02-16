@@ -1859,41 +1859,32 @@
       }
     }
 
-    // ==================== HELPER FUNCTION: SPLIT DATE RANGE INTO 7-DAY CHUNKS ====================
-    function splitDateRangeIntoChunks(startDate, endDate) {
+    // ==================== HELPER FUNCTION: SPLIT DATE RANGE INTO DAILY CHUNKS ====================
+    function splitDateRangeIntoDailyChunks(startDate, endDate) {
       const chunks = [];
       const start = new Date(startDate);
       const end = new Date(endDate);
       
-      let currentStart = new Date(start);
+      let currentDate = new Date(start);
       
-      while (currentStart < end) {
-        let currentEnd = new Date(currentStart);
-        currentEnd.setDate(currentEnd.getDate() + 6); // Add 6 days for a 7-day chunk (inclusive)
-        
-        if (currentEnd > end) {
-          currentEnd = new Date(end);
-        }
-        
-        // Format dates for API interval
-        const startStr = currentStart.toISOString().split('T')[0];
-        const endStr = currentEnd.toISOString().split('T')[0];
+      while (currentDate <= end) {
+        const dateStr = currentDate.toISOString().split('T')[0];
         
         chunks.push({
-          start: currentStart,
-          end: currentEnd,
-          interval: `${startStr}T00:00:00.000Z/${endStr}T23:59:59.999Z`
+          date: dateStr,
+          start: new Date(currentDate),
+          end: new Date(currentDate),
+          interval: `${dateStr}T00:00:00.000Z/${dateStr}T23:59:59.999Z`
         });
         
-        // Move to next chunk
-        currentStart = new Date(currentEnd);
-        currentStart.setDate(currentStart.getDate() + 1);
+        // Move to next day
+        currentDate.setDate(currentDate.getDate() + 1);
       }
       
       return chunks;
     }
 
-    // ==================== FIXED FUNCTION: FETCH ROUTING STATUS DATA ====================
+    // ==================== FIXED FUNCTION: FETCH ROUTING STATUS DATA (DAILY GRANULARITY) ====================
     async function fetchRoutingStatusData(userIds, interval) {
       try {
         const routingStatusMap = {};
@@ -1904,20 +1895,32 @@
         const startDate = new Date(startStr.split('T')[0]);
         const endDate = new Date(endStr.split('T')[0]);
         
-        // Split into 7-day chunks (API limit)
-        const dateChunks = splitDateRangeIntoChunks(startDate, endDate);
+        // Split into daily chunks (API limit is 7 days, but we'll do daily to be safe)
+        const dailyChunks = splitDateRangeIntoDailyChunks(startDate, endDate);
         
-        logMessage('INFO', `Splitting date range into ${dateChunks.length} chunks of up to 7 days each`);
+        logMessage('INFO', `===== API DATA INTEGRITY CHECK =====`);
+        logMessage('INFO', `Splitting date range into ${dailyChunks.length} daily chunks for maximum accuracy`);
         
-        let totalChunksProcessed = 0;
-        let totalUsersWithHours = 0;
+        let totalDaysProcessed = 0;
         
-        for (let chunkIndex = 0; chunkIndex < dateChunks.length; chunkIndex++) {
-          const chunk = dateChunks[chunkIndex];
-          logMessage('INFO', `Processing chunk ${chunkIndex + 1}/${dateChunks.length}: ${chunk.start.toISOString().split('T')[0]} to ${chunk.end.toISOString().split('T')[0]}`);
+        // Track daily statistics
+        const dailyStats = [];
+        let totalCumulativeHours = 0;
+        
+        for (let dayIndex = 0; dayIndex < dailyChunks.length; dayIndex++) {
+          const day = dailyChunks[dayIndex];
           
+          logMessage('INFO', `\n===== PROCESSING DAY ${dayIndex + 1}/${dailyChunks.length}: ${day.date} =====`);
+          
+          let dailyTotalMs = 0;
+          let dailyUserCount = 0;
+          const dailyUserMap = {};
+          
+          // Process users in batches for this day
           for (let i = 0; i < userIds.length; i += batchSize) {
             const userIdBatch = userIds.slice(i, i + batchSize);
+            const pageNum = Math.floor(i/batchSize) + 1;
+            const totalPages = Math.ceil(userIds.length / batchSize);
             
             // Create predicates for each user ID
             const userPredicates = userIdBatch.map(userId => ({
@@ -1929,7 +1932,7 @@
             
             // Build the query body for users/details/query
             const queryBody = {
-              interval: chunk.interval,
+              interval: day.interval,
               userFilters: [
                 {
                   type: "or",
@@ -1938,99 +1941,138 @@
               ]
             };
 
-            logMessage('INFO', `Querying Users Details API (chunk ${chunkIndex + 1}/${dateChunks.length}, batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(userIds.length/batchSize)})`);
+            logMessage('INFO', `Querying day ${day.date}, batch ${pageNum}/${totalPages}`);
             
-            const detailsResponse = await apiCall('/api/v2/analytics/users/details/query', {
-              method: 'POST',
-              body: JSON.stringify(queryBody)
-            });
-
-            if (detailsResponse.userDetails && detailsResponse.userDetails.length > 0) {
-              detailsResponse.userDetails.forEach(userDetail => {
-                const userId = userDetail.userId;
-                let totalInteractingMs = 0;
-                let interactingCount = 0;
-                
-                // Check if user has routingStatus data
-                if (userDetail.routingStatus && Array.isArray(userDetail.routingStatus)) {
-                  userDetail.routingStatus.forEach(status => {
-                    // Only count INTERACTING and COMMUNICATING time
-                    if (status.routingStatus === 'INTERACTING' || status.routingStatus === 'COMMUNICATING') {
-                      const startTime = new Date(status.startTime).getTime();
-                      const endTime = new Date(status.endTime).getTime();
-                      const durationMs = endTime - startTime;
-                      
-                      if (durationMs > 0) {
-                        totalInteractingMs += durationMs;
-                        interactingCount++;
-                      }
-                    }
-                  });
-                }
-                
-                // Add to the cumulative total for this user
-                if (totalInteractingMs > 0) {
-                  routingStatusMap[userId] = (routingStatusMap[userId] || 0) + totalInteractingMs;
-                }
+            try {
+              const detailsResponse = await apiCall('/api/v2/analytics/users/details/query', {
+                method: 'POST',
+                body: JSON.stringify(queryBody)
               });
+
+              if (detailsResponse.userDetails && detailsResponse.userDetails.length > 0) {
+                logMessage('DEBUG', `Batch returned ${detailsResponse.userDetails.length} user records`);
+                
+                detailsResponse.userDetails.forEach(userDetail => {
+                  const userId = userDetail.userId;
+                  let totalInteractingMs = 0;
+                  let interactingCount = 0;
+                  
+                  // Check if user has routingStatus data
+                  if (userDetail.routingStatus && Array.isArray(userDetail.routingStatus)) {
+                    userDetail.routingStatus.forEach(status => {
+                      // Only count INTERACTING and COMMUNICATING time
+                      if (status.routingStatus === 'INTERACTING' || status.routingStatus === 'COMMUNICATING') {
+                        const startTime = new Date(status.startTime).getTime();
+                        const endTime = new Date(status.endTime).getTime();
+                        const durationMs = endTime - startTime;
+                        
+                        if (durationMs > 0) {
+                          totalInteractingMs += durationMs;
+                          interactingCount++;
+                        }
+                      }
+                    });
+                  }
+                  
+                  // Add to daily totals
+                  if (totalInteractingMs > 0) {
+                    dailyUserMap[userId] = (dailyUserMap[userId] || 0) + totalInteractingMs;
+                    dailyTotalMs += totalInteractingMs;
+                    dailyUserCount++;
+                    
+                    // Add to cumulative total for this user
+                    routingStatusMap[userId] = (routingStatusMap[userId] || 0) + totalInteractingMs;
+                  }
+                });
+              }
+            } catch (batchError) {
+              logMessage('ERROR', `Batch ${pageNum} failed for day ${day.date}`, batchError.message);
             }
             
-            // Add delay between batches
-            await new Promise(resolve => setTimeout(resolve, 300));
+            // Add delay between batches (500ms to avoid rate limits)
+            await new Promise(resolve => setTimeout(resolve, 500));
           }
           
-          totalChunksProcessed++;
-          totalUsersWithHours = Object.keys(routingStatusMap).length;
+          // Log daily statistics
+          const dailyHours = formatMillisecondsToDecimalHours(dailyTotalMs);
+          totalCumulativeHours += dailyHours;
+          
+          dailyStats.push({
+            date: day.date,
+            usersWithHours: dailyUserCount,
+            totalHours: dailyHours,
+            avgHoursPerUser: dailyUserCount > 0 ? (dailyHours / dailyUserCount).toFixed(2) : 0
+          });
+          
+          logMessage('INFO', `\n===== DAY ${day.date} COMPLETE =====`);
+          logMessage('INFO', `Users with hours: ${dailyUserCount}`);
+          logMessage('INFO', `Total hours: ${dailyHours.toFixed(2)}`);
+          logMessage('INFO', `Average hours per user: ${dailyUserCount > 0 ? (dailyHours / dailyUserCount).toFixed(2) : 0}`);
+          logMessage('INFO', `Cumulative total so far: ${totalCumulativeHours.toFixed(2)} hours`);
+          
+          totalDaysProcessed++;
           
           // Update progress
-          const progressPercent = 50 + (totalChunksProcessed / dateChunks.length) * 30;
+          const progressPercent = 50 + (totalDaysProcessed / dailyChunks.length) * 30;
           updateLoadingProgress(progressPercent);
-          
-          logMessage('INFO', `Completed chunk ${chunkIndex + 1}/${dateChunks.length}`, `Found ${totalUsersWithHours} users with hours so far`);
         }
         
-        logMessage('SUCCESS', 'Users Details API query completed', `Found ${Object.keys(routingStatusMap).length} users with interacting time across ${dateChunks.length} chunks`);
+        // Log comprehensive daily summary
+        logMessage('INFO', `\n========== DAILY BREAKDOWN REPORT ==========`);
+        logMessage('INFO', `Date Range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+        logMessage('INFO', `Total days processed: ${dailyChunks.length}`);
         
-        // Debug: Show sample of data
+        logMessage('INFO', `\n----- DAILY HOURS -----`);
+        let totalHoursAllDays = 0;
+        let totalUsersAllDays = 0;
+        
+        dailyStats.forEach(stat => {
+          logMessage('INFO', `${stat.date}: ${stat.totalHours.toFixed(2)} hours (${stat.usersWithHours} users, avg ${stat.avgHoursPerUser} hrs/user)`);
+          totalHoursAllDays += stat.totalHours;
+          totalUsersAllDays += stat.usersWithHours;
+        });
+        
+        logMessage('SUCCESS', `\n----- FINAL RESULTS -----`);
+        logMessage('SUCCESS', `Total unique users with hours: ${Object.keys(routingStatusMap).length}`);
+        
+        // Calculate overall statistics
         const usersWithHours = Object.keys(routingStatusMap);
         if (usersWithHours.length > 0) {
+          const totalHours = usersWithHours.reduce((sum, id) => sum + formatMillisecondsToDecimalHours(routingStatusMap[id]), 0);
+          const avgOverall = totalHours / usersWithHours.length;
+          const maxHours = Math.max(...usersWithHours.map(id => formatMillisecondsToDecimalHours(routingStatusMap[id])));
+          
+          logMessage('SUCCESS', `Total cumulative hours across all users: ${totalHours.toFixed(2)}`);
+          logMessage('SUCCESS', `Average hours per active user: ${avgOverall.toFixed(2)}`);
+          logMessage('SUCCESS', `Maximum hours for a single user: ${maxHours.toFixed(2)}`);
+          
           // Sort by hours (descending) to show top users
           const sortedUsers = usersWithHours.sort((a, b) => routingStatusMap[b] - routingStatusMap[a]);
           
-          const sampleCount = Math.min(10, sortedUsers.length);
-          let totalSampleHours = 0;
-          
-          logMessage('INFO', 'Top users by interacting time (cumulative across all chunks):');
-          
-          for (let i = 0; i < sampleCount; i++) {
+          logMessage('INFO', `\n----- TOP 10 USERS BY HOURS -----`);
+          for (let i = 0; i < Math.min(10, sortedUsers.length); i++) {
             const userId = sortedUsers[i];
             const user = appState.userData?.find(u => u.id === userId);
             const userName = user ? user.name : userId.substring(0,8);
             const hoursDecimal = formatMillisecondsToDecimalHours(routingStatusMap[userId]);
             const hoursFormatted = formatMillisecondsToHHMMSS(routingStatusMap[userId]);
-            totalSampleHours += hoursDecimal;
             
-            logMessage('DEBUG', `  ${i+1}. ${userName}`, 
-              `${hoursDecimal.toFixed(2)} hours (${hoursFormatted})`);
+            logMessage('DEBUG', `${i+1}. ${userName}: ${hoursDecimal.toFixed(2)} hours (${hoursFormatted})`);
           }
           
-          // Calculate average for sample
-          const avgHours = totalSampleHours / sampleCount;
-          logMessage('INFO', 'Sample statistics', 
-            `Total: ${totalSampleHours.toFixed(2)} hours from ${sampleCount} users, Avg: ${avgHours.toFixed(2)} hours per user`);
-          
-          // Calculate overall statistics
-          const totalHours = usersWithHours.reduce((sum, id) => sum + formatMillisecondsToDecimalHours(routingStatusMap[id]), 0);
-          const avgOverall = totalHours / usersWithHours.length;
-          const maxHours = Math.max(...usersWithHours.map(id => formatMillisecondsToDecimalHours(routingStatusMap[id])));
-          
-          logMessage('INFO', 'Overall statistics', 
-            `${usersWithHours.length} users with hours, Total: ${totalHours.toFixed(2)} hours, Avg: ${avgOverall.toFixed(2)} hours, Max: ${maxHours.toFixed(2)} hours`);
+          // Calculate expected hours based on business days
+          const businessDays = calculateBusinessDays(startDate, endDate);
+          const expectedFullTimeHours = businessDays * 8; // Assuming 8-hour work days
+          logMessage('INFO', `\n----- CONTEXT -----`);
+          logMessage('INFO', `Date range has ${businessDays} business days (Mon-Fri)`);
+          logMessage('INFO', `A full-time employee working 8hrs/day would have ~${expectedFullTimeHours} hours`);
+          logMessage('INFO', `Our max user (${formatMillisecondsToDecimalHours(routingStatusMap[sortedUsers[0]]).toFixed(2)} hours) is ${(formatMillisecondsToDecimalHours(routingStatusMap[sortedUsers[0]]) / expectedFullTimeHours * 100).toFixed(1)}% of full-time`);
           
         } else {
-          logMessage('WARN', 'No users found with interacting time', 
-            'This may indicate no users were in INTERACTING/COMMUNICATING status during the date range');
+          logMessage('WARN', 'No users found with interacting time');
         }
+        
+        logMessage('INFO', `=====================================\n`);
         
         return routingStatusMap;
         
@@ -2042,6 +2084,22 @@
         logMessage('INFO', 'Continuing with zero interaction hours for all users');
         return {};
       }
+    }
+
+    // Helper function to calculate business days (Mon-Fri)
+    function calculateBusinessDays(startDate, endDate) {
+      let count = 0;
+      const curDate = new Date(startDate);
+      
+      while (curDate <= endDate) {
+        const dayOfWeek = curDate.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // 0 = Sunday, 6 = Saturday
+          count++;
+        }
+        curDate.setDate(curDate.getDate() + 1);
+      }
+      
+      return count;
     }
 
     // ==================== MAIN FUNCTIONS ====================
@@ -2111,13 +2169,12 @@
         });
 
         updateLoadingProgress(50);
-        logMessage('INFO', 'Fetching routing status data from Users Details API');
+        logMessage('INFO', 'Fetching routing status data from Users Details API (daily granularity)');
 
         const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
         const allUserIds = appState.userData.map(u => u.id);
 
-        // Use the Users Details API to get routing status data with INTERACTING/COMMUNICATING times
-        // This now handles the 7-day API limit by splitting the date range into chunks
+        // Use the Users Details API with daily granularity to ensure complete data
         const routingStatusData = await fetchRoutingStatusData(allUserIds, interval);
 
         // Update user data with routing status time
