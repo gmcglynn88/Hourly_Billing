@@ -1859,99 +1859,177 @@
       }
     }
 
+    // ==================== HELPER FUNCTION: SPLIT DATE RANGE INTO 7-DAY CHUNKS ====================
+    function splitDateRangeIntoChunks(startDate, endDate) {
+      const chunks = [];
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      let currentStart = new Date(start);
+      
+      while (currentStart < end) {
+        let currentEnd = new Date(currentStart);
+        currentEnd.setDate(currentEnd.getDate() + 6); // Add 6 days for a 7-day chunk (inclusive)
+        
+        if (currentEnd > end) {
+          currentEnd = new Date(end);
+        }
+        
+        // Format dates for API interval
+        const startStr = currentStart.toISOString().split('T')[0];
+        const endStr = currentEnd.toISOString().split('T')[0];
+        
+        chunks.push({
+          start: currentStart,
+          end: currentEnd,
+          interval: `${startStr}T00:00:00.000Z/${endStr}T23:59:59.999Z`
+        });
+        
+        // Move to next chunk
+        currentStart = new Date(currentEnd);
+        currentStart.setDate(currentStart.getDate() + 1);
+      }
+      
+      return chunks;
+    }
+
     // ==================== FIXED FUNCTION: FETCH ROUTING STATUS DATA ====================
     async function fetchRoutingStatusData(userIds, interval) {
       try {
         const routingStatusMap = {};
-        const batchSize = 100; // Users details API can handle larger batches
+        const batchSize = 50; // User batch size
         
-        for (let i = 0; i < userIds.length; i += batchSize) {
-          const userIdBatch = userIds.slice(i, i + batchSize);
+        // Parse the overall interval
+        const [startStr, endStr] = interval.split('/');
+        const startDate = new Date(startStr.split('T')[0]);
+        const endDate = new Date(endStr.split('T')[0]);
+        
+        // Split into 7-day chunks (API limit)
+        const dateChunks = splitDateRangeIntoChunks(startDate, endDate);
+        
+        logMessage('INFO', `Splitting date range into ${dateChunks.length} chunks of up to 7 days each`);
+        
+        let totalChunksProcessed = 0;
+        let totalUsersWithHours = 0;
+        
+        for (let chunkIndex = 0; chunkIndex < dateChunks.length; chunkIndex++) {
+          const chunk = dateChunks[chunkIndex];
+          logMessage('INFO', `Processing chunk ${chunkIndex + 1}/${dateChunks.length}: ${chunk.start.toISOString().split('T')[0]} to ${chunk.end.toISOString().split('T')[0]}`);
           
-          // Create predicates for each user ID
-          const userPredicates = userIdBatch.map(userId => ({
-            type: "dimension",
-            dimension: "userId",
-            operator: "matches",
-            value: userId
-          }));
-          
-          // Build the query body for users/details/query
-          const queryBody = {
-            interval: interval,
-            userFilters: [
-              {
-                type: "or",
-                predicates: userPredicates
-              }
-            ]
-          };
+          for (let i = 0; i < userIds.length; i += batchSize) {
+            const userIdBatch = userIds.slice(i, i + batchSize);
+            
+            // Create predicates for each user ID
+            const userPredicates = userIdBatch.map(userId => ({
+              type: "dimension",
+              dimension: "userId",
+              operator: "matches",
+              value: userId
+            }));
+            
+            // Build the query body for users/details/query
+            const queryBody = {
+              interval: chunk.interval,
+              userFilters: [
+                {
+                  type: "or",
+                  predicates: userPredicates
+                }
+              ]
+            };
 
-          logMessage('INFO', `Querying Users Details API for routing status (batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(userIds.length/batchSize)})`);
-          
-          console.log('Sending Users Details query:', JSON.stringify(queryBody, null, 2));
-          
-          const detailsResponse = await apiCall('/api/v2/analytics/users/details/query', {
-            method: 'POST',
-            body: JSON.stringify(queryBody)
-          });
-
-          console.log('Users Details API Response:', detailsResponse);
-
-          if (detailsResponse.userDetails && detailsResponse.userDetails.length > 0) {
-            detailsResponse.userDetails.forEach(userDetail => {
-              const userId = userDetail.userId;
-              let totalInteractingMs = 0;
-              
-              // Check if user has routingStatus data
-              if (userDetail.routingStatus && Array.isArray(userDetail.routingStatus)) {
-                userDetail.routingStatus.forEach(status => {
-                  // Only count INTERACTING and COMMUNICATING time
-                  if (status.routingStatus === 'INTERACTING' || status.routingStatus === 'COMMUNICATING') {
-                    const startTime = new Date(status.startTime).getTime();
-                    const endTime = new Date(status.endTime).getTime();
-                    const durationMs = endTime - startTime;
-                    
-                    if (durationMs > 0) {
-                      totalInteractingMs += durationMs;
-                    }
-                  }
-                });
-              }
-              
-              // Store the total interacting time for this user
-              if (totalInteractingMs > 0) {
-                routingStatusMap[userId] = totalInteractingMs;
-              }
+            logMessage('INFO', `Querying Users Details API (chunk ${chunkIndex + 1}/${dateChunks.length}, batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(userIds.length/batchSize)})`);
+            
+            const detailsResponse = await apiCall('/api/v2/analytics/users/details/query', {
+              method: 'POST',
+              body: JSON.stringify(queryBody)
             });
-          } else {
-            logMessage('WARN', `No results in batch ${Math.floor(i/batchSize) + 1}`, 'Check date range and ensure users exist');
+
+            if (detailsResponse.userDetails && detailsResponse.userDetails.length > 0) {
+              detailsResponse.userDetails.forEach(userDetail => {
+                const userId = userDetail.userId;
+                let totalInteractingMs = 0;
+                let interactingCount = 0;
+                
+                // Check if user has routingStatus data
+                if (userDetail.routingStatus && Array.isArray(userDetail.routingStatus)) {
+                  userDetail.routingStatus.forEach(status => {
+                    // Only count INTERACTING and COMMUNICATING time
+                    if (status.routingStatus === 'INTERACTING' || status.routingStatus === 'COMMUNICATING') {
+                      const startTime = new Date(status.startTime).getTime();
+                      const endTime = new Date(status.endTime).getTime();
+                      const durationMs = endTime - startTime;
+                      
+                      if (durationMs > 0) {
+                        totalInteractingMs += durationMs;
+                        interactingCount++;
+                      }
+                    }
+                  });
+                }
+                
+                // Add to the cumulative total for this user
+                if (totalInteractingMs > 0) {
+                  routingStatusMap[userId] = (routingStatusMap[userId] || 0) + totalInteractingMs;
+                }
+              });
+            }
+            
+            // Add delay between batches
+            await new Promise(resolve => setTimeout(resolve, 300));
           }
           
-          // Add delay between batches to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 300));
+          totalChunksProcessed++;
+          totalUsersWithHours = Object.keys(routingStatusMap).length;
+          
+          // Update progress
+          const progressPercent = 50 + (totalChunksProcessed / dateChunks.length) * 30;
+          updateLoadingProgress(progressPercent);
+          
+          logMessage('INFO', `Completed chunk ${chunkIndex + 1}/${dateChunks.length}`, `Found ${totalUsersWithHours} users with hours so far`);
         }
         
-        logMessage('SUCCESS', 'Users Details API query completed', `Found ${Object.keys(routingStatusMap).length} users with interacting time`);
+        logMessage('SUCCESS', 'Users Details API query completed', `Found ${Object.keys(routingStatusMap).length} users with interacting time across ${dateChunks.length} chunks`);
         
         // Debug: Show sample of data
         const usersWithHours = Object.keys(routingStatusMap);
         if (usersWithHours.length > 0) {
-          const sampleCount = Math.min(5, usersWithHours.length);
+          // Sort by hours (descending) to show top users
+          const sortedUsers = usersWithHours.sort((a, b) => routingStatusMap[b] - routingStatusMap[a]);
+          
+          const sampleCount = Math.min(10, sortedUsers.length);
           let totalSampleHours = 0;
           
+          logMessage('INFO', 'Top users by interacting time (cumulative across all chunks):');
+          
           for (let i = 0; i < sampleCount; i++) {
-            const userId = usersWithHours[i];
+            const userId = sortedUsers[i];
             const user = appState.userData?.find(u => u.id === userId);
             const userName = user ? user.name : userId.substring(0,8);
             const hoursDecimal = formatMillisecondsToDecimalHours(routingStatusMap[userId]);
+            const hoursFormatted = formatMillisecondsToHHMMSS(routingStatusMap[userId]);
             totalSampleHours += hoursDecimal;
-            logMessage('DEBUG', `Sample user: ${userName}`, `${hoursDecimal.toFixed(2)} hours (${formatMillisecondsToHHMMSS(routingStatusMap[userId])})`);
+            
+            logMessage('DEBUG', `  ${i+1}. ${userName}`, 
+              `${hoursDecimal.toFixed(2)} hours (${hoursFormatted})`);
           }
           
-          logMessage('INFO', 'Sample total', `${totalSampleHours.toFixed(2)} hours from ${sampleCount} users`);
+          // Calculate average for sample
+          const avgHours = totalSampleHours / sampleCount;
+          logMessage('INFO', 'Sample statistics', 
+            `Total: ${totalSampleHours.toFixed(2)} hours from ${sampleCount} users, Avg: ${avgHours.toFixed(2)} hours per user`);
+          
+          // Calculate overall statistics
+          const totalHours = usersWithHours.reduce((sum, id) => sum + formatMillisecondsToDecimalHours(routingStatusMap[id]), 0);
+          const avgOverall = totalHours / usersWithHours.length;
+          const maxHours = Math.max(...usersWithHours.map(id => formatMillisecondsToDecimalHours(routingStatusMap[id])));
+          
+          logMessage('INFO', 'Overall statistics', 
+            `${usersWithHours.length} users with hours, Total: ${totalHours.toFixed(2)} hours, Avg: ${avgOverall.toFixed(2)} hours, Max: ${maxHours.toFixed(2)} hours`);
+          
         } else {
-          logMessage('WARN', 'No users found with interacting time', 'This may indicate no users were in INTERACTING/COMMUNICATING status during the date range');
+          logMessage('WARN', 'No users found with interacting time', 
+            'This may indicate no users were in INTERACTING/COMMUNICATING status during the date range');
         }
         
         return routingStatusMap;
@@ -2039,6 +2117,7 @@
         const allUserIds = appState.userData.map(u => u.id);
 
         // Use the Users Details API to get routing status data with INTERACTING/COMMUNICATING times
+        // This now handles the 7-day API limit by splitting the date range into chunks
         const routingStatusData = await fetchRoutingStatusData(allUserIds, interval);
 
         // Update user data with routing status time
