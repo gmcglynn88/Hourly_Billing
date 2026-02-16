@@ -1953,26 +1953,15 @@
                 value: userIdBatch.join(",")
               };
               
-              // Create filter for media types using dimension type with comma-separated values
-              const mediaTypeFilter = {
-                type: "dimension",
-                dimension: "mediaType",
-                operator: "matches",
-                value: "voice,callback,chat,email,message,call"
-              };
-              
               const queryBody = {
                 interval: interval,
                 granularity: "P1D",
                 filter: {
                   type: "and",
-                  predicates: [
-                    userFilter,
-                    mediaTypeFilter
-                  ]
+                  predicates: [userFilter]
                 },
                 metrics: ["tTalk", "tHeld", "tAcw"],
-                groupBy: ["userId"],
+                groupBy: ["userId", "mediaType"],
                 flattenMultivaluedDimensions: false
               };
 
@@ -1993,12 +1982,14 @@
                   analyticsResponse.results.forEach(record => {
                     if (record.group && record.group.userId) {
                       const userId = record.group.userId;
+                      const mediaType = record.group.mediaType || 'unknown';
                       
                       // Process each data item in the record
                       if (record.data && record.data.length > 0) {
                         record.data.forEach(dataItem => {
                           if (dataItem.metrics && dataItem.metrics.length > 0) {
                             dataItem.metrics.forEach(metricItem => {
+                              const metricName = metricItem.metric;
                               const metricStats = metricItem.stats;
                               
                               if (metricStats && metricStats.sum) {
@@ -2032,13 +2023,18 @@
             const usersWithHours = Object.keys(userHoursMap);
             if (usersWithHours.length > 0) {
               const sampleCount = Math.min(5, usersWithHours.length);
+              let totalSampleHours = 0;
+              
               for (let i = 0; i < sampleCount; i++) {
                 const userId = usersWithHours[i];
                 const user = userMap[userId];
                 const userName = user ? user.name : userId.substring(0,8);
                 const hoursDecimal = formatMillisecondsToDecimalHours(userHoursMap[userId]);
+                totalSampleHours += hoursDecimal;
                 logMessage('DEBUG', `Sample user: ${userName}`, `${hoursDecimal.toFixed(2)} hours`);
               }
+              
+              logMessage('INFO', 'Sample total', `${totalSampleHours.toFixed(2)} hours from ${sampleCount} users`);
             }
           } else {
             logMessage('WARN', 'No users found in organization');
