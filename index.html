@@ -1863,79 +1863,76 @@
     async function fetchRoutingStatusData(userIds, interval) {
       try {
         const routingStatusMap = {};
-        const batchSize = 100;
+        const batchSize = 100; // Users details API can handle larger batches
         
         for (let i = 0; i < userIds.length; i += batchSize) {
           const userIdBatch = userIds.slice(i, i + batchSize);
           
-          // FIXED: Correct filter format for Users Analytics API
+          // Create predicates for each user ID
+          const userPredicates = userIdBatch.map(userId => ({
+            type: "dimension",
+            dimension: "userId",
+            operator: "matches",
+            value: userId
+          }));
+          
+          // Build the query body for users/details/query
           const queryBody = {
             interval: interval,
-            granularity: "P1D",
-            metrics: ["tAgentRoutingStatus"],
-            groupBy: ["userId", "routingStatus"],
-            filter: {
-              type: "or",
-              predicates: [
-                {
-                  type: "dimension",
-                  dimension: "routingStatus",
-                  operator: "matches",
-                  value: "INTERACTING"
-                },
-                {
-                  type: "dimension",
-                  dimension: "routingStatus",
-                  operator: "matches",
-                  value: "COMMUNICATING"
-                }
-              ]
-            }
+            userFilters: [
+              {
+                type: "or",
+                predicates: userPredicates
+              }
+            ]
           };
 
-          logMessage('INFO', `Querying Users Analytics API for routing status (batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(userIds.length/batchSize)})`);
+          logMessage('INFO', `Querying Users Details API for routing status (batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(userIds.length/batchSize)})`);
           
-          console.log('Sending Users Analytics query:', JSON.stringify(queryBody, null, 2));
+          console.log('Sending Users Details query:', JSON.stringify(queryBody, null, 2));
           
-          const analyticsResponse = await apiCall('/api/v2/analytics/users/aggregates/query', {
+          const detailsResponse = await apiCall('/api/v2/analytics/users/details/query', {
             method: 'POST',
             body: JSON.stringify(queryBody)
           });
 
-          console.log('Users Analytics API Response:', analyticsResponse);
+          console.log('Users Details API Response:', detailsResponse);
 
-          if (analyticsResponse.results && analyticsResponse.results.length > 0) {
-            analyticsResponse.results.forEach(record => {
-              if (record.group && record.group.userId) {
-                const userId = record.group.userId;
-                const routingStatus = record.group.routingStatus;
-                
-                // Only count INTERACTING and COMMUNICATING time
-                if (routingStatus === 'INTERACTING' || routingStatus === 'COMMUNICATING') {
-                  // Process tAgentRoutingStatus metric
-                  if (record.data && record.data.length > 0) {
-                    record.data.forEach(dataItem => {
-                      if (dataItem.metrics && dataItem.metrics.length > 0) {
-                        dataItem.metrics.forEach(metricItem => {
-                          if (metricItem.metric === "tAgentRoutingStatus" && metricItem.stats && metricItem.stats.sum) {
-                            routingStatusMap[userId] = (routingStatusMap[userId] || 0) + metricItem.stats.sum;
-                          }
-                        });
-                      }
-                    });
+          if (detailsResponse.userDetails && detailsResponse.userDetails.length > 0) {
+            detailsResponse.userDetails.forEach(userDetail => {
+              const userId = userDetail.userId;
+              let totalInteractingMs = 0;
+              
+              // Check if user has routingStatus data
+              if (userDetail.routingStatus && Array.isArray(userDetail.routingStatus)) {
+                userDetail.routingStatus.forEach(status => {
+                  // Only count INTERACTING and COMMUNICATING time
+                  if (status.routingStatus === 'INTERACTING' || status.routingStatus === 'COMMUNICATING') {
+                    const startTime = new Date(status.startTime).getTime();
+                    const endTime = new Date(status.endTime).getTime();
+                    const durationMs = endTime - startTime;
+                    
+                    if (durationMs > 0) {
+                      totalInteractingMs += durationMs;
+                    }
                   }
-                }
+                });
+              }
+              
+              // Store the total interacting time for this user
+              if (totalInteractingMs > 0) {
+                routingStatusMap[userId] = totalInteractingMs;
               }
             });
           } else {
-            logMessage('WARN', `No results in batch ${Math.floor(i/batchSize) + 1}`, 'Check date range and ensure there is interaction data');
+            logMessage('WARN', `No results in batch ${Math.floor(i/batchSize) + 1}`, 'Check date range and ensure users exist');
           }
           
-          // Add delay between batches
+          // Add delay between batches to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 300));
         }
         
-        logMessage('SUCCESS', 'Users Analytics API query completed', `Found ${Object.keys(routingStatusMap).length} users with routing status data`);
+        logMessage('SUCCESS', 'Users Details API query completed', `Found ${Object.keys(routingStatusMap).length} users with interacting time`);
         
         // Debug: Show sample of data
         const usersWithHours = Object.keys(routingStatusMap);
@@ -1949,19 +1946,19 @@
             const userName = user ? user.name : userId.substring(0,8);
             const hoursDecimal = formatMillisecondsToDecimalHours(routingStatusMap[userId]);
             totalSampleHours += hoursDecimal;
-            logMessage('DEBUG', `Sample user: ${userName}`, `${hoursDecimal.toFixed(2)} hours`);
+            logMessage('DEBUG', `Sample user: ${userName}`, `${hoursDecimal.toFixed(2)} hours (${formatMillisecondsToHHMMSS(routingStatusMap[userId])})`);
           }
           
           logMessage('INFO', 'Sample total', `${totalSampleHours.toFixed(2)} hours from ${sampleCount} users`);
         } else {
-          logMessage('WARN', 'No users found with interaction time', 'This may indicate no users were in INTERACTING/COMMUNICATING status during the date range');
+          logMessage('WARN', 'No users found with interacting time', 'This may indicate no users were in INTERACTING/COMMUNICATING status during the date range');
         }
         
         return routingStatusMap;
         
       } catch (error) {
-        logMessage('ERROR', 'Users Analytics API query failed', error.message);
-        console.error('Users Analytics API error details:', error);
+        logMessage('ERROR', 'Users Details API query failed', error.message);
+        console.error('Users Details API error details:', error);
         
         // If the query fails completely, log the error but continue with zero hours
         logMessage('INFO', 'Continuing with zero interaction hours for all users');
@@ -2036,12 +2033,12 @@
         });
 
         updateLoadingProgress(50);
-        logMessage('INFO', 'Fetching routing status data from Users Analytics API');
+        logMessage('INFO', 'Fetching routing status data from Users Details API');
 
         const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
         const allUserIds = appState.userData.map(u => u.id);
 
-        // Use the new Users Analytics API to get routing status data
+        // Use the Users Details API to get routing status data with INTERACTING/COMMUNICATING times
         const routingStatusData = await fetchRoutingStatusData(allUserIds, interval);
 
         // Update user data with routing status time
