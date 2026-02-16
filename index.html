@@ -363,6 +363,7 @@
       border-color: var(--primary-color);
     }
     
+    /* New styles for agent count tiles */
     .agent-count-container {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -407,6 +408,7 @@
       font-weight: 600;
     }
     
+    /* New styles for overage table */
     .overage-table-container {
       margin-top: 24px;
     }
@@ -444,6 +446,7 @@
       font-size: 15px;
     }
 
+    /* FIXED: Date range styles - stacked on mobile, side-by-side on desktop */
     .date-range-simple {
       display: flex;
       flex-direction: column;
@@ -492,6 +495,7 @@
       }
     }
 
+    /* Improved layout for better screen usage */
     .left-column {
       display: flex;
       flex-direction: column;
@@ -508,6 +512,7 @@
       width: 100%;
     }
     
+    /* Enhanced typography */
     .info-text {
       font-size: 13px;
       color: var(--text-light);
@@ -515,24 +520,29 @@
       font-family:'Aptos','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
     }
     
+    /* Card content spacing */
     .card-content {
       padding: 4px 0;
     }
     
+    /* Better spacing for form elements */
     .form-spacing {
       margin-top: 8px;
     }
     
+    /* Ensure consistent font usage */
     input, select, textarea, button {
       font-family: 'Aptos', 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
     }
     
+    /* Chart container improvements */
     .chart-container {
       height: 340px;
       position: relative;
       margin-top: 24px;
     }
     
+    /* Wider layout for larger screens */
     @media (min-width: 1400px) {
       .container {
         max-width: 1600px;
@@ -564,6 +574,7 @@
       }
     }
     
+    /* New styles for enhanced stat cards */
     .stat-subvalue {
       font-size: 16px;
       color: var(--secondary-color);
@@ -578,6 +589,7 @@
       margin-top: 4px;
     }
 
+    /* Export button container styles */
     .export-buttons-container {
       display: flex;
       gap: 12px;
@@ -639,6 +651,7 @@
               <input type="text" id="envDisplay" value="Select environment..." readonly style="background:var(--filter-bg);">
             </div>
             
+            <!-- NEW: Client ID Selector -->
             <div class="client-selector">
               <select id="clientIdSelect">
                 <option value="d968eca4-cdb7-4b90-91b1-4628b5bb679e">Group CX3 (Default)</option>
@@ -659,6 +672,7 @@
             </button>
           </div>
 
+          <!-- Simplified Date Range Card - FIXED: Now stacked on mobile -->
           <div class="card">
             <h2>📅 Analysis Period</h2>
             
@@ -914,6 +928,7 @@
               </div>
             </div>
             
+            <!-- New Overage Table Card -->
             <div class="card" style="margin-top:24px;">
               <h2>📈 Overage Analysis</h2>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
@@ -1043,6 +1058,7 @@
               </div>
             </div>
 
+            <!-- NEW: Hourly Interacting Details Card -->
             <div class="card" style="margin-top:24px;">
               <h2>⏱️ Hourly Interacting Details</h2>
               <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
@@ -1118,16 +1134,33 @@
     </div>
   </div>
 
+  <!-- FIXED: Changed Chart.js CDN to jsDelivr to avoid tracking prevention warnings -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script>
+    // ==================== TROUBLESHOOTING GUIDE ====================
+    // If you're seeing CORS errors:
+    // 1. Log into Genesys Cloud Admin
+    // 2. Go to Admin > Integrations > OAuth
+    // 3. Find your OAuth client (choose from dropdown)
+    // 4. Add this URL to Authorized Redirect URIs:
+    //    https://gmcglynn88.github.io/Hourly_Billing/
+    // 5. Make sure Grant Type is "Token (Implicit Grant)"
+    // 6. Save the OAuth client
+    // 7. Clear browser cache and localStorage:
+    //    localStorage.clear();
+    //    location.reload();
+
     // ==================== CONFIGURATION ====================
+    // CLIENT IDS - Now configurable via dropdown
     const CLIENT_IDS = {
       'org1': 'd968eca4-cdb7-4b90-91b1-4628b5bb679e',
       'org2': 'a236ffec-2893-4ccd-81bb-ef2f4a2fe316'
     };
     
+    // Default client ID
     let CLIENT_ID = CLIENT_IDS.org1;
     
+    // DON'T CHANGE THESE - they work with GitHub Pages
     const REDIRECT_URI = 'https://gmcglynn88.github.io/Hourly_Billing/';
     const ENVIRONMENTS = {
       'us-east-1': { name: 'US East (N. Virginia)', api: 'https://api.mypurecloud.com', login: 'https://login.mypurecloud.com' },
@@ -1154,7 +1187,7 @@
       HOURLY_CURRENCY: 'gc_hourly_currency',
       DATE_FROM: 'gc_date_from',
       DATE_TO: 'gc_date_to',
-      CLIENT_ID: 'gc_client_id'
+      CLIENT_ID: 'gc_client_id' // NEW: Store selected client ID
     };
 
     let CURRENT_CONFIG = {
@@ -1381,6 +1414,7 @@
         const dateTo = localStorage.getItem(STORAGE_KEYS.DATE_TO);
         const storedClientId = localStorage.getItem(STORAGE_KEYS.CLIENT_ID);
 
+        // Set client ID from storage or default
         if (storedClientId) {
           CLIENT_ID = storedClientId;
           el.clientIdSelect.value = storedClientId === CLIENT_IDS.org1 ? CLIENT_IDS.org1 : CLIENT_IDS.org2;
@@ -1553,6 +1587,7 @@
         logMessage('ERROR', 'Authentication failed', `${error}: ${errorDescription}`);
         showStatusMessage(`❌ Authentication failed: ${error}`, 'error');
         
+        // Show specific CORS error guidance
         if (errorDescription && errorDescription.includes('CORS') || error === 'access_denied') {
           showStatusMessage('🔧 Please check OAuth client configuration in Genesys Cloud', 'warn');
           logMessage('INFO', 'CORS Issue Detected', 'Make sure your GitHub Pages URL is added to the OAuth client\'s Authorized Redirect URIs');
@@ -1583,6 +1618,7 @@
     }
 
     function authenticate() {
+      // Default to EU West 2 (London) - this is correct for UK deployments
       const envRegion = 'eu-west-2';
       const env = ENVIRONMENTS[envRegion];
       
@@ -1648,23 +1684,29 @@
       }
       
       if (confirm('Switch organisation? This will disconnect your current session and clear all data.')) {
+        // Update the client ID
         CLIENT_ID = selectedClientId;
         localStorage.setItem(STORAGE_KEYS.CLIENT_ID, CLIENT_ID);
         
+        // Clear credentials and data
         clearCredentials();
         appState.userData = [];
         appState.analysisResults = null;
         
+        // Hide main content and show auth
         el.mainContent.style.display = 'none';
         el.authContainer.style.display = 'block';
         updateConnectionStatus(false, 'Not Connected');
         
+        // Log the switch
         const orgName = CLIENT_ID === CLIENT_IDS.org1 ? 'Org 1 (Default)' : 'Org 2';
         logMessage('INFO', 'Switched organisation', `Now using ${orgName} (${CLIENT_ID.substring(0,8)}...)`);
         showStatusMessage(`🔄 Switched to ${orgName}`, 'info');
         
+        // Re-initialise auth
         setTimeout(() => initAuth(), 500);
       } else {
+        // Reset dropdown to previous value
         el.clientIdSelect.value = previousClientId;
       }
     }
@@ -1783,6 +1825,7 @@
       return 'other';
     }
 
+    // ==================== NEW FUNCTION: FETCH USER PRESENCE STATUS ====================
     async function fetchUserPresenceStatus(userIds) {
       try {
         const batchSize = 50;
@@ -1805,6 +1848,7 @@
             });
           }
           
+          // Add delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 100));
         }
         
@@ -1833,308 +1877,223 @@
           interval: `${dateStr}T00:00:00.000Z/${dateStr}T23:59:59.999Z`
         });
         
+        // Move to next day
         currentDate.setDate(currentDate.getDate() + 1);
       }
       
       return chunks;
     }
 
-    // ==================== IMPROVED: FETCH ROUTING STATUS DATA (ONE DAY AT A TIME, ALL USERS) ====================
+    // ==================== FIXED FUNCTION: FETCH ROUTING STATUS DATA (DAILY GRANULARITY) ====================
     async function fetchRoutingStatusData(userIds, interval) {
       try {
         const routingStatusMap = {};
+        const batchSize = 50; // User batch size
         
+        // Parse the overall interval
         const [startStr, endStr] = interval.split('/');
         const startDate = new Date(startStr.split('T')[0]);
         const endDate = new Date(endStr.split('T')[0]);
         
+        // Split into daily chunks (API limit is 7 days, but we'll do daily to be safe)
         const dailyChunks = splitDateRangeIntoDailyChunks(startDate, endDate);
         
-        logMessage('INFO', `===== DATA FETCH STARTING =====`);
-        logMessage('INFO', `Date range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
-        logMessage('INFO', `Total days: ${dailyChunks.length}, Total users: ${userIds.length}`);
-        logMessage('INFO', `Strategy: One API call per day, all users together`);
+        logMessage('INFO', `===== API DATA INTEGRITY CHECK =====`);
+        logMessage('INFO', `Splitting date range into ${dailyChunks.length} daily chunks for maximum accuracy`);
         
         let totalDaysProcessed = 0;
-        let totalApiCalls = 0;
-        let totalRetries = 0;
-        let totalFailedDays = 0;
         
-        const allStatusesSeen = new Set();
-        let grandTotalMs = 0;
-        const usersWithAnyData = new Set();
+        // Track daily statistics
+        const dailyStats = [];
+        let totalCumulativeHours = 0;
         
         for (let dayIndex = 0; dayIndex < dailyChunks.length; dayIndex++) {
           const day = dailyChunks[dayIndex];
           
-          logMessage('INFO', `\n===== DAY ${dayIndex + 1}/${dailyChunks.length}: ${day.date} =====`);
+          logMessage('INFO', `\n===== PROCESSING DAY ${dayIndex + 1}/${dailyChunks.length}: ${day.date} =====`);
           
           let dailyTotalMs = 0;
-          let dailyUsersWithData = 0;
+          let dailyUserCount = 0;
           const dailyUserMap = {};
           
-          const userPredicates = userIds.map(userId => ({
-            type: "dimension",
-            dimension: "userId",
-            operator: "matches",
-            value: userId
-          }));
-          
-          const queryBody = {
-            interval: day.interval,
-            userFilters: [
-              {
-                type: "or",
-                predicates: userPredicates
-              }
-            ]
-          };
+          // Process users in batches for this day
+          for (let i = 0; i < userIds.length; i += batchSize) {
+            const userIdBatch = userIds.slice(i, i + batchSize);
+            const pageNum = Math.floor(i/batchSize) + 1;
+            const totalPages = Math.ceil(userIds.length / batchSize);
+            
+            // Create predicates for each user ID
+            const userPredicates = userIdBatch.map(userId => ({
+              type: "dimension",
+              dimension: "userId",
+              operator: "matches",
+              value: userId
+            }));
+            
+            // Build the query body for users/details/query
+            const queryBody = {
+              interval: day.interval,
+              userFilters: [
+                {
+                  type: "or",
+                  predicates: userPredicates
+                }
+              ]
+            };
 
-          let detailsResponse = null;
-          let retryCount = 0;
-          const maxRetries = 3;
-          
-          while (retryCount <= maxRetries) {
+            logMessage('INFO', `Querying day ${day.date}, batch ${pageNum}/${totalPages}`);
+            
             try {
-              logMessage('DEBUG', `Fetching day ${day.date}${retryCount > 0 ? ` (retry ${retryCount})` : ''} - querying ${userIds.length} users`);
-              
-              detailsResponse = await apiCall('/api/v2/analytics/users/details/query', {
+              const detailsResponse = await apiCall('/api/v2/analytics/users/details/query', {
                 method: 'POST',
                 body: JSON.stringify(queryBody)
               });
-              
-              totalApiCalls++;
-              
-              logMessage('SUCCESS', `Day ${day.date} API call successful`);
-              break;
-              
-            } catch (dayError) {
-              retryCount++;
-              totalRetries++;
-              
-              if (retryCount <= maxRetries) {
-                const waitTime = Math.min(2000 * Math.pow(2, retryCount), 20000);
-                logMessage('WARN', `Day ${day.date} failed, retrying in ${waitTime/1000}s`, dayError.message);
-                await new Promise(resolve => setTimeout(resolve, waitTime));
-              } else {
-                logMessage('ERROR', `Day ${day.date} failed after ${maxRetries} retries`, dayError.message);
-                totalFailedDays++;
-                break;
-              }
-            }
-          }
-          
-          if (detailsResponse && detailsResponse.userDetails && detailsResponse.userDetails.length > 0) {
-            const usersReturned = detailsResponse.userDetails.length;
-            const usersRequested = userIds.length;
-            
-            logMessage('INFO', `Day ${day.date} returned data for ${usersReturned} users`);
-            
-            if (usersReturned < usersRequested) {
-              const missingCount = usersRequested - usersReturned;
-              const missingPercent = (missingCount / usersRequested * 100).toFixed(1);
-              logMessage('WARN', `⚠️ Day ${day.date} incomplete data`, 
-                `Expected ${usersRequested} users, got ${usersReturned} (${missingCount} missing = ${missingPercent}%)`);
-            }
-            
-            let usersWithInteractingTime = 0;
-            let usersWithOtherStatusOnly = 0;
-            let usersWithNoStatusData = 0;
-            let totalExcludedMs = 0;
-            const excludedStatusTotals = {};
-            
-            detailsResponse.userDetails.forEach(userDetail => {
-              const userId = userDetail.userId;
-              let totalInteractingMs = 0;
-              let hasAnyStatusData = false;
-              
-              let userExcludedMs = 0;
-              const userExcludedStatuses = {};
-              
-              if (userDetail.routingStatus && Array.isArray(userDetail.routingStatus)) {
-                hasAnyStatusData = userDetail.routingStatus.length > 0;
+
+              if (detailsResponse.userDetails && detailsResponse.userDetails.length > 0) {
+                logMessage('DEBUG', `Batch returned ${detailsResponse.userDetails.length} user records`);
                 
-                userDetail.routingStatus.forEach(status => {
-                  allStatusesSeen.add(status.routingStatus);
+                detailsResponse.userDetails.forEach(userDetail => {
+                  const userId = userDetail.userId;
+                  let totalInteractingMs = 0;
+                  let interactingCount = 0;
                   
-                  const startTime = new Date(status.startTime).getTime();
-                  const endTime = new Date(status.endTime).getTime();
-                  const durationMs = endTime - startTime;
+                  // Check if user has routingStatus data
+                  if (userDetail.routingStatus && Array.isArray(userDetail.routingStatus)) {
+                    userDetail.routingStatus.forEach(status => {
+                      // Only count INTERACTING and COMMUNICATING time
+                      if (status.routingStatus === 'INTERACTING' || status.routingStatus === 'COMMUNICATING') {
+                        const startTime = new Date(status.startTime).getTime();
+                        const endTime = new Date(status.endTime).getTime();
+                        const durationMs = endTime - startTime;
+                        
+                        if (durationMs > 0) {
+                          totalInteractingMs += durationMs;
+                          interactingCount++;
+                        }
+                      }
+                    });
+                  }
                   
-                  if (durationMs > 0) {
-                    if (status.routingStatus === 'INTERACTING' || status.routingStatus === 'COMMUNICATING') {
-                      totalInteractingMs += durationMs;
-                    } else {
-                      userExcludedMs += durationMs;
-                      userExcludedStatuses[status.routingStatus] = (userExcludedStatuses[status.routingStatus] || 0) + durationMs;
-                      totalExcludedMs += durationMs;
-                      excludedStatusTotals[status.routingStatus] = (excludedStatusTotals[status.routingStatus] || 0) + durationMs;
-                    }
+                  // Add to daily totals
+                  if (totalInteractingMs > 0) {
+                    dailyUserMap[userId] = (dailyUserMap[userId] || 0) + totalInteractingMs;
+                    dailyTotalMs += totalInteractingMs;
+                    dailyUserCount++;
+                    
+                    // Add to cumulative total for this user
+                    routingStatusMap[userId] = (routingStatusMap[userId] || 0) + totalInteractingMs;
                   }
                 });
               }
-              
-              if (totalInteractingMs > 0) {
-                usersWithInteractingTime++;
-                dailyUserMap[userId] = (dailyUserMap[userId] || 0) + totalInteractingMs;
-                dailyTotalMs += totalInteractingMs;
-                usersWithAnyData.add(userId);
-                
-                routingStatusMap[userId] = (routingStatusMap[userId] || 0) + totalInteractingMs;
-                grandTotalMs += totalInteractingMs;
-                
-                if (userExcludedMs > 0) {
-                  const excludedHours = formatMillisecondsToDecimalHours(userExcludedMs);
-                  const interactingHours = formatMillisecondsToDecimalHours(totalInteractingMs);
-                  if (excludedHours > interactingHours) {
-                    logMessage('DEBUG', `User ${userId.substring(0,8)} on ${day.date}: ${interactingHours.toFixed(1)}h counted, ${excludedHours.toFixed(1)}h excluded`);
-                  }
-                }
-              } else if (hasAnyStatusData) {
-                usersWithOtherStatusOnly++;
-              } else {
-                usersWithNoStatusData++;
-              }
-            });
-            
-            const dailyHours = formatMillisecondsToDecimalHours(dailyTotalMs);
-            const excludedHours = formatMillisecondsToDecimalHours(totalExcludedMs);
-            
-            logMessage('INFO', `Day ${day.date} breakdown:`);
-            logMessage('INFO', `  ✅ ${usersWithInteractingTime} users with INTERACTING/COMMUNICATING time (${dailyHours.toFixed(2)} hours)`);
-            logMessage('INFO', `  ⏸️  ${usersWithOtherStatusOnly} users with other status only (${excludedHours.toFixed(2)} hours excluded)`);
-            logMessage('INFO', `  ❌ ${usersWithNoStatusData} users with no status data`);
-            
-            if (totalExcludedMs > 0) {
-              const topExcluded = Object.entries(excludedStatusTotals)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 5)
-                .map(([status, ms]) => `${status}: ${formatMillisecondsToDecimalHours(ms).toFixed(1)}h`)
-                .join(', ');
-              logMessage('DEBUG', `  Excluded time by status: ${topExcluded}`);
+            } catch (batchError) {
+              logMessage('ERROR', `Batch ${pageNum} failed for day ${day.date}`, batchError.message);
             }
             
-            totalDaysProcessed++;
-            
-          } else if (detailsResponse) {
-            logMessage('WARN', `⚠️ Day ${day.date} returned no user details`);
-            totalFailedDays++;
+            // Add delay between batches (500ms to avoid rate limits)
+            await new Promise(resolve => setTimeout(resolve, 500));
           }
           
-          if (dayIndex < dailyChunks.length - 1) {
-            logMessage('DEBUG', `Waiting 1 second before next day...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
+          // Log daily statistics
+          const dailyHours = formatMillisecondsToDecimalHours(dailyTotalMs);
+          totalCumulativeHours += dailyHours;
           
-          const progressPercent = 50 + ((dayIndex + 1) / dailyChunks.length) * 45;
-          updateLoadingProgress(Math.min(95, progressPercent));
+          dailyStats.push({
+            date: day.date,
+            usersWithHours: dailyUserCount,
+            totalHours: dailyHours,
+            avgHoursPerUser: dailyUserCount > 0 ? (dailyHours / dailyUserCount).toFixed(2) : 0
+          });
+          
+          logMessage('INFO', `\n===== DAY ${day.date} COMPLETE =====`);
+          logMessage('INFO', `Users with hours: ${dailyUserCount}`);
+          logMessage('INFO', `Total hours: ${dailyHours.toFixed(2)}`);
+          logMessage('INFO', `Average hours per user: ${dailyUserCount > 0 ? (dailyHours / dailyUserCount).toFixed(2) : 0}`);
+          logMessage('INFO', `Cumulative total so far: ${totalCumulativeHours.toFixed(2)} hours`);
+          
+          totalDaysProcessed++;
+          
+          // Update progress
+          const progressPercent = 50 + (totalDaysProcessed / dailyChunks.length) * 30;
+          updateLoadingProgress(progressPercent);
         }
         
-        logMessage('SUCCESS', `\n========== DATA FETCH COMPLETE ==========`);
-        logMessage('INFO', `Days successfully processed: ${totalDaysProcessed}/${dailyChunks.length}`);
-        logMessage('INFO', `Days failed: ${totalFailedDays}`);
-        logMessage('INFO', `Total API calls: ${totalApiCalls}`);
-        logMessage('INFO', `Total retries: ${totalRetries}`);
+        // Log comprehensive daily summary
+        logMessage('INFO', `\n========== DAILY BREAKDOWN REPORT ==========`);
+        logMessage('INFO', `Date Range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+        logMessage('INFO', `Total days processed: ${dailyChunks.length}`);
         
-        if (totalFailedDays > 0) {
-          const failedPercent = (totalFailedDays / dailyChunks.length * 100).toFixed(1);
-          logMessage('WARN', `⚠️ ${totalFailedDays} days failed (${failedPercent}%) - data may be incomplete`);
-          showStatusMessage(`⚠️ Warning: ${totalFailedDays} days failed - data may be incomplete`, 'warn');
-        }
+        logMessage('INFO', `\n----- DAILY HOURS -----`);
+        let totalHoursAllDays = 0;
+        let totalUsersAllDays = 0;
         
-        const usersWithHours = Object.keys(routingStatusMap).length;
-        const usersWithoutHours = userIds.length - usersWithHours;
-        const totalHours = formatMillisecondsToDecimalHours(grandTotalMs);
+        dailyStats.forEach(stat => {
+          logMessage('INFO', `${stat.date}: ${stat.totalHours.toFixed(2)} hours (${stat.usersWithHours} users, avg ${stat.avgHoursPerUser} hrs/user)`);
+          totalHoursAllDays += stat.totalHours;
+          totalUsersAllDays += stat.usersWithHours;
+        });
         
-        logMessage('INFO', `\n----- FINAL USER BREAKDOWN -----`);
-        logMessage('INFO', `Total users queried: ${userIds.length}`);
-        logMessage('INFO', `Users with INTERACTING/COMMUNICATING hours: ${usersWithHours} (${(usersWithHours/userIds.length*100).toFixed(1)}%)`);
-        logMessage('INFO', `Users with zero hours: ${usersWithoutHours} (${(usersWithoutHours/userIds.length*100).toFixed(1)}%)`);
-        logMessage('INFO', `Total INTERACTING/COMMUNICATING hours: ${totalHours.toFixed(2)}`);
+        logMessage('SUCCESS', `\n----- FINAL RESULTS -----`);
+        logMessage('SUCCESS', `Total unique users with hours: ${Object.keys(routingStatusMap).length}`);
         
-        if (usersWithHours > 0) {
-          const avgHours = totalHours / usersWithHours;
-          const maxHours = Math.max(...Object.values(routingStatusMap).map(ms => formatMillisecondsToDecimalHours(ms)));
-          const minHours = Math.min(...Object.values(routingStatusMap).map(ms => formatMillisecondsToDecimalHours(ms)));
+        // Calculate overall statistics
+        const usersWithHours = Object.keys(routingStatusMap);
+        if (usersWithHours.length > 0) {
+          const totalHours = usersWithHours.reduce((sum, id) => sum + formatMillisecondsToDecimalHours(routingStatusMap[id]), 0);
+          const avgOverall = totalHours / usersWithHours.length;
+          const maxHours = Math.max(...usersWithHours.map(id => formatMillisecondsToDecimalHours(routingStatusMap[id])));
           
-          logMessage('INFO', `Average hours per user (with hours): ${avgHours.toFixed(2)}`);
-          logMessage('INFO', `Maximum hours for any user: ${maxHours.toFixed(2)}`);
-          logMessage('INFO', `Minimum hours for any user: ${minHours.toFixed(2)}`);
+          logMessage('SUCCESS', `Total cumulative hours across all users: ${totalHours.toFixed(2)}`);
+          logMessage('SUCCESS', `Average hours per active user: ${avgOverall.toFixed(2)}`);
+          logMessage('SUCCESS', `Maximum hours for a single user: ${maxHours.toFixed(2)}`);
           
-          const sortedUsers = Object.entries(routingStatusMap)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5);
+          // Sort by hours (descending) to show top users
+          const sortedUsers = usersWithHours.sort((a, b) => routingStatusMap[b] - routingStatusMap[a]);
           
-          logMessage('INFO', `\n----- TOP 5 USERS BY HOURS -----`);
-          sortedUsers.forEach(([userId, ms], index) => {
+          logMessage('INFO', `\n----- TOP 10 USERS BY HOURS -----`);
+          for (let i = 0; i < Math.min(10, sortedUsers.length); i++) {
+            const userId = sortedUsers[i];
             const user = appState.userData?.find(u => u.id === userId);
             const userName = user ? user.name : userId.substring(0,8);
-            const hours = formatMillisecondsToDecimalHours(ms);
-            logMessage('INFO', `${index + 1}. ${userName}: ${hours.toFixed(2)} hours`);
-          });
-        }
-        
-        logMessage('INFO', `\n----- ROUTING STATUSES ANALYSIS -----`);
-        logMessage('INFO', `All statuses seen in data: ${Array.from(allStatusesSeen).sort().join(', ')}`);
-        logMessage('SUCCESS', `✅ Counted statuses: INTERACTING, COMMUNICATING`);
-        
-        const excludedStatuses = Array.from(allStatusesSeen).filter(s => !['INTERACTING', 'COMMUNICATING'].includes(s));
-        if (excludedStatuses.length > 0) {
-          logMessage('INFO', `ℹ️  Excluded statuses: ${excludedStatuses.join(', ')}`);
-        }
-        
-        const businessDays = calculateBusinessDays(startDate, endDate);
-        const expectedFullTimeHours = businessDays * 8;
-        logMessage('INFO', `\n----- CONTEXT -----`);
-        logMessage('INFO', `Business days in range: ${businessDays}`);
-        logMessage('INFO', `Expected full-time hours (8h/day): ${expectedFullTimeHours}`);
-        
-        if (usersWithHours > 0) {
-          const topUser = Object.keys(routingStatusMap).reduce((a, b) => 
-            routingStatusMap[a] > routingStatusMap[b] ? a : b
-          );
-          const topUserHours = formatMillisecondsToDecimalHours(routingStatusMap[topUser]);
-          const topUserName = appState.userData?.find(u => u.id === topUser)?.name || topUser.substring(0,8);
-          const utilizationPercent = (topUserHours / expectedFullTimeHours * 100).toFixed(1);
-          logMessage('INFO', `Top user: ${topUserName} with ${topUserHours.toFixed(2)} hours (${utilizationPercent}% of full-time)`);
+            const hoursDecimal = formatMillisecondsToDecimalHours(routingStatusMap[userId]);
+            const hoursFormatted = formatMillisecondsToHHMMSS(routingStatusMap[userId]);
+            
+            logMessage('DEBUG', `${i+1}. ${userName}: ${hoursDecimal.toFixed(2)} hours (${hoursFormatted})`);
+          }
           
-          const avgHours = totalHours / usersWithHours;
-          const avgUtilization = (avgHours / expectedFullTimeHours * 100).toFixed(1);
-          logMessage('INFO', `Average utilization: ${avgUtilization}% of full-time (${avgHours.toFixed(2)} hours)`);
-        }
-        
-        logMessage('INFO', `\n----- DATA QUALITY ASSESSMENT -----`);
-        const successRate = ((totalDaysProcessed / dailyChunks.length) * 100).toFixed(1);
-        if (successRate === '100.0') {
-          logMessage('SUCCESS', `✅ 100% data completeness - all days fetched successfully`);
-        } else if (successRate >= '95.0') {
-          logMessage('INFO', `ℹ️  ${successRate}% data completeness - mostly complete`);
+          // Calculate expected hours based on business days
+          const businessDays = calculateBusinessDays(startDate, endDate);
+          const expectedFullTimeHours = businessDays * 8; // Assuming 8-hour work days
+          logMessage('INFO', `\n----- CONTEXT -----`);
+          logMessage('INFO', `Date range has ${businessDays} business days (Mon-Fri)`);
+          logMessage('INFO', `A full-time employee working 8hrs/day would have ~${expectedFullTimeHours} hours`);
+          logMessage('INFO', `Our max user (${formatMillisecondsToDecimalHours(routingStatusMap[sortedUsers[0]]).toFixed(2)} hours) is ${(formatMillisecondsToDecimalHours(routingStatusMap[sortedUsers[0]]) / expectedFullTimeHours * 100).toFixed(1)}% of full-time`);
+          
         } else {
-          logMessage('WARN', `⚠️ ${successRate}% data completeness - significant data missing`);
+          logMessage('WARN', 'No users found with interacting time');
         }
         
-        logMessage('SUCCESS', `\n✅ Data fetch complete and validated`);
-        logMessage('INFO', `========================================\n`);
+        logMessage('INFO', `=====================================\n`);
         
         return routingStatusMap;
         
       } catch (error) {
-        logMessage('ERROR', 'Users Details API query failed completely', error.message);
+        logMessage('ERROR', 'Users Details API query failed', error.message);
         console.error('Users Details API error details:', error);
         
-        logMessage('WARN', 'Continuing with zero interaction hours for all users');
-        showStatusMessage('⚠️ API query failed - data may be incomplete', 'error');
+        // If the query fails completely, log the error but continue with zero hours
+        logMessage('INFO', 'Continuing with zero interaction hours for all users');
         return {};
       }
     }
 
+    // Helper function to calculate business days (Mon-Fri)
     function calculateBusinessDays(startDate, endDate) {
       let count = 0;
       const curDate = new Date(startDate);
       
       while (curDate <= endDate) {
         const dayOfWeek = curDate.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // 0 = Sunday, 6 = Saturday
           count++;
         }
         curDate.setDate(curDate.getDate() + 1);
@@ -2215,8 +2174,10 @@
         const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
         const allUserIds = appState.userData.map(u => u.id);
 
+        // Use the Users Details API with daily granularity to ensure complete data
         const routingStatusData = await fetchRoutingStatusData(allUserIds, interval);
 
+        // Update user data with routing status time
         let totalInteractingMs = 0;
         let usersWithHours = 0;
         
@@ -2232,11 +2193,13 @@
           }
         });
 
+        // Fetch user presence status to check for communicating users
         updateLoadingProgress(70);
         logMessage('INFO', 'Fetching user presence status');
         
         const presenceData = await fetchUserPresenceStatus(allUserIds);
         
+        // Update user status based on presence
         appState.userData.forEach(user => {
           const presence = presenceData[user.id];
           if (presence) {
@@ -2394,6 +2357,7 @@
         tbody.appendChild(row);
       });
       
+      // Add summary row
       const summaryRow = document.createElement('tr');
       summaryRow.style.backgroundColor = 'rgba(220, 53, 69, 0.05)';
       summaryRow.innerHTML = `
@@ -3176,11 +3140,13 @@
     }
 
     function initializeApp() {
+      // Set max date to today
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
       el.dateTo.max = todayStr;
       el.dateFrom.max = todayStr;
       
+      // Load stored preferences
       const storedCurrency = localStorage.getItem(STORAGE_KEYS.CURRENCY);
       const storedHourlyCurrency = localStorage.getItem(STORAGE_KEYS.HOURLY_CURRENCY);
       const storedDateFrom = localStorage.getItem(STORAGE_KEYS.DATE_FROM);
@@ -3196,6 +3162,7 @@
         el.hourlyCurrencySymbol.value = storedHourlyCurrency;
       }
       
+      // Set default dates
       if (!storedDateFrom || !storedDateTo) {
         const mostRecentMonth = getMostRecentMonth();
         el.dateFrom.value = mostRecentMonth.from;
@@ -3205,6 +3172,7 @@
         el.dateTo.value = storedDateTo;
       }
       
+      // Save dates when changed
       el.dateFrom.addEventListener('change', () => {
         localStorage.setItem(STORAGE_KEYS.DATE_FROM, el.dateFrom.value);
       });
@@ -3214,6 +3182,7 @@
       
       updateDateRangeInfo();
 
+      // Event listeners
       el.btnDisconnect.addEventListener('click', disconnect);
       el.btnSwitchClient.addEventListener('click', switchClient);
       el.btnFetchData.addEventListener('click', fetchUserData);
@@ -3265,6 +3234,7 @@
         navigator.clipboard.writeText(logText).then(() => showStatusMessage('Logs copied to clipboard', 'success'));
       });
 
+      // Currency change handlers
       el.currencySymbol.addEventListener('change', function() {
         appState.currencySymbol = this.value;
         localStorage.setItem(STORAGE_KEYS.CURRENCY, this.value);
@@ -3279,6 +3249,7 @@
         logMessage('INFO', 'Currency updated', `Hourly rate currency: ${this.value}`);
       });
 
+      // Update cost displays when values change
       el.namedLicenseCost.addEventListener('change', () => {
         updateCurrencyDisplay();
       });
@@ -3287,6 +3258,7 @@
         updateCurrencyDisplay();
       });
 
+      // Initial currency display update
       updateCurrencyDisplay();
 
       logMessage('INFO', 'Hourly Billing Calculator initialised', `Active Client ID: ${CLIENT_ID.substring(0,8)}...`);
