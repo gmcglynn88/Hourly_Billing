@@ -1540,12 +1540,12 @@
     }
 
     function parseEnvironmentFromState(state) {
-      if (!state) return 'eu-west-2'; // FIXED: Changed from 'us-east-1' to 'eu-west-2' (London)
+      if (!state) return 'eu-west-2';
       try {
         const stateObj = JSON.parse(atob(state));
-        return stateObj.env || 'eu-west-2'; // FIXED: Changed default from 'us-east-1' to 'eu-west-2'
+        return stateObj.env || 'eu-west-2';
       } catch (e) {
-        return 'eu-west-2'; // FIXED: Changed from 'us-east-1' to 'eu-west-2'
+        return 'eu-west-2';
       }
     }
 
@@ -1579,9 +1579,9 @@
             showStatusMessage('✅ Connected to Genesys Cloud', 'success');
             showMainApp(env.name);
             return;
-          }
         }
       }
+    }
 
       if (error) {
         logMessage('ERROR', 'Authentication failed', `${error}: ${errorDescription}`);
@@ -1619,7 +1619,7 @@
 
     function authenticate() {
       // Default to EU West 2 (London) - this is correct for UK deployments
-      const envRegion = 'eu-west-2'; // London is the correct default
+      const envRegion = 'eu-west-2';
       const env = ENVIRONMENTS[envRegion];
       
       if (!env) {
@@ -1932,29 +1932,26 @@
         const userHoursMap = {};
 
         try {
-          // Use the new Analytics Conversations API as requested
-          logMessage('INFO', 'Trying Conversations Analytics API for interaction data');
+          // Use the Analytics Conversations API as requested
+          logMessage('INFO', 'Querying Conversations Analytics API for interaction data');
           
-          const agentUserIds = appState.userData
-            .filter(u => u.userType === 'agent')
-            .map(u => u.id);
+          // Get all users (not just agents) to check for any interaction data
+          const allUserIds = appState.userData.map(u => u.id);
 
-          if (agentUserIds.length > 0) {
-            // Split into batches of 100 users per request to avoid payload limits
-            const batchSize = 100;
+          if (allUserIds.length > 0) {
+            // Split into batches of 50 users per request to avoid payload limits
+            const batchSize = 50;
             
-            for (let i = 0; i < agentUserIds.length; i += batchSize) {
-              const userIdBatch = agentUserIds.slice(i, i + batchSize);
+            for (let i = 0; i < allUserIds.length; i += batchSize) {
+              const userIdBatch = allUserIds.slice(i, i + batchSize);
               
-              // Create filter for user IDs
-              const userFilter = {
-                type: "or",
-                predicates: userIdBatch.map(userId => ({
-                  type: "dimension",
-                  dimension: "userId",
-                  value: userId
-                }))
-              };
+              // Create proper filter structure for user IDs
+              const userPredicates = userIdBatch.map(userId => ({
+                type: "dimension",
+                dimension: "userId",
+                operator: "matches",
+                value: userId
+              }));
               
               const queryBody = {
                 interval: interval,
@@ -1962,7 +1959,10 @@
                 filter: {
                   type: "and",
                   predicates: [
-                    userFilter,
+                    {
+                      type: "or",
+                      predicates: userPredicates
+                    },
                     {
                       type: "or",
                       predicates: [
@@ -1999,10 +1999,12 @@
                 flattenMultivaluedDimensions: false
               };
 
-              updateLoadingProgress(60 + Math.round((i / agentUserIds.length) * 20));
-              logMessage('INFO', `Querying Conversations Analytics API for batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(agentUserIds.length/batchSize)}`);
+              updateLoadingProgress(60 + Math.round((i / allUserIds.length) * 20));
+              logMessage('INFO', `Querying Conversations API for batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(allUserIds.length/batchSize)}`);
 
               try {
+                console.log('Sending query:', JSON.stringify(queryBody, null, 2));
+                
                 const analyticsResponse = await apiCall('/api/v2/analytics/conversations/aggregates/query', {
                   method: 'POST',
                   body: JSON.stringify(queryBody)
@@ -2016,6 +2018,7 @@
                       const userId = record.group.userId;
                       let totalInteractingTime = 0;
 
+                      // Sum up all metrics
                       const tTalkData = record.data.find(d => d.metric === "tTalk");
                       if (tTalkData && tTalkData.stats) {
                         totalInteractingTime += tTalkData.stats.sum || 0;
@@ -2032,23 +2035,25 @@
                       }
                       
                       if (totalInteractingTime > 0) {
-                        userHoursMap[userId] = totalInteractingTime;
+                        userHoursMap[userId] = (userHoursMap[userId] || 0) + totalInteractingTime;
                       }
                     }
                   });
+                } else {
+                  logMessage('DEBUG', 'No results in API response for batch', `Batch ${Math.floor(i/batchSize) + 1}`);
                 }
               } catch (convError) {
-                logMessage('WARN', `Conversations API batch failed`, convError.message);
-                // Continue with next batch - don't add demo data
+                logMessage('WARN', `Conversations API batch ${Math.floor(i/batchSize) + 1} failed`, convError.message);
+                console.error('Batch error details:', convError);
               }
               
               // Add small delay between batches
-              await new Promise(resolve => setTimeout(resolve, 200));
+              await new Promise(resolve => setTimeout(resolve, 300));
             }
 
             logMessage('SUCCESS', 'Conversations API query completed', `Found ${Object.keys(userHoursMap).length} users with interaction time`);
             
-            // Debug sample data (only log a few samples)
+            // Debug sample data
             const usersWithHours = Object.keys(userHoursMap);
             const sampleCount = Math.min(5, usersWithHours.length);
             for (let i = 0; i < sampleCount; i++) {
@@ -2060,12 +2065,11 @@
               logMessage('DEBUG', `User: ${userName}`, `Interaction time: ${hoursFormatted} (${hoursDecimal.toFixed(2)} hours)`);
             }
           } else {
-            logMessage('WARN', 'No agent users found', 'Only supervisors and admins in the organization');
+            logMessage('WARN', 'No users found in organization');
           }
         } catch (analyticsError) {
           logMessage('ERROR', 'Analytics API query failed', analyticsError.message);
           console.error('Analytics API error details:', analyticsError);
-          // NO DEMO DATA - only real API data
         }
 
         // Update user data with interacting time
@@ -2315,15 +2319,12 @@
             user.recommendedLicense = 'Named';
             user.recommendedReason = `${user.userType === 'admin' ? 'Admin' : 'Supervisor'} role`;
           } else if (user.userType === 'agent' && user.interactingHoursDecimal > 0 && user.interactingHoursDecimal < threshold) {
-            // FIXED: Only agents can get Hourly Interacting license
             user.recommendedLicense = 'Hourly Interacting';
             user.recommendedReason = `Agent under ${threshold} hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
           } else if (user.userType === 'agent' && user.interactingHoursDecimal >= threshold) {
-            // FIXED: Only agents get Named based on hours
             user.recommendedLicense = 'Named';
             user.recommendedReason = `Agent over ${threshold} hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
           } else if (user.userType === 'other' && user.interactingHoursDecimal > 0) {
-            // FIXED: Other users with hours get Named
             user.recommendedLicense = 'Named';
             user.recommendedReason = `Other role with hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
           } else {
@@ -2345,7 +2346,6 @@
         const activeUsers = usersToAnalyze.filter(u => u.interactingMilliseconds > 0).length;
         const namedUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'Named').length;
         
-        // FIXED: Only count agents for Hourly Interacting statistic
         const hiUsers = usersToAnalyze.filter(u => 
           u.recommendedLicense === 'Hourly Interacting' && u.userType === 'agent'
         ).length;
@@ -2353,7 +2353,6 @@
         const nologinUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'NOLOGIN').length;
         const totalHours = usersToAnalyze.reduce((sum, u) => sum + u.interactingHoursDecimal, 0);
 
-        // FIXED: Only include agents in Hourly Interacting details
         const hiUsersList = usersToAnalyze.filter(u => 
           u.recommendedLicense === 'Hourly Interacting' && u.userType === 'agent'
         );
@@ -2362,7 +2361,7 @@
         const hourlyCost = hiHours * hourlyLicenseRate;
 
         const agentNamed = usersToAnalyze.filter(u => u.userType === 'agent' && u.recommendedLicense === 'Named').length;
-        const agentHI = hiUsers; // Already filtered for agents only
+        const agentHI = hiUsers;
         const supervisorNamed = usersToAnalyze.filter(u => u.userType === 'supervisor' && u.recommendedLicense === 'Named').length;
         const adminNamed = usersToAnalyze.filter(u => u.userType === 'admin' && u.recommendedLicense === 'Named').length;
 
@@ -2410,7 +2409,6 @@
         el.statSupervisorNamed.textContent = supervisorNamed;
         el.statAdminNamed.textContent = adminNamed;
         
-        // Update Hourly Interacting details
         el.statHiUsersDetailed.textContent = hiUsers;
         el.statTotalHiHours.textContent = Math.round(hiHours);
         el.statAvgHiHours.textContent = avgHiHours.toFixed(1);
