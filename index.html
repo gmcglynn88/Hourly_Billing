@@ -1825,76 +1825,63 @@
       return 'other';
     }
 
-    // ==================== NEW FUNCTION: FETCH AGENT ROUTING STATUS TIME ====================
-    async function fetchAgentRoutingStatusTime(userIds, dateFrom, dateTo) {
+    // ==================== FETCH USER INTERACTING TIME FROM SESSION DATA ====================
+    async function fetchUserInteractingTime(userIds, dateFrom, dateTo) {
       try {
         const userHoursMap = {};
         
-        // Use the Agent Status Query API with routingStatus dimension
-        // This gets time spent in INTERACTING and COMMUNICATING states
+        // Use the User Details API to get session data with segmentType = interact
+        // This matches the sample response you provided
         const queryBody = {
-          interval: `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`,
           filter: {
-            type: "or",
+            type: "and",
             predicates: [
               {
                 type: "dimension",
                 dimension: "userId",
                 operator: "matches",
                 value: userIds.join(",")
+              },
+              {
+                type: "dimension",
+                dimension: "segmentType",
+                operator: "matches",
+                value: "interact,wrapup"
               }
             ]
           },
-          groupBy: ["userId", "routingStatus"],
-          metrics: [
-            "tRoutingStatus"  // Time spent in each routing status
-          ]
+          interval: `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`,
+          metrics: ["tSegmentDuration"],
+          groupBy: ["userId"]
         };
 
-        logMessage('INFO', 'Querying Agent Status API for routing status time (INTERACTING & COMMUNICATING)');
+        logMessage('INFO', 'Querying User Details API for session data');
 
-        const response = await apiCall('/api/v2/analytics/agentstatus/query', {
+        const response = await apiCall('/api/v2/analytics/users/details/query', {
           method: 'POST',
           body: JSON.stringify(queryBody)
         });
 
-        console.log('Agent Status API Response:', response);
+        console.log('User Details API Response:', response);
 
         if (response.results && response.results.length > 0) {
-          // Track time per user across different routing statuses
-          const userStatusTime = {};
-          
           response.results.forEach(record => {
-            if (record.group && record.group.userId && record.group.routingStatus) {
+            if (record.group && record.group.userId) {
               const userId = record.group.userId;
-              const routingStatus = record.group.routingStatus;
-              const tRoutingStatusData = record.data.find(d => d.metric === "tRoutingStatus");
+              const tSegmentData = record.data.find(d => d.metric === "tSegmentDuration");
               
-              if (tRoutingStatusData && tRoutingStatusData.stats) {
-                const timeInStatus = tRoutingStatusData.stats.sum || 0;
+              if (tSegmentData && tSegmentData.stats) {
+                const totalTime = tSegmentData.stats.sum || 0;
                 
-                if (!userStatusTime[userId]) {
-                  userStatusTime[userId] = {};
+                if (totalTime > 0) {
+                  userHoursMap[userId] = totalTime;
                 }
-                
-                userStatusTime[userId][routingStatus] = timeInStatus;
               }
             }
           });
 
-          // Sum up time for INTERACTING and COMMUNICATING states only
-          Object.entries(userStatusTime).forEach(([userId, statusTime]) => {
-            const interactingTime = statusTime['INTERACTING'] || 0;
-            const communicatingTime = statusTime['COMMUNICATING'] || 0;
-            const totalActiveTime = interactingTime + communicatingTime;
-            
-            if (totalActiveTime > 0) {
-              userHoursMap[userId] = totalActiveTime;
-            }
-          });
-
-          logMessage('SUCCESS', 'Agent Status API query completed', 
-            `Found ${Object.keys(userHoursMap).length} agents with INTERACTING/COMMUNICATING time`);
+          logMessage('SUCCESS', 'User Details API query completed', 
+            `Found ${Object.keys(userHoursMap).length} users with session time`);
           
           // Debug sample data
           const usersWithHours = Object.keys(userHoursMap);
@@ -1903,23 +1890,16 @@
             const userId = usersWithHours[i];
             const hoursFormatted = formatMillisecondsToHHMMSS(userHoursMap[userId]);
             const hoursDecimal = formatMillisecondsToDecimalHours(userHoursMap[userId]);
-            
-            // Log breakdown if available
-            const statusTime = userStatusTime[userId] || {};
-            const interacting = formatMillisecondsToHHMMSS(statusTime['INTERACTING'] || 0);
-            const communicating = formatMillisecondsToHHMMSS(statusTime['COMMUNICATING'] || 0);
-            
-            logMessage('DEBUG', `Agent ${userId}`, 
-              `INTERACTING: ${interacting}, COMMUNICATING: ${communicating}, TOTAL: ${hoursFormatted} (${hoursDecimal.toFixed(2)} hours)`);
+            logMessage('DEBUG', `User ${userId}`, `Session time: ${hoursFormatted} (${hoursDecimal.toFixed(2)} hours)`);
           }
         } else {
-          logMessage('INFO', 'No agent routing status data found in selected period', 'Agents will have 0 interacting/communicating time');
+          logMessage('INFO', 'No session data found in selected period', 'Check if the date range has data');
         }
 
         return userHoursMap;
       } catch (error) {
-        logMessage('WARN', 'Agent Status API failed', error.message);
-        // NO DEMO DATA - return empty map
+        logMessage('ERROR', 'User Details API failed', error.message);
+        console.error('Full error:', error);
         return {};
       }
     }
@@ -1931,7 +1911,7 @@
         return;
       }
 
-      setLoading(true, 'Fetching User Data', 'Retrieving agent INTERACTING & COMMUNICATING data from Genesys Cloud...');
+      setLoading(true, 'Fetching User Data', 'Retrieving user session data from Genesys Cloud...');
       updateLoadingProgress(10);
 
       try {
@@ -1991,16 +1971,14 @@
         });
 
         updateLoadingProgress(50);
-        logMessage('INFO', 'Fetching agent routing status data (INTERACTING & COMMUNICATING only)');
+        logMessage('INFO', 'Fetching session data for all users');
 
-        // Get only agent user IDs - we only care about agents for interacting/communicating time
-        const agentUserIds = appState.userData
-          .filter(u => u.userType === 'agent')
-          .map(u => u.id);
+        // Get all user IDs
+        const allUserIds = appState.userData.map(u => u.id);
 
-        if (agentUserIds.length > 0) {
-          // Fetch routing status time for agents (INTERACTING & COMMUNICATING only)
-          const userHoursMap = await fetchAgentRoutingStatusTime(agentUserIds, dateFrom, dateTo);
+        if (allUserIds.length > 0) {
+          // Fetch session time for all users
+          const userHoursMap = await fetchUserInteractingTime(allUserIds, dateFrom, dateTo);
           
           // Update user data with interacting time
           appState.userData.forEach(user => {
@@ -2010,45 +1988,18 @@
             user.interactingHoursDecimal = formatMillisecondsToDecimalHours(interactTimeMs);
           });
           
-          logMessage('SUCCESS', 'Agent routing status data processed', 
-            `${Object.keys(userHoursMap).length} agents have >0 INTERACTING/COMMUNICATING time`);
-        } else {
-          logMessage('INFO', 'No agent users found in organization', 'All users will have 0 interacting/communicating time');
+          logMessage('SUCCESS', 'Session data processed', 
+            `${Object.keys(userHoursMap).length} users have session time`);
         }
-
-        // Fetch user presence status to check for communicating users
-        updateLoadingProgress(70);
-        logMessage('INFO', 'Fetching user presence status');
-        
-        const userIds = appState.userData.map(u => u.id);
-        const presenceData = await fetchUserPresenceStatus(userIds);
-        
-        // Update user status based on presence
-        appState.userData.forEach(user => {
-          const presence = presenceData[user.id];
-          if (presence) {
-            user.presenceStatus = presence.presence;
-            user.isCommunicating = presence.isCommunicating;
-            
-            // Log if user is currently communicating
-            if (user.isCommunicating) {
-              logMessage('INFO', `User ${user.name} is currently ${user.presenceStatus}`, 'This user may be actively communicating');
-            }
-          }
-        });
 
         // Calculate statistics
         const usersWithHours = appState.userData.filter(u => u.interactingMilliseconds > 0);
         const totalInteractingMs = usersWithHours.reduce((sum, u) => sum + u.interactingMilliseconds, 0);
         const totalInteractingHours = formatMillisecondsToDecimalHours(totalInteractingMs);
         
-        // Count communicating users
-        const communicatingUsers = appState.userData.filter(u => u.isCommunicating).length;
-        logMessage('INFO', `Communicating users detected`, `${communicatingUsers} users are currently in a communicating state`);
-        
-        logMessage('INFO', `Interacting time distribution`, 
-          `${usersWithHours.length} users have > 0 INTERACTING/COMMUNICATING time, ${appState.userData.length - usersWithHours.length} users have 0 time`);
-        logMessage('INFO', `Total INTERACTING/COMMUNICATING time`, 
+        logMessage('INFO', `Session time distribution`, 
+          `${usersWithHours.length} users have > 0 session time, ${appState.userData.length - usersWithHours.length} users have 0 time`);
+        logMessage('INFO', `Total session time`, 
           `${formatMillisecondsToHHMMSS(totalInteractingMs)} (${totalInteractingHours.toFixed(2)} hours)`);
 
         if (usersWithHours.length > 0) {
@@ -2062,7 +2013,7 @@
         updateCurrencyDisplay();
 
         logMessage('SUCCESS', 'Data loaded successfully', 
-          `${appState.userData.length} users loaded, ${usersWithHours.length} with INTERACTING/COMMUNICATING time, ${communicatingUsers} currently communicating, total ${totalInteractingHours.toFixed(2)} hours`);
+          `${appState.userData.length} users loaded, ${usersWithHours.length} with session time, total ${totalInteractingHours.toFixed(2)} hours`);
 
         el.statTotalUsers.textContent = appState.userData.length;
         el.totalCount.textContent = appState.userData.length;
@@ -2079,45 +2030,12 @@
         updateLoadingProgress(100);
         await new Promise(resolve => setTimeout(resolve, 500));
         setLoading(false);
-        showStatusMessage(`✅ Loaded ${appState.userData.length} users (${usersWithHours.length} with INTERACTING/COMMUNICATING time, ${communicatingUsers} communicating)`, 'success');
+        showStatusMessage(`✅ Loaded ${appState.userData.length} users (${usersWithHours.length} with session time)`, 'success');
 
       } catch (error) {
         setLoading(false);
         logMessage('ERROR', 'Failed to fetch data', error.message);
         showStatusMessage('❌ Failed to fetch data', 'error');
-      }
-    }
-
-    async function fetchUserPresenceStatus(userIds) {
-      try {
-        const batchSize = 50;
-        const presenceResults = {};
-        
-        for (let i = 0; i < userIds.length; i += batchSize) {
-          const batch = userIds.slice(i, i + batchSize);
-          const response = await apiCall(`/api/v2/users?pageSize=${batchSize}&pageNumber=1&id=${batch.join(',')}&expand=presence`);
-          
-          if (response.entities) {
-            response.entities.forEach(user => {
-              if (user.presence) {
-                presenceResults[user.id] = {
-                  presence: user.presence.presenceDefinition?.systemPresence || 'Unknown',
-                  isCommunicating: ['BUSY', 'BUSY_OTHER', 'ON_QUEUE', 'INTERRUPTIBLE', 'COMMUNICATING'].includes(
-                    user.presence.presenceDefinition?.systemPresence || ''
-                  )
-                };
-              }
-            });
-          }
-          
-          // Add delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
-        return presenceResults;
-      } catch (error) {
-        logMessage('WARN', 'Failed to fetch user presence', error.message);
-        return {};
       }
     }
 
