@@ -2039,17 +2039,10 @@
                 logMessage('WARN', 'No conversation data found in selected period', 'Users will have 0 interacting time');
               }
             } catch (convError) {
-              logMessage('WARN', 'Conversations API failed', convError.message);
-              
-              // Add demo data for testing
-              appState.userData.forEach((user, index) => {
-                if (user.userType === 'agent' && index % 3 === 0) {
-                  const randomHours = Math.floor(Math.random() * 80) + 1;
-                  userHoursMap[user.id] = randomHours * 60 * 60 * 1000;
-                }
-              });
-              
-              logMessage('INFO', 'Using demo data', 'Added sample interaction times for demonstration');
+              // ===== UPDATED SECTION: REMOVED RANDOM DATA GENERATION =====
+              logMessage('ERROR', 'Conversations API failed', convError.message);
+              logMessage('WARN', 'No interaction data available', 'All users will have 0 interacting time. Check API permissions and query parameters.');
+              // ===== END UPDATED SECTION =====
             }
           } else {
             logMessage('WARN', 'No agent users found', 'Only supervisors and admins in the organization');
