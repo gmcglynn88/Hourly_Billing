@@ -1825,81 +1825,36 @@
       return 'other';
     }
 
-    // ==================== FETCH USER INTERACTING TIME FROM SESSION DATA ====================
-    async function fetchUserInteractingTime(userIds, dateFrom, dateTo) {
+    // ==================== NEW FUNCTION: FETCH USER PRESENCE STATUS ====================
+    async function fetchUserPresenceStatus(userIds) {
       try {
-        const userHoursMap = {};
+        const batchSize = 50;
+        const presenceResults = {};
         
-        // Use the User Details API to get session data with segmentType = interact
-        // This matches the sample response you provided
-        const queryBody = {
-          filter: {
-            type: "and",
-            predicates: [
-              {
-                type: "dimension",
-                dimension: "userId",
-                operator: "matches",
-                value: userIds.join(",")
-              },
-              {
-                type: "dimension",
-                dimension: "segmentType",
-                operator: "matches",
-                value: "interact,wrapup"
-              }
-            ]
-          },
-          interval: `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`,
-          metrics: ["tSegmentDuration"],
-          groupBy: ["userId"]
-        };
-
-        logMessage('INFO', 'Querying User Details API for session data');
-
-        const response = await apiCall('/api/v2/analytics/users/details/query', {
-          method: 'POST',
-          body: JSON.stringify(queryBody)
-        });
-
-        console.log('User Details API Response:', response);
-
-        if (response.results && response.results.length > 0) {
-          response.results.forEach(record => {
-            if (record.group && record.group.userId) {
-              const userId = record.group.userId;
-              const tSegmentData = record.data.find(d => d.metric === "tSegmentDuration");
-              
-              if (tSegmentData && tSegmentData.stats) {
-                const totalTime = tSegmentData.stats.sum || 0;
-                
-                if (totalTime > 0) {
-                  userHoursMap[userId] = totalTime;
-                }
-              }
-            }
-          });
-
-          logMessage('SUCCESS', 'User Details API query completed', 
-            `Found ${Object.keys(userHoursMap).length} users with session time`);
+        for (let i = 0; i < userIds.length; i += batchSize) {
+          const batch = userIds.slice(i, i + batchSize);
+          const response = await apiCall(`/api/v2/users?pageSize=${batchSize}&pageNumber=1&id=${batch.join(',')}&expand=presence`);
           
-          // Debug sample data
-          const usersWithHours = Object.keys(userHoursMap);
-          const sampleCount = Math.min(10, usersWithHours.length);
-          for (let i = 0; i < sampleCount; i++) {
-            const userId = usersWithHours[i];
-            const hoursFormatted = formatMillisecondsToHHMMSS(userHoursMap[userId]);
-            const hoursDecimal = formatMillisecondsToDecimalHours(userHoursMap[userId]);
-            logMessage('DEBUG', `User ${userId}`, `Session time: ${hoursFormatted} (${hoursDecimal.toFixed(2)} hours)`);
+          if (response.entities) {
+            response.entities.forEach(user => {
+              if (user.presence) {
+                presenceResults[user.id] = {
+                  presence: user.presence.presenceDefinition?.systemPresence || 'Unknown',
+                  isCommunicating: ['BUSY', 'BUSY_OTHER', 'ON_QUEUE', 'INTERRUPTIBLE', 'COMMUNICATING'].includes(
+                    user.presence.presenceDefinition?.systemPresence || ''
+                  )
+                };
+              }
+            });
           }
-        } else {
-          logMessage('INFO', 'No session data found in selected period', 'Check if the date range has data');
+          
+          // Add delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
-
-        return userHoursMap;
+        
+        return presenceResults;
       } catch (error) {
-        logMessage('ERROR', 'User Details API failed', error.message);
-        console.error('Full error:', error);
+        logMessage('WARN', 'Failed to fetch user presence', error.message);
         return {};
       }
     }
@@ -1911,7 +1866,7 @@
         return;
       }
 
-      setLoading(true, 'Fetching User Data', 'Retrieving user session data from Genesys Cloud...');
+      setLoading(true, 'Fetching User Data', 'Retrieving agent interaction data from Genesys Cloud...');
       updateLoadingProgress(10);
 
       try {
@@ -1971,35 +1926,189 @@
         });
 
         updateLoadingProgress(50);
-        logMessage('INFO', 'Fetching session data for all users');
+        logMessage('INFO', 'Fetching interaction data');
 
-        // Get all user IDs
-        const allUserIds = appState.userData.map(u => u.id);
+        const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
+        const userHoursMap = {};
 
-        if (allUserIds.length > 0) {
-          // Fetch session time for all users
-          const userHoursMap = await fetchUserInteractingTime(allUserIds, dateFrom, dateTo);
+        try {
+          // Use the new Analytics Conversations API as requested
+          logMessage('INFO', 'Trying Conversations Analytics API for interaction data');
           
-          // Update user data with interacting time
-          appState.userData.forEach(user => {
-            const interactTimeMs = userHoursMap[user.id] || 0;
-            user.interactingMilliseconds = interactTimeMs;
-            user.interactingHoursFormatted = formatMillisecondsToHHMMSS(interactTimeMs);
-            user.interactingHoursDecimal = formatMillisecondsToDecimalHours(interactTimeMs);
-          });
-          
-          logMessage('SUCCESS', 'Session data processed', 
-            `${Object.keys(userHoursMap).length} users have session time`);
+          const agentUserIds = appState.userData
+            .filter(u => u.userType === 'agent')
+            .map(u => u.id);
+
+          if (agentUserIds.length > 0) {
+            // Split into batches of 100 users per request to avoid payload limits
+            const batchSize = 100;
+            
+            for (let i = 0; i < agentUserIds.length; i += batchSize) {
+              const userIdBatch = agentUserIds.slice(i, i + batchSize);
+              
+              // Create filter for user IDs
+              const userFilter = {
+                type: "or",
+                predicates: userIdBatch.map(userId => ({
+                  type: "dimension",
+                  dimension: "userId",
+                  value: userId
+                }))
+              };
+              
+              const queryBody = {
+                interval: interval,
+                granularity: "P1D",
+                filter: {
+                  type: "and",
+                  predicates: [
+                    userFilter,
+                    {
+                      type: "or",
+                      predicates: [
+                        {
+                          type: "dimension",
+                          dimension: "mediaType",
+                          operator: "matches",
+                          value: "voice"
+                        },
+                        {
+                          type: "dimension",
+                          dimension: "mediaType",
+                          operator: "matches",
+                          value: "chat"
+                        },
+                        {
+                          type: "dimension",
+                          dimension: "mediaType",
+                          operator: "matches",
+                          value: "email"
+                        },
+                        {
+                          type: "dimension",
+                          dimension: "mediaType",
+                          operator: "matches",
+                          value: "message"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                metrics: ["tTalk", "tHeld", "tAcw"],
+                groupBy: ["userId"],
+                flattenMultivaluedDimensions: false
+              };
+
+              updateLoadingProgress(60 + Math.round((i / agentUserIds.length) * 20));
+              logMessage('INFO', `Querying Conversations Analytics API for batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(agentUserIds.length/batchSize)}`);
+
+              try {
+                const analyticsResponse = await apiCall('/api/v2/analytics/conversations/aggregates/query', {
+                  method: 'POST',
+                  body: JSON.stringify(queryBody)
+                });
+
+                console.log('Conversations API Response:', analyticsResponse);
+
+                if (analyticsResponse.results && analyticsResponse.results.length > 0) {
+                  analyticsResponse.results.forEach(record => {
+                    if (record.group && record.group.userId) {
+                      const userId = record.group.userId;
+                      let totalInteractingTime = 0;
+
+                      const tTalkData = record.data.find(d => d.metric === "tTalk");
+                      if (tTalkData && tTalkData.stats) {
+                        totalInteractingTime += tTalkData.stats.sum || 0;
+                      }
+
+                      const tHeldData = record.data.find(d => d.metric === "tHeld");
+                      if (tHeldData && tHeldData.stats) {
+                        totalInteractingTime += tHeldData.stats.sum || 0;
+                      }
+
+                      const tAcwData = record.data.find(d => d.metric === "tAcw");
+                      if (tAcwData && tAcwData.stats) {
+                        totalInteractingTime += tAcwData.stats.sum || 0;
+                      }
+                      
+                      if (totalInteractingTime > 0) {
+                        userHoursMap[userId] = totalInteractingTime;
+                      }
+                    }
+                  });
+                }
+              } catch (convError) {
+                logMessage('WARN', `Conversations API batch failed`, convError.message);
+                // Continue with next batch - don't add demo data
+              }
+              
+              // Add small delay between batches
+              await new Promise(resolve => setTimeout(resolve, 200));
+            }
+
+            logMessage('SUCCESS', 'Conversations API query completed', `Found ${Object.keys(userHoursMap).length} users with interaction time`);
+            
+            // Debug sample data (only log a few samples)
+            const usersWithHours = Object.keys(userHoursMap);
+            const sampleCount = Math.min(5, usersWithHours.length);
+            for (let i = 0; i < sampleCount; i++) {
+              const userId = usersWithHours[i];
+              const user = userMap[userId];
+              const userName = user ? user.name : userId;
+              const hoursFormatted = formatMillisecondsToHHMMSS(userHoursMap[userId]);
+              const hoursDecimal = formatMillisecondsToDecimalHours(userHoursMap[userId]);
+              logMessage('DEBUG', `User: ${userName}`, `Interaction time: ${hoursFormatted} (${hoursDecimal.toFixed(2)} hours)`);
+            }
+          } else {
+            logMessage('WARN', 'No agent users found', 'Only supervisors and admins in the organization');
+          }
+        } catch (analyticsError) {
+          logMessage('ERROR', 'Analytics API query failed', analyticsError.message);
+          console.error('Analytics API error details:', analyticsError);
+          // NO DEMO DATA - only real API data
         }
+
+        // Update user data with interacting time
+        appState.userData.forEach(user => {
+          const interactTimeMs = userHoursMap[user.id] || 0;
+          user.interactingMilliseconds = interactTimeMs;
+          user.interactingHoursFormatted = formatMillisecondsToHHMMSS(interactTimeMs);
+          user.interactingHoursDecimal = formatMillisecondsToDecimalHours(interactTimeMs);
+        });
+
+        // Fetch user presence status to check for communicating users
+        updateLoadingProgress(70);
+        logMessage('INFO', 'Fetching user presence status');
+        
+        const userIds = appState.userData.map(u => u.id);
+        const presenceData = await fetchUserPresenceStatus(userIds);
+        
+        // Update user status based on presence
+        appState.userData.forEach(user => {
+          const presence = presenceData[user.id];
+          if (presence) {
+            user.presenceStatus = presence.presence;
+            user.isCommunicating = presence.isCommunicating;
+            
+            // Log if user is currently communicating
+            if (user.isCommunicating) {
+              logMessage('INFO', `User ${user.name} is currently ${user.presenceStatus}`, 'This user may be actively communicating');
+            }
+          }
+        });
 
         // Calculate statistics
         const usersWithHours = appState.userData.filter(u => u.interactingMilliseconds > 0);
         const totalInteractingMs = usersWithHours.reduce((sum, u) => sum + u.interactingMilliseconds, 0);
         const totalInteractingHours = formatMillisecondsToDecimalHours(totalInteractingMs);
         
-        logMessage('INFO', `Session time distribution`, 
-          `${usersWithHours.length} users have > 0 session time, ${appState.userData.length - usersWithHours.length} users have 0 time`);
-        logMessage('INFO', `Total session time`, 
+        // Count communicating users
+        const communicatingUsers = appState.userData.filter(u => u.isCommunicating).length;
+        logMessage('INFO', `Communicating users detected`, `${communicatingUsers} users are currently in a communicating state`);
+        
+        logMessage('INFO', `Interacting time distribution`, 
+          `${usersWithHours.length} users have > 0 interacting time, ${appState.userData.length - usersWithHours.length} users have 0 interacting time`);
+        logMessage('INFO', `Total interacting time`, 
           `${formatMillisecondsToHHMMSS(totalInteractingMs)} (${totalInteractingHours.toFixed(2)} hours)`);
 
         if (usersWithHours.length > 0) {
@@ -2013,7 +2122,7 @@
         updateCurrencyDisplay();
 
         logMessage('SUCCESS', 'Data loaded successfully', 
-          `${appState.userData.length} users loaded, ${usersWithHours.length} with session time, total ${totalInteractingHours.toFixed(2)} hours`);
+          `${appState.userData.length} users loaded, ${usersWithHours.length} with interacting time, ${communicatingUsers} currently communicating, total ${totalInteractingHours.toFixed(2)} hours`);
 
         el.statTotalUsers.textContent = appState.userData.length;
         el.totalCount.textContent = appState.userData.length;
@@ -2030,7 +2139,7 @@
         updateLoadingProgress(100);
         await new Promise(resolve => setTimeout(resolve, 500));
         setLoading(false);
-        showStatusMessage(`✅ Loaded ${appState.userData.length} users (${usersWithHours.length} with session time)`, 'success');
+        showStatusMessage(`✅ Loaded ${appState.userData.length} users (${usersWithHours.length} with interacting time, ${communicatingUsers} communicating)`, 'success');
 
       } catch (error) {
         setLoading(false);
@@ -2149,29 +2258,27 @@
         tbody.appendChild(row);
       });
       
-      // Add summary row if there are users over threshold
-      if (usersOverThreshold.length > 0) {
-        const summaryRow = document.createElement('tr');
-        summaryRow.style.backgroundColor = 'rgba(220, 53, 69, 0.05)';
-        summaryRow.innerHTML = `
-          <td colspan="4" style="text-align:right;font-weight:600;">
-            <span style="color:var(--danger);">TOTAL OVERAGE:</span>
-          </td>
-          <td style="text-align:center;font-weight:600;">
-            ${Math.round(usersOverThreshold.reduce((sum, u) => sum + u.interactingHoursDecimal, 0))} hours
-          </td>
-          <td style="text-align:center;font-weight:700;color:var(--danger);">
-            +${Math.round(totalOverage)} hours
-          </td>
-          <td style="text-align:center;font-weight:600;color:var(--danger);">
-            ${usersOverThreshold.length} users
-          </td>
-          <td>
-            <span style="font-size:12px;color:var(--text-light);">Average: ${Math.round(totalOverage / usersOverThreshold.length)} hours over</span>
-          </td>
-        `;
-        tbody.appendChild(summaryRow);
-      }
+      // Add summary row
+      const summaryRow = document.createElement('tr');
+      summaryRow.style.backgroundColor = 'rgba(220, 53, 69, 0.05)';
+      summaryRow.innerHTML = `
+        <td colspan="4" style="text-align:right;font-weight:600;">
+          <span style="color:var(--danger);">TOTAL OVERAGE:</span>
+        </td>
+        <td style="text-align:center;font-weight:600;">
+          ${Math.round(usersOverThreshold.reduce((sum, u) => sum + u.interactingHoursDecimal, 0))} hours
+        </td>
+        <td style="text-align:center;font-weight:700;color:var(--danger);">
+          +${Math.round(totalOverage)} hours
+        </td>
+        <td style="text-align:center;font-weight:600;color:var(--danger);">
+          ${usersOverThreshold.length} users
+        </td>
+        <td>
+          <span style="font-size:12px;color:var(--text-light);">Average: ${Math.round(totalOverage / usersOverThreshold.length)} hours over</span>
+        </td>
+      `;
+      tbody.appendChild(summaryRow);
     }
 
     async function runAnalysis() {
