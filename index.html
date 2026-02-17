@@ -2045,14 +2045,15 @@
           
           logMessage('INFO', `Job status check ${attempt}/${maxAttempts}`, `State: ${jobStatus.state}`);
           
-          if (jobStatus.state === 'COMPLETED') {
+          // Check for both COMPLETED and FULFILLED states
+          if (jobStatus.state === 'COMPLETED' || jobStatus.state === 'FULFILLED') {
             logMessage('SUCCESS', 'Job completed successfully', `Job ID: ${jobId}`);
             return true;
           } else if (jobStatus.state === 'FAILED') {
             throw new Error(`Job failed: ${jobStatus.errorMessage || 'Unknown error'}`);
           } else if (jobStatus.state === 'CANCELLED') {
             throw new Error('Job was cancelled');
-          } else if (jobStatus.state === 'PENDING' || jobStatus.state === 'RUNNING') {
+          } else if (jobStatus.state === 'PENDING' || jobStatus.state === 'RUNNING' || jobStatus.state === 'PROCESSING') {
             // Job is still processing, continue polling
             logMessage('INFO', `Job still ${jobStatus.state.toLowerCase()}, waiting...`);
           }
