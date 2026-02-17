@@ -1487,11 +1487,8 @@
         return;
       }
       const dateStr = new Date().toISOString().split('T')[0];
-      exportJSON({
-        query: appState.apiData.analyticsQuery,
-        response: appState.apiData.analytics
-      }, `genesys_analytics_api_${dateStr}.json`);
-      logMessage('SUCCESS', 'Analytics API data exported', `${appState.apiData.analytics.results?.length || 0} records`);
+      exportJSON(appState.apiData.analytics, `genesys_analytics_api_${dateStr}.json`);
+      logMessage('SUCCESS', 'Analytics API data exported', `${appState.apiData.analytics.totalRecords || 0} records across ${appState.apiData.analytics.totalPages || 0} pages`);
     }
 
     function exportPresenceAPI() {
@@ -1521,10 +1518,7 @@
         environment: CURRENT_CONFIG.environment,
         environmentRegion: CURRENT_CONFIG.environmentRegion,
         users: appState.apiData.users || null,
-        analytics: appState.apiData.analytics ? {
-          query: appState.apiData.analyticsQuery,
-          response: appState.apiData.analytics
-        } : null,
+        analytics: appState.apiData.analytics || null,
         presence: appState.apiData.presence || null
       };
       
@@ -2011,7 +2005,7 @@
       }
     }
 
-    // ==================== MAIN FETCH FUNCTION - NO DEMO DATA ====================
+    // ==================== MAIN FETCH FUNCTION - WITH CORRECT ANALYTICS API ====================
     async function fetchUserData() {
       if (!validateDateRange()) {
         showStatusMessage('❌ Please select valid dates', 'error');
@@ -2086,114 +2080,126 @@
         });
 
         updateLoadingProgress(50);
-        logMessage('INFO', 'Fetching interaction data');
+        logMessage('INFO', 'Fetching interaction data from analytics/users/details/query');
 
         const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
         const userHoursMap = {};
 
         try {
-          logMessage('INFO', 'Trying Conversations Analytics API for interaction data');
+          logMessage('INFO', 'Querying Users Details Analytics API for interaction data');
           
-          const agentUserIds = appState.userData
-            .filter(u => u.userType === 'agent')
-            .map(u => u.id)
-            .slice(0, 50);
+          let pageNumber = 1;
+          const pageSize = 100;
+          let hasMorePages = true;
+          let totalRecords = 0;
+          const allAnalyticsResponses = [];
 
-          if (agentUserIds.length > 0) {
+          while (hasMorePages) {
+            // Exact schema as provided
             const queryBody = {
               interval: interval,
-              order: "asc",
-              orderBy: "userId",
-              paging: {
-                pageSize: 1000,
-                pageNumber: 1
-              },
-              segmentFilters: [
+              routingStatusFilters: [
                 {
-                  type: "or",
+                  type: "and",
                   predicates: [
                     {
-                      dimension: "mediaType",
-                      value: "voice"
-                    },
-                    {
-                      dimension: "mediaType",
-                      value: "chat"
-                    },
-                    {
-                      dimension: "mediaType",
-                      value: "email"
-                    },
-                    {
-                      dimension: "mediaType",
-                      value: "message"
-                    }
-                  ]
-                },
-                {
-                  type: "or",
-                  predicates: [
-                    {
-                      dimension: "queueId",
-                      operator: "exists",
-                      value: null
+                      type: "dimension",
+                      dimension: "routingStatus",
+                      operator: "matches",
+                      value: "INTERACTING"
                     }
                   ]
                 }
               ],
-              groupBy: ["userId"],
-              metrics: ["tTalk", "tWrapUp"]
+              paging: {
+                pageSize: pageSize
+                // pageNumber not included - API handles pagination differently
+              }
             };
 
-            updateLoadingProgress(60);
-            logMessage('INFO', 'Querying Conversations Analytics API');
-
+            logMessage('INFO', `Querying page ${pageNumber} of user details analytics`);
+            
             try {
-              const analyticsResponse = await apiCall('/api/v2/analytics/conversations/aggregates/query', {
+              const analyticsResponse = await apiCall('/api/v2/analytics/users/details/query', {
                 method: 'POST',
                 body: JSON.stringify(queryBody)
               });
 
-              appState.apiData.analytics = analyticsResponse;
-              appState.apiData.analyticsQuery = queryBody;
+              // Store each page response
+              allAnalyticsResponses.push({
+                page: pageNumber,
+                query: queryBody,
+                response: analyticsResponse
+              });
 
-              console.log('Conversations API Response:', analyticsResponse);
+              if (analyticsResponse.userDetails && analyticsResponse.userDetails.length > 0) {
+                analyticsResponse.userDetails.forEach(userDetail => {
+                  if (userDetail.userId) {
+                    const userId = userDetail.userId;
+                    let totalInteractingSeconds = 0;
 
-              if (analyticsResponse.results && analyticsResponse.results.length > 0) {
-                analyticsResponse.results.forEach(record => {
-                  if (record.group && record.group.userId) {
-                    const userId = record.group.userId;
-                    let totalTalkTime = 0;
-                    let totalWrapUpTime = 0;
-
-                    const tTalkData = record.data.find(d => d.metric === "tTalk");
-                    if (tTalkData && tTalkData.stats) {
-                      totalTalkTime = tTalkData.stats.sum || 0;
+                    // Sum up all primary and secondary status times
+                    if (userDetail.primaryStatuses) {
+                      userDetail.primaryStatuses.forEach(status => {
+                        if (status.status === 'INTERACTING') {
+                          totalInteractingSeconds += status.seconds || 0;
+                        }
+                      });
                     }
 
-                    const tWrapUpData = record.data.find(d => d.metric === "tWrapUp");
-                    if (tWrapUpData && tWrapUpData.stats) {
-                      totalWrapUpTime = tWrapUpData.stats.sum || 0;
+                    if (userDetail.secondaryStatuses) {
+                      userDetail.secondaryStatuses.forEach(status => {
+                        if (status.status === 'INTERACTING') {
+                          totalInteractingSeconds += status.seconds || 0;
+                        }
+                      });
                     }
 
-                    const totalInteractingTime = totalTalkTime + totalWrapUpTime;
+                    // Convert seconds to milliseconds
+                    const totalInteractingMs = totalInteractingSeconds * 1000;
                     
-                    if (totalInteractingTime > 0) {
-                      userHoursMap[userId] = totalInteractingTime;
+                    if (totalInteractingMs > 0) {
+                      // If user appears in multiple pages, sum their time
+                      if (userHoursMap[userId]) {
+                        userHoursMap[userId] += totalInteractingMs;
+                      } else {
+                        userHoursMap[userId] = totalInteractingMs;
+                      }
                     }
                   }
                 });
 
-                logMessage('SUCCESS', 'Conversations API query completed', `Found ${Object.keys(userHoursMap).length} users with interaction time`);
-              } else {
-                logMessage('INFO', 'No conversation data found in selected period', 'All users will have 0 interacting time');
+                totalRecords += analyticsResponse.userDetails.length;
+                logMessage('INFO', `Page ${pageNumber} returned ${analyticsResponse.userDetails.length} user records`);
               }
-            } catch (convError) {
-              logMessage('WARN', 'Conversations API failed', convError.message);
+
+              // Check if we need to fetch more pages - API uses cursor-based pagination
+              if (analyticsResponse.nextUri) {
+                pageNumber++;
+                // Add delay to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 500));
+              } else {
+                hasMorePages = false;
+                logMessage('INFO', 'No more pages to fetch');
+              }
+
+            } catch (pageError) {
+              logMessage('ERROR', `Failed to fetch page ${pageNumber}`, pageError.message);
+              hasMorePages = false;
             }
-          } else {
-            logMessage('INFO', 'No agent users found', 'Only supervisors and admins in the organization - all users will have 0 interacting time');
           }
+
+          // Store all analytics responses
+          appState.apiData.analytics = {
+            pages: allAnalyticsResponses,
+            totalPages: pageNumber,
+            totalRecords: totalRecords,
+            timestamp: new Date().toISOString()
+          };
+
+          logMessage('SUCCESS', 'Users Details Analytics API query completed', 
+            `Found ${Object.keys(userHoursMap).length} users with INTERACTING time across ${allAnalyticsResponses.length} pages`);
+
         } catch (analyticsError) {
           logMessage('ERROR', 'Analytics API query failed', analyticsError.message);
           console.error('Analytics API error details:', analyticsError);
