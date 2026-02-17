@@ -594,6 +594,7 @@
       display: flex;
       gap: 12px;
       align-items: center;
+      flex-wrap: wrap;
     }
     
     .btn-export-users {
@@ -619,6 +620,37 @@
       background: #e0a800;
       color: var(--text-color);
     }
+    
+    /* API Export buttons */
+    .api-export-section {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+      border-top: 1px solid var(--border-color);
+      padding-top: 16px;
+    }
+    
+    .btn-api-export {
+      background: var(--secondary-color);
+      padding: 8px 12px;
+      font-size: 12px;
+      width: auto;
+      flex: 1;
+      min-width: 120px;
+    }
+    
+    .btn-api-export:hover {
+      background: var(--primary-color);
+    }
+    
+    .api-export-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-color);
+      margin-bottom: 8px;
+      width: 100%;
+    }
   </style>
 </head>
 <body>
@@ -640,6 +672,13 @@
     <div class="container">
       <header>
         <h1>📊 Genesys Cloud - Hourly Interacting Calculator</h1>
+        <div class="api-export-section" style="margin-top: 16px; border-top: none; padding-top: 0;">
+          <div class="api-export-title">📥 Export Raw API Data (JSON):</div>
+          <button id="btnExportUsersAPI" class="btn-api-export" disabled>📋 Users API</button>
+          <button id="btnExportAnalyticsAPI" class="btn-api-export" disabled>📊 Analytics API</button>
+          <button id="btnExportPresenceAPI" class="btn-api-export" disabled>👤 Presence API</button>
+          <button id="btnExportAllAPI" class="btn-api-export" style="background: var(--primary-color);" disabled>📦 All API Data</button>
+        </div>
       </header>
 
       <div class="main-grid">
@@ -879,7 +918,7 @@
 
           <div id="tab-users" class="tab-content">
             <div class="card">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px; flex-wrap: wrap; gap: 12px;">
                 <h2 style="margin:0;">👥 User Details</h2>
                 <div class="export-buttons-container">
                   <button id="btnExportUsers" class="btn-export-users" disabled>
@@ -931,9 +970,9 @@
             <!-- New Overage Table Card -->
             <div class="card" style="margin-top:24px;">
               <h2>📈 Overage Analysis</h2>
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px; flex-wrap: wrap; gap: 12px;">
                 <div class="overage-summary" style="flex:1;">
-                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div style="display:flex;justify-content:space-between;align-items:center; flex-wrap: wrap; gap: 12px;">
                     <div>
                       <span style="font-weight:600;">Threshold:</span> 
                       <span id="currentThresholdDisplay">40</span> hours
@@ -1207,7 +1246,14 @@
       logs: [],
       chartInstances: {},
       currencySymbol: '£',
-      hourlyCurrencySymbol: '£'
+      hourlyCurrencySymbol: '£',
+      // NEW: Store raw API responses
+      apiData: {
+        users: null,
+        analytics: null,
+        presence: null,
+        analyticsQuery: null
+      }
     };
 
     // ==================== DOM ELEMENTS ====================
@@ -1286,7 +1332,12 @@
       statHiUsersDetailed: document.getElementById('statHiUsersDetailed'),
       statTotalHiHours: document.getElementById('statTotalHiHours'),
       statAvgHiHours: document.getElementById('statAvgHiHours'),
-      statHourlyCost: document.getElementById('statHourlyCost')
+      statHourlyCost: document.getElementById('statHourlyCost'),
+      // NEW API Export buttons
+      btnExportUsersAPI: document.getElementById('btnExportUsersAPI'),
+      btnExportAnalyticsAPI: document.getElementById('btnExportAnalyticsAPI'),
+      btnExportPresenceAPI: document.getElementById('btnExportPresenceAPI'),
+      btnExportAllAPI: document.getElementById('btnExportAllAPI')
     };
 
     // ==================== UTILITY FUNCTIONS ====================
@@ -1398,6 +1449,88 @@
       }
       
       return true;
+    }
+
+    // ==================== NEW API EXPORT FUNCTIONS ====================
+    function exportJSON(data, filename) {
+      const jsonStr = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function exportUsersAPI() {
+      if (!appState.apiData.users) {
+        showStatusMessage('No Users API data available', 'warn');
+        return;
+      }
+      const dateStr = new Date().toISOString().split('T')[0];
+      exportJSON(appState.apiData.users, `genesys_users_api_${dateStr}.json`);
+      logMessage('SUCCESS', 'Users API data exported', `${appState.apiData.users.entities?.length || 0} users`);
+    }
+
+    function exportAnalyticsAPI() {
+      if (!appState.apiData.analytics) {
+        showStatusMessage('No Analytics API data available', 'warn');
+        return;
+      }
+      const dateStr = new Date().toISOString().split('T')[0];
+      exportJSON({
+        query: appState.apiData.analyticsQuery,
+        response: appState.apiData.analytics
+      }, `genesys_analytics_api_${dateStr}.json`);
+      logMessage('SUCCESS', 'Analytics API data exported', `${appState.apiData.analytics.results?.length || 0} records`);
+    }
+
+    function exportPresenceAPI() {
+      if (!appState.apiData.presence) {
+        showStatusMessage('No Presence API data available', 'warn');
+        return;
+      }
+      const dateStr = new Date().toISOString().split('T')[0];
+      exportJSON(appState.apiData.presence, `genesys_presence_api_${dateStr}.json`);
+      logMessage('SUCCESS', 'Presence API data exported', `${Object.keys(appState.apiData.presence).length} presence records`);
+    }
+
+    function exportAllAPI() {
+      if (!appState.apiData.users && !appState.apiData.analytics && !appState.apiData.presence) {
+        showStatusMessage('No API data available', 'warn');
+        return;
+      }
+      
+      const dateStr = new Date().toISOString().split('T')[0];
+      const allData = {
+        timestamp: new Date().toISOString(),
+        period: {
+          from: el.dateFrom.value,
+          to: el.dateTo.value
+        },
+        clientId: CLIENT_ID,
+        environment: CURRENT_CONFIG.environment,
+        environmentRegion: CURRENT_CONFIG.environmentRegion,
+        users: appState.apiData.users || null,
+        analytics: appState.apiData.analytics ? {
+          query: appState.apiData.analyticsQuery,
+          response: appState.apiData.analytics
+        } : null,
+        presence: appState.apiData.presence || null
+      };
+      
+      exportJSON(allData, `genesys_all_api_data_${dateStr}.json`);
+      logMessage('SUCCESS', 'All API data exported', 'Complete API response bundle');
+    }
+
+    function updateAPIExportButtons() {
+      el.btnExportUsersAPI.disabled = !appState.apiData.users;
+      el.btnExportAnalyticsAPI.disabled = !appState.apiData.analytics;
+      el.btnExportPresenceAPI.disabled = !appState.apiData.presence;
+      el.btnExportAllAPI.disabled = !appState.apiData.users && !appState.apiData.analytics && !appState.apiData.presence;
     }
 
     // ==================== AUTHENTICATION ====================
@@ -1664,7 +1797,13 @@
           logs: [], 
           chartInstances: {},
           currencySymbol: '£',
-          hourlyCurrencySymbol: '£'
+          hourlyCurrencySymbol: '£',
+          apiData: {
+            users: null,
+            analytics: null,
+            presence: null,
+            analyticsQuery: null
+          }
         };
         el.mainContent.style.display = 'none';
         el.authContainer.style.display = 'block';
@@ -1692,6 +1831,12 @@
         clearCredentials();
         appState.userData = [];
         appState.analysisResults = null;
+        appState.apiData = {
+          users: null,
+          analytics: null,
+          presence: null,
+          analyticsQuery: null
+        };
         
         // Hide main content and show auth
         el.mainContent.style.display = 'none';
@@ -1830,10 +1975,14 @@
       try {
         const batchSize = 50;
         const presenceResults = {};
+        const allPresenceData = [];
         
         for (let i = 0; i < userIds.length; i += batchSize) {
           const batch = userIds.slice(i, i + batchSize);
           const response = await apiCall(`/api/v2/users?pageSize=${batchSize}&pageNumber=1&id=${batch.join(',')}&expand=presence`);
+          
+          // Store raw API response
+          allPresenceData.push(response);
           
           if (response.entities) {
             response.entities.forEach(user => {
@@ -1842,7 +1991,8 @@
                   presence: user.presence.presenceDefinition?.systemPresence || 'Unknown',
                   isCommunicating: ['BUSY', 'BUSY_OTHER', 'ON_QUEUE', 'INTERRUPTIBLE', 'COMMUNICATING'].includes(
                     user.presence.presenceDefinition?.systemPresence || ''
-                  )
+                  ),
+                  rawPresence: user.presence
                 };
               }
             });
@@ -1851,6 +2001,13 @@
           // Add delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 100));
         }
+        
+        // Store raw API data
+        appState.apiData.presence = {
+          batches: allPresenceData,
+          results: presenceResults,
+          timestamp: new Date().toISOString()
+        };
         
         return presenceResults;
       } catch (error) {
@@ -1880,9 +2037,11 @@
         let allUsers = [];
         let page = 1;
         const pageSize = 100;
+        const allUsersResponses = [];
 
         while (true) {
           const usersData = await apiCall(`/api/v2/users?pageSize=${pageSize}&pageNumber=${page}&expand=dateLastLogin,authorization,groups`);
+          allUsersResponses.push(usersData);
           const users = usersData?.entities || [];
           allUsers = allUsers.concat(users);
           if (!usersData?.nextUri || users.length < pageSize) break;
@@ -1890,6 +2049,13 @@
           await new Promise(resolve => setTimeout(resolve, 200));
           updateLoadingProgress(20 + (page * 5));
         }
+
+        // Store raw Users API data
+        appState.apiData.users = {
+          pages: allUsersResponses,
+          totalUsers: allUsers.length,
+          timestamp: new Date().toISOString()
+        };
 
         updateLoadingProgress(40);
         logMessage('INFO', `Loaded ${allUsers.length} users from API`);
@@ -1994,6 +2160,10 @@
                 method: 'POST',
                 body: JSON.stringify(queryBody)
               });
+
+              // Store raw Analytics API data
+              appState.apiData.analytics = analyticsResponse;
+              appState.apiData.analyticsQuery = queryBody;
 
               console.log('Conversations API Response:', analyticsResponse);
 
@@ -2121,6 +2291,9 @@
         el.btnAnalyze.disabled = false;
         el.btnRunAnalysis.disabled = false;
         el.btnExportUsers.disabled = false;
+        
+        // Update API export buttons
+        updateAPIExportButtons();
 
         renderUserTable();
         updateHourBuckets();
@@ -2980,6 +3153,12 @@
       if (confirm('Reset the application? This will clear all data but keep the connection.')) {
         appState.userData = [];
         appState.analysisResults = null;
+        appState.apiData = {
+          users: null,
+          analytics: null,
+          presence: null,
+          analyticsQuery: null
+        };
         el.statTotalUsers.textContent = '0';
         el.statActiveUsers.textContent = '0';
         el.statNamedUsers.textContent = '0';
@@ -3010,6 +3189,9 @@
         el.btnExport.disabled = true;
         el.btnExportUsers.disabled = true;
         el.btnExportOverage.disabled = true;
+
+        // Disable API export buttons
+        updateAPIExportButtons();
 
         el.usersTableBody.innerHTML = `
           <tr><td colspan="8" style="text-align:center;padding:48px;color:var(--text-light);">
@@ -3091,6 +3273,12 @@
       el.btnExportOverage.addEventListener('click', exportOverageTable);
       el.btnReset.addEventListener('click', resetApplication);
 
+      // NEW API Export event listeners
+      el.btnExportUsersAPI.addEventListener('click', exportUsersAPI);
+      el.btnExportAnalyticsAPI.addEventListener('click', exportAnalyticsAPI);
+      el.btnExportPresenceAPI.addEventListener('click', exportPresenceAPI);
+      el.btnExportAllAPI.addEventListener('click', exportAllAPI);
+
       el.dateFrom.addEventListener('change', updateDateRangeInfo);
       el.dateTo.addEventListener('change', updateDateRangeInfo);
       el.dateFrom.addEventListener('input', updateDateRangeInfo);
@@ -3158,6 +3346,9 @@
 
       // Initial currency display update
       updateCurrencyDisplay();
+      
+      // Initial API export button state
+      updateAPIExportButtons();
 
       logMessage('INFO', 'Hourly Billing Calculator initialised', `Active Client ID: ${CLIENT_ID.substring(0,8)}...`);
     }
