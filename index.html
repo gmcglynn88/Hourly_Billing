@@ -1981,6 +1981,34 @@
       }
     }
 
+    // ==================== FIXED: SPLIT DATE RANGE INTO WEEKS ====================
+    function splitDateRangeIntoWeeks(startDate, endDate) {
+      const weeks = [];
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      let currentStart = new Date(start);
+      
+      while (currentStart <= end) {
+        let currentEnd = new Date(currentStart);
+        currentEnd.setDate(currentEnd.getDate() + 6); // Add 6 days for a week
+        
+        if (currentEnd > end) {
+          currentEnd = new Date(end);
+        }
+        
+        weeks.push({
+          start: currentStart.toISOString().split('T')[0],
+          end: currentEnd.toISOString().split('T')[0]
+        });
+        
+        currentStart = new Date(currentEnd);
+        currentStart.setDate(currentStart.getDate() + 1);
+      }
+      
+      return weeks;
+    }
+
     // ==================== FIXED: ANALYTICS JOB API FUNCTIONS ====================
     async function createAnalyticsJob(interval) {
       logMessage('INFO', 'Creating analytics job', `Interval: ${interval}`);
@@ -2134,18 +2162,13 @@
         }
       }
 
-      appState.apiData.analytics = {
-        pages: allResponses,
-        totalRecords: allResults.length,
-        usersWithHours: 0, // Will be updated after processing
-        timestamp: new Date().toISOString()
+      return {
+        results: allResults,
+        responses: allResponses
       };
-
-      logMessage('SUCCESS', 'Job results fetched', `Total records: ${allResults.length}`);
-      return allResults;
     }
 
-    // ==================== UPDATED MAIN FETCH FUNCTION ====================
+    // ==================== UPDATED MAIN FETCH FUNCTION WITH WEEKLY BATCHES ====================
     async function fetchUserData() {
       if (!validateDateRange()) {
         showStatusMessage('❌ Please select valid dates', 'error');
@@ -2223,38 +2246,68 @@
         });
 
         updateLoadingProgress(50);
-        logMessage('INFO', 'Creating analytics job for interaction data');
+        logMessage('INFO', 'Creating analytics jobs for interaction data (splitting into weekly batches)');
 
-        // Create interval string for the job
-        const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
-        
-        // Step 1: Create the job
-        logMessage('INFO', 'Step 1: Creating analytics job');
-        const jobResponse = await createAnalyticsJob(interval);
-        const jobId = jobResponse.id; // Now this will work because we normalized the response
-        
-        if (!jobId) {
-          throw new Error('No job ID returned from job creation');
+        // Split date range into weekly batches
+        const weeks = splitDateRangeIntoWeeks(dateFrom, dateTo);
+        logMessage('INFO', `Split date range into ${weeks.length} weekly batches`);
+
+        const allAnalyticsResults = [];
+        const allJobResponses = [];
+
+        // Process each week sequentially
+        for (let weekIndex = 0; weekIndex < weeks.length; weekIndex++) {
+          const week = weeks[weekIndex];
+          const interval = `${week.start}T00:00:00.000Z/${week.end}T23:59:59.999Z`;
+          
+          logMessage('INFO', `Processing week ${weekIndex + 1}/${weeks.length}`, `Interval: ${interval}`);
+          updateLoadingProgress(50 + (weekIndex * 10));
+
+          // Step 1: Create the job for this week
+          logMessage('INFO', `Step 1: Creating analytics job for week ${weekIndex + 1}`);
+          const jobResponse = await createAnalyticsJob(interval);
+          const jobId = jobResponse.id;
+          
+          if (!jobId) {
+            throw new Error(`No job ID returned from job creation for week ${weekIndex + 1}`);
+          }
+          
+          logMessage('SUCCESS', `Job created successfully for week ${weekIndex + 1}`, `Job ID: ${jobId}`);
+          
+          // Step 2: Wait for job completion
+          logMessage('INFO', `Step 2: Waiting for job completion for week ${weekIndex + 1}`);
+          await waitForJobCompletion(jobId);
+          
+          // Step 3: Fetch all results for this week
+          logMessage('INFO', `Step 3: Fetching job results for week ${weekIndex + 1}`);
+          const weekResults = await fetchJobResults(jobId);
+          
+          allAnalyticsResults.push(...weekResults.results);
+          allJobResponses.push({
+            week: weekIndex + 1,
+            interval,
+            jobId,
+            responses: weekResults.responses,
+            recordCount: weekResults.results.length
+          });
+          
+          logMessage('SUCCESS', `Week ${weekIndex + 1} complete`, `Found ${weekResults.results.length} records`);
         }
-        
-        logMessage('SUCCESS', 'Job created successfully', `Job ID: ${jobId}`);
-        
-        // Step 2: Wait for job completion
-        logMessage('INFO', 'Step 2: Waiting for job completion');
-        await waitForJobCompletion(jobId);
-        
-        // Step 3: Fetch all results with pagination
-        updateLoadingProgress(70);
-        logMessage('INFO', 'Step 3: Fetching job results');
-        const analyticsResults = await fetchJobResults(jobId);
 
-        logMessage('SUCCESS', 'Job results fetched', `Total records: ${analyticsResults.length}`);
+        appState.apiData.analytics = {
+          weeks: allJobResponses,
+          totalRecords: allAnalyticsResults.length,
+          usersWithHours: 0,
+          timestamp: new Date().toISOString()
+        };
 
-        // Process the analytics results
+        logMessage('SUCCESS', 'All weekly jobs completed', `Total records across all weeks: ${allAnalyticsResults.length}`);
+
+        // Process all analytics results
         const userHoursMap = {};
         let usersWithInteractingTime = 0;
 
-        analyticsResults.forEach(userDetail => {
+        allAnalyticsResults.forEach(userDetail => {
           // Handle different possible response structures
           const userId = userDetail.userId || userDetail.id || userDetail.user_id;
           
@@ -2312,7 +2365,7 @@
         }
 
         logMessage('SUCCESS', 'Analytics job processing complete', 
-          `Found ${usersWithInteractingTime} users with INTERACTING time out of ${analyticsResults.length} total records`);
+          `Found ${usersWithInteractingTime} users with INTERACTING time out of ${allAnalyticsResults.length} total records`);
 
         // Update user data with interaction times
         let usersWithHoursCount = 0;
