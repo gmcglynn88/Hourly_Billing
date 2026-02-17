@@ -1981,35 +1981,60 @@
       }
     }
 
-    // ==================== FIXED: SPLIT DATE RANGE INTO WEEKS ====================
-    function splitDateRangeIntoWeeks(startDate, endDate) {
-      const weeks = [];
+    // ==================== SPLIT DATE RANGE INTO DAYS ====================
+    function splitDateRangeIntoDays(startDate, endDate) {
+      const days = [];
       const start = new Date(startDate);
       const end = new Date(endDate);
       
-      let currentStart = new Date(start);
+      let currentDate = new Date(start);
       
-      while (currentStart <= end) {
-        let currentEnd = new Date(currentStart);
-        currentEnd.setDate(currentEnd.getDate() + 6); // Add 6 days for a week
-        
-        if (currentEnd > end) {
-          currentEnd = new Date(end);
-        }
-        
-        weeks.push({
-          start: currentStart.toISOString().split('T')[0],
-          end: currentEnd.toISOString().split('T')[0]
+      while (currentDate <= end) {
+        days.push({
+          date: currentDate.toISOString().split('T')[0]
         });
         
-        currentStart = new Date(currentEnd);
-        currentStart.setDate(currentStart.getDate() + 1);
+        currentDate.setDate(currentDate.getDate() + 1);
       }
       
-      return weeks;
+      return days;
     }
 
-    // ==================== FIXED: ANALYTICS JOB API FUNCTIONS ====================
+    // ==================== CALCULATE INTERACTING TIME FROM SEGMENTS ====================
+    function calculateInteractingTimeFromSegments(userDetail) {
+      let totalSeconds = 0;
+
+      // Check primaryStatuses
+      if (userDetail.primaryStatuses && Array.isArray(userDetail.primaryStatuses)) {
+        userDetail.primaryStatuses.forEach(status => {
+          if (status.status === 'INTERACTING' && status.seconds) {
+            totalSeconds += status.seconds;
+          }
+        });
+      }
+
+      // Check secondaryStatuses
+      if (userDetail.secondaryStatuses && Array.isArray(userDetail.secondaryStatuses)) {
+        userDetail.secondaryStatuses.forEach(status => {
+          if (status.status === 'INTERACTING' && status.seconds) {
+            totalSeconds += status.seconds;
+          }
+        });
+      }
+
+      // Check metrics for tInteracting
+      if (userDetail.metrics && Array.isArray(userDetail.metrics)) {
+        userDetail.metrics.forEach(metric => {
+          if (metric.name === 'tInteracting' && metric.seconds) {
+            totalSeconds += metric.seconds;
+          }
+        });
+      }
+
+      return totalSeconds;
+    }
+
+    // ==================== ANALYTICS JOB API FUNCTIONS ====================
     async function createAnalyticsJob(interval) {
       logMessage('INFO', 'Creating analytics job', `Interval: ${interval}`);
       
@@ -2168,7 +2193,7 @@
       };
     }
 
-    // ==================== UPDATED MAIN FETCH FUNCTION WITH WEEKLY BATCHES ====================
+    // ==================== UPDATED MAIN FETCH FUNCTION WITH DAILY BATCHES ====================
     async function fetchUserData() {
       if (!validateDateRange()) {
         showStatusMessage('❌ Please select valid dates', 'error');
@@ -2246,115 +2271,95 @@
         });
 
         updateLoadingProgress(50);
-        logMessage('INFO', 'Creating analytics jobs for interaction data (splitting into weekly batches)');
+        logMessage('INFO', 'Creating analytics jobs for interaction data (splitting into daily batches)');
 
-        // Split date range into weekly batches
-        const weeks = splitDateRangeIntoWeeks(dateFrom, dateTo);
-        logMessage('INFO', `Split date range into ${weeks.length} weekly batches`);
+        // Split date range into daily batches
+        const days = splitDateRangeIntoDays(dateFrom, dateTo);
+        logMessage('INFO', `Split date range into ${days.length} daily batches`);
 
         const allAnalyticsResults = [];
         const allJobResponses = [];
 
-        // Process each week sequentially
-        for (let weekIndex = 0; weekIndex < weeks.length; weekIndex++) {
-          const week = weeks[weekIndex];
-          const interval = `${week.start}T00:00:00.000Z/${week.end}T23:59:59.999Z`;
+        // Process each day sequentially with rate limiting
+        for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
+          const day = days[dayIndex];
+          const interval = `${day.date}T00:00:00.000Z/${day.date}T23:59:59.999Z`;
           
-          logMessage('INFO', `Processing week ${weekIndex + 1}/${weeks.length}`, `Interval: ${interval}`);
-          updateLoadingProgress(50 + (weekIndex * 10));
+          logMessage('INFO', `Processing day ${dayIndex + 1}/${days.length}`, `Date: ${day.date}`);
+          updateLoadingProgress(50 + ((dayIndex / days.length) * 30));
 
-          // Step 1: Create the job for this week
-          logMessage('INFO', `Step 1: Creating analytics job for week ${weekIndex + 1}`);
+          // Step 1: Create the job for this day
+          logMessage('INFO', `Creating analytics job for ${day.date}`);
           const jobResponse = await createAnalyticsJob(interval);
           const jobId = jobResponse.id;
           
           if (!jobId) {
-            throw new Error(`No job ID returned from job creation for week ${weekIndex + 1}`);
+            throw new Error(`No job ID returned from job creation for ${day.date}`);
           }
           
-          logMessage('SUCCESS', `Job created successfully for week ${weekIndex + 1}`, `Job ID: ${jobId}`);
+          logMessage('SUCCESS', `Job created for ${day.date}`, `Job ID: ${jobId}`);
           
           // Step 2: Wait for job completion
-          logMessage('INFO', `Step 2: Waiting for job completion for week ${weekIndex + 1}`);
           await waitForJobCompletion(jobId);
           
-          // Step 3: Fetch all results for this week
-          logMessage('INFO', `Step 3: Fetching job results for week ${weekIndex + 1}`);
-          const weekResults = await fetchJobResults(jobId);
+          // Step 3: Fetch all results for this day
+          logMessage('INFO', `Fetching job results for ${day.date}`);
+          const dayResults = await fetchJobResults(jobId);
           
-          allAnalyticsResults.push(...weekResults.results);
-          allJobResponses.push({
-            week: weekIndex + 1,
-            interval,
-            jobId,
-            responses: weekResults.responses,
-            recordCount: weekResults.results.length
+          // Process each user detail to calculate total interacting time
+          dayResults.results.forEach(userDetail => {
+            const userId = userDetail.userId || userDetail.id || userDetail.user_id;
+            if (userId) {
+              const totalSeconds = calculateInteractingTimeFromSegments(userDetail);
+              if (totalSeconds > 0) {
+                allAnalyticsResults.push({
+                  userId: userId,
+                  seconds: totalSeconds,
+                  date: day.date
+                });
+              }
+            }
           });
           
-          logMessage('SUCCESS', `Week ${weekIndex + 1} complete`, `Found ${weekResults.results.length} records`);
+          allJobResponses.push({
+            date: day.date,
+            interval,
+            jobId,
+            recordCount: dayResults.results.length,
+            usersWithHours: dayResults.results.filter(u => calculateInteractingTimeFromSegments(u) > 0).length
+          });
+          
+          logMessage('SUCCESS', `Day ${day.date} complete`, `Found ${allJobResponses[allJobResponses.length-1].usersWithHours} users with interacting time`);
+          
+          // Rate limiting - wait 1 second between daily jobs
+          if (dayIndex < days.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
         }
 
         appState.apiData.analytics = {
-          weeks: allJobResponses,
+          days: allJobResponses,
           totalRecords: allAnalyticsResults.length,
           usersWithHours: 0,
           timestamp: new Date().toISOString()
         };
 
-        logMessage('SUCCESS', 'All weekly jobs completed', `Total records across all weeks: ${allAnalyticsResults.length}`);
+        logMessage('SUCCESS', 'All daily jobs completed', `Total interaction records: ${allAnalyticsResults.length}`);
 
-        // Process all analytics results
+        // Aggregate interaction times by user
         const userHoursMap = {};
         let usersWithInteractingTime = 0;
 
-        allAnalyticsResults.forEach(userDetail => {
-          // Handle different possible response structures
-          const userId = userDetail.userId || userDetail.id || userDetail.user_id;
+        allAnalyticsResults.forEach(record => {
+          const userId = record.userId;
+          const seconds = record.seconds;
           
-          if (userId) {
-            let totalInteractingSeconds = 0;
-
-            // Check primaryStatuses
-            if (userDetail.primaryStatuses && Array.isArray(userDetail.primaryStatuses)) {
-              userDetail.primaryStatuses.forEach(status => {
-                if (status.status === 'INTERACTING' || status.systemPresence === 'INTERACTING') {
-                  totalInteractingSeconds += status.seconds || 0;
-                }
-              });
-            }
-
-            // Check secondaryStatuses
-            if (userDetail.secondaryStatuses && Array.isArray(userDetail.secondaryStatuses)) {
-              userDetail.secondaryStatuses.forEach(status => {
-                if (status.status === 'INTERACTING' || status.systemPresence === 'INTERACTING') {
-                  totalInteractingSeconds += status.seconds || 0;
-                }
-              });
-            }
-
-            // Check metrics for tInteracting
-            if (userDetail.metrics && Array.isArray(userDetail.metrics)) {
-              userDetail.metrics.forEach(metric => {
-                if (metric.name === 'tInteracting' || metric.metric === 'tInteracting') {
-                  totalInteractingSeconds += metric.seconds || metric.value || 0;
-                }
-              });
-            }
-
-            // Check for direct seconds property
-            if (userDetail.seconds) {
-              totalInteractingSeconds += userDetail.seconds;
-            }
-
-            const totalInteractingMs = totalInteractingSeconds * 1000;
-            
-            if (totalInteractingMs > 0) {
+          if (userId && seconds > 0) {
+            if (userHoursMap[userId]) {
+              userHoursMap[userId] += seconds;
+            } else {
+              userHoursMap[userId] = seconds;
               usersWithInteractingTime++;
-              if (userHoursMap[userId]) {
-                userHoursMap[userId] += totalInteractingMs;
-              } else {
-                userHoursMap[userId] = totalInteractingMs;
-              }
             }
           }
         });
@@ -2364,19 +2369,24 @@
           appState.apiData.analytics.usersWithHours = usersWithInteractingTime;
         }
 
-        logMessage('SUCCESS', 'Analytics job processing complete', 
-          `Found ${usersWithInteractingTime} users with INTERACTING time out of ${allAnalyticsResults.length} total records`);
+        logMessage('SUCCESS', 'Analytics processing complete', 
+          `Found ${usersWithInteractingTime} users with INTERACTING time`);
 
         // Update user data with interaction times
         let usersWithHoursCount = 0;
+        let totalInteractingSeconds = 0;
+
         appState.userData.forEach(user => {
-          const interactTimeMs = userHoursMap[user.id] || 0;
-          user.interactingMilliseconds = interactTimeMs;
-          user.interactingHoursFormatted = formatMillisecondsToHHMMSS(interactTimeMs);
-          user.interactingHoursDecimal = formatMillisecondsToDecimalHours(interactTimeMs);
+          const interactSeconds = userHoursMap[user.id] || 0;
+          const interactMs = interactSeconds * 1000;
           
-          if (interactTimeMs > 0) {
+          user.interactingMilliseconds = interactMs;
+          user.interactingHoursFormatted = formatMillisecondsToHHMMSS(interactMs);
+          user.interactingHoursDecimal = formatMillisecondsToDecimalHours(interactMs);
+          
+          if (interactMs > 0) {
             usersWithHoursCount++;
+            totalInteractingSeconds += interactSeconds;
           }
         });
 
@@ -2394,19 +2404,17 @@
           }
         });
 
-        const totalInteractingMs = appState.userData.reduce((sum, u) => sum + u.interactingMilliseconds, 0);
-        const totalInteractingHours = formatMillisecondsToDecimalHours(totalInteractingMs);
-        
+        const totalInteractingHours = totalInteractingSeconds / 3600;
         const communicatingUsers = appState.userData.filter(u => u.isCommunicating).length;
         
         logMessage('INFO', 'Interacting time distribution', 
           `${usersWithHoursCount} users have > 0 interacting time, ${appState.userData.length - usersWithHoursCount} users have 0 interacting time`);
         logMessage('INFO', 'Total interacting time', 
-          `${formatMillisecondsToHHMMSS(totalInteractingMs)} (${totalInteractingHours.toFixed(2)} hours)`);
+          `${formatMillisecondsToHHMMSS(totalInteractingSeconds * 1000)} (${totalInteractingHours.toFixed(2)} hours)`);
 
         if (usersWithHoursCount > 0) {
-          const avgMs = totalInteractingMs / usersWithHoursCount;
-          const avgHoursFormatted = formatMillisecondsToHHMMSS(avgMs);
+          const avgSeconds = totalInteractingSeconds / usersWithHoursCount;
+          const avgHoursFormatted = formatMillisecondsToHHMMSS(avgSeconds * 1000);
           logMessage('INFO', 'Average per active user', `${avgHoursFormatted} per active user`);
         }
 
