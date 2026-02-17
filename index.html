@@ -2004,11 +2004,26 @@
     function calculateInteractingTimeFromSegments(userDetail) {
       let totalSeconds = 0;
 
+      // Check routingStatus array
+      if (userDetail.routingStatus && Array.isArray(userDetail.routingStatus)) {
+        userDetail.routingStatus.forEach(status => {
+          if (status.routingStatus === 'INTERACTING' && status.startTime && status.endTime) {
+            const start = new Date(status.startTime);
+            const end = new Date(status.endTime);
+            const durationSeconds = (end - start) / 1000; // Convert ms to seconds
+            totalSeconds += durationSeconds;
+          }
+        });
+      }
+
       // Check primaryStatuses
       if (userDetail.primaryStatuses && Array.isArray(userDetail.primaryStatuses)) {
         userDetail.primaryStatuses.forEach(status => {
-          if (status.status === 'INTERACTING' && status.seconds) {
-            totalSeconds += status.seconds;
+          if (status.status === 'INTERACTING' && status.startTime && status.endTime) {
+            const start = new Date(status.startTime);
+            const end = new Date(status.endTime);
+            const durationSeconds = (end - start) / 1000;
+            totalSeconds += durationSeconds;
           }
         });
       }
@@ -2016,8 +2031,11 @@
       // Check secondaryStatuses
       if (userDetail.secondaryStatuses && Array.isArray(userDetail.secondaryStatuses)) {
         userDetail.secondaryStatuses.forEach(status => {
-          if (status.status === 'INTERACTING' && status.seconds) {
-            totalSeconds += status.seconds;
+          if (status.status === 'INTERACTING' && status.startTime && status.endTime) {
+            const start = new Date(status.startTime);
+            const end = new Date(status.endTime);
+            const durationSeconds = (end - start) / 1000;
+            totalSeconds += durationSeconds;
           }
         });
       }
