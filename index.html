@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Genesys Cloud - Hourly Interacting Calculator</title>
   <style>
+    /* [All your existing styles remain exactly the same] */
     :root{
       --primary-color:#63AB8F; --secondary-color:#4A8C7D; --border-color:#DEE2E6;
       --light-bg:#F8F9FA; --card-bg:#FFFFFF; --text-color:#2C3E50; --text-light:#6C757D;
@@ -363,7 +364,6 @@
       border-color: var(--primary-color);
     }
     
-    /* New styles for agent count tiles */
     .agent-count-container {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -408,7 +408,6 @@
       font-weight: 600;
     }
     
-    /* New styles for overage table */
     .overage-table-container {
       margin-top: 24px;
     }
@@ -446,7 +445,6 @@
       font-size: 15px;
     }
 
-    /* FIXED: Date range styles - stacked on mobile, side-by-side on desktop */
     .date-range-simple {
       display: flex;
       flex-direction: column;
@@ -495,7 +493,6 @@
       }
     }
 
-    /* Improved layout for better screen usage */
     .left-column {
       display: flex;
       flex-direction: column;
@@ -512,7 +509,6 @@
       width: 100%;
     }
     
-    /* Enhanced typography */
     .info-text {
       font-size: 13px;
       color: var(--text-light);
@@ -520,29 +516,24 @@
       font-family:'Aptos','Segoe UI',system-ui,-apple-system,Arial,sans-serif;
     }
     
-    /* Card content spacing */
     .card-content {
       padding: 4px 0;
     }
     
-    /* Better spacing for form elements */
     .form-spacing {
       margin-top: 8px;
     }
     
-    /* Ensure consistent font usage */
     input, select, textarea, button {
       font-family: 'Aptos', 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
     }
     
-    /* Chart container improvements */
     .chart-container {
       height: 340px;
       position: relative;
       margin-top: 24px;
     }
     
-    /* Wider layout for larger screens */
     @media (min-width: 1400px) {
       .container {
         max-width: 1600px;
@@ -574,7 +565,6 @@
       }
     }
     
-    /* New styles for enhanced stat cards */
     .stat-subvalue {
       font-size: 16px;
       color: var(--secondary-color);
@@ -589,7 +579,6 @@
       margin-top: 4px;
     }
 
-    /* Export button container styles */
     .export-buttons-container {
       display: flex;
       gap: 12px;
@@ -621,7 +610,6 @@
       color: var(--text-color);
     }
     
-    /* API Export buttons */
     .api-export-section {
       display: flex;
       gap: 8px;
@@ -696,7 +684,6 @@
               <input type="text" id="envDisplay" value="Select environment..." readonly style="background:var(--filter-bg);">
             </div>
             
-            <!-- NEW: Client ID Selector -->
             <div class="client-selector">
               <select id="clientIdSelect">
                 <option value="d968eca4-cdb7-4b90-91b1-4628b5bb679e">Group CX3 (Default)</option>
@@ -717,7 +704,6 @@
             </button>
           </div>
 
-          <!-- Simplified Date Range Card - FIXED: Now stacked on mobile -->
           <div class="card">
             <h2>📅 Analysis Period</h2>
             
@@ -973,7 +959,6 @@
               </div>
             </div>
             
-            <!-- New Overage Table Card -->
             <div class="card" style="margin-top:24px;">
               <h2>📈 Overage Analysis</h2>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px; flex-wrap: wrap; gap: 12px;">
@@ -1103,7 +1088,6 @@
               </div>
             </div>
 
-            <!-- NEW: Hourly Interacting Details Card -->
             <div class="card" style="margin-top:24px;">
               <h2>⏱️ Hourly Interacting Details</h2>
               <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
@@ -1179,7 +1163,6 @@
     </div>
   </div>
 
-  <!-- FIXED: Changed Chart.js CDN to jsDelivr to avoid tracking prevention warnings -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script>
     // ==================== TROUBLESHOOTING GUIDE ====================
@@ -1196,16 +1179,13 @@
     //    location.reload();
 
     // ==================== CONFIGURATION ====================
-    // CLIENT IDS - Now configurable via dropdown
     const CLIENT_IDS = {
       'org1': 'd968eca4-cdb7-4b90-91b1-4628b5bb679e',
       'org2': 'a236ffec-2893-4ccd-81bb-ef2f4a2fe316'
     };
     
-    // Default client ID
     let CLIENT_ID = CLIENT_IDS.org1;
     
-    // DON'T CHANGE THESE - they work with GitHub Pages
     const REDIRECT_URI = 'https://gmcglynn88.github.io/Hourly_Billing/';
     const ENVIRONMENTS = {
       'us-east-1': { name: 'US East (N. Virginia)', api: 'https://api.mypurecloud.com', login: 'https://login.mypurecloud.com' },
@@ -2002,7 +1982,115 @@
       }
     }
 
-    // ==================== MAIN FETCH FUNCTION - WITH PROPER DATA MAPPING ====================
+    // ==================== FIXED: ANALYTICS JOB API FUNCTIONS ====================
+    async function createAnalyticsJob(interval) {
+      logMessage('INFO', 'Creating analytics job', `Interval: ${interval}`);
+      
+      const jobBody = {
+        interval: interval,
+        routingStatusFilters: [
+          {
+            type: "and",
+            predicates: [
+              {
+                dimension: "routingStatus",
+                operator: "matches",
+                value: "INTERACTING"
+              }
+            ]
+          }
+        ]
+      };
+
+      const response = await apiCall('/api/v2/analytics/users/details/jobs', {
+        method: 'POST',
+        body: JSON.stringify(jobBody)
+      });
+
+      appState.apiData.analyticsQuery = {
+        jobBody,
+        jobResponse: response
+      };
+
+      logMessage('INFO', 'Analytics job created', `Job ID: ${response.id}`);
+      return response;
+    }
+
+    async function waitForJobCompletion(jobId, maxAttempts = 60) {
+      logMessage('INFO', 'Waiting for job completion', `Job ID: ${jobId}`);
+      
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        updateLoadingProgress(50 + (attempt * 0.5));
+        
+        const jobStatus = await apiCall(`/api/v2/analytics/users/details/jobs/${jobId}`);
+        
+        logMessage('INFO', `Job status check ${attempt}/${maxAttempts}`, `State: ${jobStatus.state}`);
+        
+        if (jobStatus.state === 'COMPLETED') {
+          logMessage('SUCCESS', 'Job completed successfully', `Job ID: ${jobId}`);
+          return true;
+        } else if (jobStatus.state === 'FAILED') {
+          throw new Error(`Job failed: ${jobStatus.errorMessage || 'Unknown error'}`);
+        } else if (jobStatus.state === 'CANCELLED') {
+          throw new Error('Job was cancelled');
+        }
+        
+        // Wait 5 seconds before next check
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+      
+      throw new Error('Job timed out');
+    }
+
+    async function fetchJobResults(jobId) {
+      logMessage('INFO', 'Fetching job results', `Job ID: ${jobId}`);
+      
+      let allResults = [];
+      let pageNumber = 1;
+      let hasMorePages = true;
+      const pageSize = 1000;
+      const allResponses = [];
+
+      while (hasMorePages) {
+        try {
+          const results = await apiCall(`/api/v2/analytics/users/details/jobs/${jobId}/results?pageSize=${pageSize}&pageNumber=${pageNumber}`);
+          
+          allResponses.push({
+            pageNumber,
+            response: results
+          });
+
+          if (results.userDetails && results.userDetails.length > 0) {
+            allResults = allResults.concat(results.userDetails);
+            logMessage('INFO', `Fetched page ${pageNumber}`, `${results.userDetails.length} records (total: ${allResults.length})`);
+          }
+
+          // Check if there are more pages
+          if (results.userDetails && results.userDetails.length === pageSize) {
+            pageNumber++;
+            updateLoadingProgress(80 + (pageNumber * 2));
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } else {
+            hasMorePages = false;
+          }
+        } catch (error) {
+          logMessage('ERROR', `Failed to fetch page ${pageNumber}`, error.message);
+          hasMorePages = false;
+        }
+      }
+
+      appState.apiData.analytics = {
+        pages: allResponses,
+        totalRecords: allResults.length,
+        usersWithHours: 0, // Will be updated after processing
+        timestamp: new Date().toISOString()
+      };
+
+      logMessage('SUCCESS', 'Job results fetched', `Total records: ${allResults.length}`);
+      return allResults;
+    }
+
+    // ==================== MAIN FETCH FUNCTION - UPDATED WITH JOB API ====================
     async function fetchUserData() {
       if (!validateDateRange()) {
         showStatusMessage('❌ Please select valid dates', 'error');
@@ -2026,14 +2114,14 @@
         const allUsersResponses = [];
 
         while (true) {
-          const usersData = await apiCall(`/api/v2/users?pageSize=${pageSize}&pageNumber=${page}&expand=dateLastLogin,authorization,groups`);
+          const usersData = await apiCall(`/api/v2/users?pageSize=${pageSize}&pageNumber=${page}&expand=dateLastLogin,authorization,groups,team`);
           allUsersResponses.push(usersData);
           const users = usersData?.entities || [];
           allUsers = allUsers.concat(users);
           if (!usersData?.nextUri || users.length < pageSize) break;
           page++;
           await new Promise(resolve => setTimeout(resolve, 200));
-          updateLoadingProgress(20 + (page * 5));
+          updateLoadingProgress(20 + (page * 2));
         }
 
         appState.apiData.users = {
@@ -2047,7 +2135,7 @@
 
         const userMap = {};
         appState.userData = allUsers.map(user => {
-          const teamName = user.groups && user.groups.length > 0 ? user.groups[0].name : 'Unassigned';
+          const teamName = user.team?.name || (user.groups && user.groups.length > 0 ? user.groups[0].name : 'Unassigned');
           const roleNames = user.authorization?.roles ? user.authorization.roles.map(r => r.name).join(', ') : 'No role';
           const userType = detectUserRole(user.authorization?.roles);
           let lastLogin = 'Never';
@@ -2077,141 +2165,79 @@
         });
 
         updateLoadingProgress(50);
-        logMessage('INFO', 'Fetching interaction data from analytics/users/details/query');
+        logMessage('INFO', 'Creating analytics job for interaction data');
 
+        // Create interval string for the job
         const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
+        
+        // Step 1: Create the job
+        const jobResponse = await createAnalyticsJob(interval);
+        const jobId = jobResponse.id;
+        
+        // Step 2: Wait for job completion
+        await waitForJobCompletion(jobId);
+        
+        // Step 3: Fetch all results with pagination
+        updateLoadingProgress(70);
+        const analyticsResults = await fetchJobResults(jobId);
+
+        // Process the analytics results
         const userHoursMap = {};
+        let usersWithInteractingTime = 0;
 
-        try {
-          logMessage('INFO', 'Querying Users Details Analytics API for interaction data');
-          
-          let hasMorePages = true;
-          let cursor = null;
-          let totalRecords = 0;
-          const allAnalyticsResponses = [];
+        analyticsResults.forEach(userDetail => {
+          if (userDetail.userId) {
+            const userId = userDetail.userId;
+            let totalInteractingSeconds = 0;
 
-          while (hasMorePages) {
-            const queryBody = {
-              interval: interval,
-              routingStatusFilters: [
-                {
-                  type: "and",
-                  predicates: [
-                    {
-                      type: "dimension",
-                      dimension: "routingStatus",
-                      operator: "matches",
-                      value: "INTERACTING"
-                    }
-                  ]
+            // Sum up all INTERACTING time from primary and secondary statuses
+            if (userDetail.primaryStatuses && Array.isArray(userDetail.primaryStatuses)) {
+              userDetail.primaryStatuses.forEach(status => {
+                if (status.status === 'INTERACTING') {
+                  totalInteractingSeconds += status.seconds || 0;
                 }
-              ],
-              paging: {
-                pageSize: 100
-              }
-            };
-
-            if (cursor) {
-              queryBody.cursor = cursor;
+              });
             }
 
-            logMessage('INFO', `Querying user details analytics${cursor ? ' with cursor' : ''}`);
+            if (userDetail.secondaryStatuses && Array.isArray(userDetail.secondaryStatuses)) {
+              userDetail.secondaryStatuses.forEach(status => {
+                if (status.status === 'INTERACTING') {
+                  totalInteractingSeconds += status.seconds || 0;
+                }
+              });
+            }
+
+            // Also check metrics for tInteracting
+            if (userDetail.metrics && Array.isArray(userDetail.metrics)) {
+              userDetail.metrics.forEach(metric => {
+                if (metric.name === 'tInteracting') {
+                  totalInteractingSeconds += metric.seconds || 0;
+                }
+              });
+            }
+
+            const totalInteractingMs = totalInteractingSeconds * 1000;
             
-            try {
-              const analyticsResponse = await apiCall('/api/v2/analytics/users/details/query', {
-                method: 'POST',
-                body: JSON.stringify(queryBody)
-              });
-
-              allAnalyticsResponses.push({
-                cursor: cursor,
-                query: queryBody,
-                response: analyticsResponse
-              });
-
-              if (analyticsResponse.userDetails && analyticsResponse.userDetails.length > 0) {
-                analyticsResponse.userDetails.forEach(userDetail => {
-                  if (userDetail.userId) {
-                    const userId = userDetail.userId;
-                    let totalInteractingSeconds = 0;
-
-                    if (userDetail.primaryStatuses && Array.isArray(userDetail.primaryStatuses)) {
-                      userDetail.primaryStatuses.forEach(status => {
-                        if (status.status === 'INTERACTING') {
-                          totalInteractingSeconds += status.seconds || 0;
-                        }
-                      });
-                    }
-
-                    if (userDetail.secondaryStatuses && Array.isArray(userDetail.secondaryStatuses)) {
-                      userDetail.secondaryStatuses.forEach(status => {
-                        if (status.status === 'INTERACTING') {
-                          totalInteractingSeconds += status.seconds || 0;
-                        }
-                      });
-                    }
-
-                    if (userDetail.metrics && Array.isArray(userDetail.metrics)) {
-                      userDetail.metrics.forEach(metric => {
-                        if (metric.name === 'tInteracting') {
-                          totalInteractingSeconds += metric.seconds || 0;
-                        }
-                      });
-                    }
-
-                    const totalInteractingMs = totalInteractingSeconds * 1000;
-                    
-                    if (totalInteractingMs > 0) {
-                      if (userHoursMap[userId]) {
-                        userHoursMap[userId] += totalInteractingMs;
-                      } else {
-                        userHoursMap[userId] = totalInteractingMs;
-                      }
-                      
-                      if (Object.keys(userHoursMap).length <= 5) {
-                        const user = userMap[userId];
-                        const userName = user ? user.name : userId;
-                        logMessage('DEBUG', `User ${userName}`, 
-                          `Interacting time: ${formatMillisecondsToHHMMSS(totalInteractingMs)} (${(totalInteractingSeconds/3600).toFixed(2)} hours)`);
-                      }
-                    }
-                  }
-                });
-
-                totalRecords += analyticsResponse.userDetails.length;
-                logMessage('INFO', `Received ${analyticsResponse.userDetails.length} user records (total: ${totalRecords})`);
-              }
-
-              if (analyticsResponse.nextCursor) {
-                cursor = analyticsResponse.nextCursor;
-                logMessage('INFO', `More pages available, next cursor: ${cursor.substring(0, 20)}...`);
-                await new Promise(resolve => setTimeout(resolve, 500));
+            if (totalInteractingMs > 0) {
+              usersWithInteractingTime++;
+              if (userHoursMap[userId]) {
+                userHoursMap[userId] += totalInteractingMs;
               } else {
-                hasMorePages = false;
-                logMessage('INFO', 'No more pages to fetch');
+                userHoursMap[userId] = totalInteractingMs;
               }
-
-            } catch (pageError) {
-              logMessage('ERROR', `Failed to fetch analytics page`, pageError.message);
-              hasMorePages = false;
             }
           }
+        });
 
-          appState.apiData.analytics = {
-            pages: allAnalyticsResponses,
-            totalRecords: totalRecords,
-            usersWithHours: Object.keys(userHoursMap).length,
-            timestamp: new Date().toISOString()
-          };
-
-          logMessage('SUCCESS', 'Users Details Analytics API query completed', 
-            `Found ${Object.keys(userHoursMap).length} users with INTERACTING time out of ${totalRecords} total records`);
-
-        } catch (analyticsError) {
-          logMessage('ERROR', 'Analytics API query failed', analyticsError.message);
-          console.error('Analytics API error details:', analyticsError);
+        // Update appState.apiData.analytics with user count
+        if (appState.apiData.analytics) {
+          appState.apiData.analytics.usersWithHours = usersWithInteractingTime;
         }
 
+        logMessage('SUCCESS', 'Analytics job processing complete', 
+          `Found ${usersWithInteractingTime} users with INTERACTING time out of ${analyticsResults.length} total records`);
+
+        // Update user data with interaction times
         let usersWithHoursCount = 0;
         appState.userData.forEach(user => {
           const interactTimeMs = userHoursMap[user.id] || 0;
@@ -2224,7 +2250,7 @@
           }
         });
 
-        updateLoadingProgress(70);
+        updateLoadingProgress(80);
         logMessage('INFO', 'Fetching user presence status');
         
         const userIds = appState.userData.map(u => u.id);
@@ -2235,26 +2261,21 @@
           if (presence) {
             user.presenceStatus = presence.presence;
             user.isCommunicating = presence.isCommunicating;
-            
-            if (user.isCommunicating) {
-              logMessage('INFO', `User ${user.name} is currently ${user.presenceStatus}`, 'This user may be actively communicating');
-            }
           }
         });
 
-        const usersWithHours = appState.userData.filter(u => u.interactingMilliseconds > 0);
-        const totalInteractingMs = usersWithHours.reduce((sum, u) => sum + u.interactingMilliseconds, 0);
+        const totalInteractingMs = appState.userData.reduce((sum, u) => sum + u.interactingMilliseconds, 0);
         const totalInteractingHours = formatMillisecondsToDecimalHours(totalInteractingMs);
         
         const communicatingUsers = appState.userData.filter(u => u.isCommunicating).length;
         
-        logMessage('INFO', `Interacting time distribution`, 
-          `${usersWithHours.length} users have > 0 interacting time, ${appState.userData.length - usersWithHours.length} users have 0 interacting time`);
-        logMessage('INFO', `Total interacting time`, 
+        logMessage('INFO', 'Interacting time distribution', 
+          `${usersWithHoursCount} users have > 0 interacting time, ${appState.userData.length - usersWithHoursCount} users have 0 interacting time`);
+        logMessage('INFO', 'Total interacting time', 
           `${formatMillisecondsToHHMMSS(totalInteractingMs)} (${totalInteractingHours.toFixed(2)} hours)`);
 
-        if (usersWithHours.length > 0) {
-          const avgMs = totalInteractingMs / usersWithHours.length;
+        if (usersWithHoursCount > 0) {
+          const avgMs = totalInteractingMs / usersWithHoursCount;
           const avgHoursFormatted = formatMillisecondsToHHMMSS(avgMs);
           logMessage('INFO', `Average per active user`, `${avgHoursFormatted} per active user`);
         }
@@ -2264,7 +2285,7 @@
         updateCurrencyDisplay();
 
         logMessage('SUCCESS', 'Data loaded successfully', 
-          `${appState.userData.length} users loaded, ${usersWithHours.length} with interacting time, ${communicatingUsers} currently communicating, total ${totalInteractingHours.toFixed(2)} hours`);
+          `${appState.userData.length} users loaded, ${usersWithHoursCount} with interacting time, ${communicatingUsers} currently communicating, total ${totalInteractingHours.toFixed(2)} hours`);
 
         el.statTotalUsers.textContent = appState.userData.length;
         el.totalCount.textContent = appState.userData.length;
@@ -2283,12 +2304,13 @@
         updateLoadingProgress(100);
         await new Promise(resolve => setTimeout(resolve, 500));
         setLoading(false);
-        showStatusMessage(`✅ Loaded ${appState.userData.length} users (${usersWithHours.length} with interacting time, ${communicatingUsers} communicating)`, 'success');
+        showStatusMessage(`✅ Loaded ${appState.userData.length} users (${usersWithHoursCount} with interacting time, ${communicatingUsers} communicating)`, 'success');
 
       } catch (error) {
         setLoading(false);
         logMessage('ERROR', 'Failed to fetch data', error.message);
         showStatusMessage('❌ Failed to fetch data', 'error');
+        console.error('Fetch error details:', error);
       }
     }
 
@@ -2402,26 +2424,28 @@
         tbody.appendChild(row);
       });
       
-      const summaryRow = document.createElement('tr');
-      summaryRow.style.backgroundColor = 'rgba(220, 53, 69, 0.05)';
-      summaryRow.innerHTML = `
-        <td colspan="4" style="text-align:right;font-weight:600;">
-          <span style="color:var(--danger);">TOTAL OVERAGE:</span>
-        </td>
-        <td style="text-align:center;font-weight:600;">
-          ${Math.round(usersOverThreshold.reduce((sum, u) => sum + u.interactingHoursDecimal, 0))} hours
-        </td>
-        <td style="text-align:center;font-weight:700;color:var(--danger);">
-          +${Math.round(totalOverage)} hours
-        </td>
-        <td style="text-align:center;font-weight:600;color:var(--danger);">
-          ${usersOverThreshold.length} users
-        </td>
-        <td>
-          <span style="font-size:12px;color:var(--text-light);">Average: ${Math.round(totalOverage / usersOverThreshold.length)} hours over</span>
-        </td>
-      `;
-      tbody.appendChild(summaryRow);
+      if (usersOverThreshold.length > 0) {
+        const summaryRow = document.createElement('tr');
+        summaryRow.style.backgroundColor = 'rgba(220, 53, 69, 0.05)';
+        summaryRow.innerHTML = `
+          <td colspan="4" style="text-align:right;font-weight:600;">
+            <span style="color:var(--danger);">TOTAL OVERAGE:</span>
+          </td>
+          <td style="text-align:center;font-weight:600;">
+            ${Math.round(usersOverThreshold.reduce((sum, u) => sum + u.interactingHoursDecimal, 0))} hours
+          </td>
+          <td style="text-align:center;font-weight:700;color:var(--danger);">
+            +${Math.round(totalOverage)} hours
+          </td>
+          <td style="text-align:center;font-weight:600;color:var(--danger);">
+            ${usersOverThreshold.length} users
+          </td>
+          <td>
+            <span style="font-size:12px;color:var(--text-light);">Average: ${Math.round(totalOverage / usersOverThreshold.length)} hours over</span>
+          </td>
+        `;
+        tbody.appendChild(summaryRow);
+      }
     }
 
     async function runAnalysis() {
