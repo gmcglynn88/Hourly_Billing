@@ -1232,7 +1232,7 @@
       HOURLY_CURRENCY: 'gc_hourly_currency',
       DATE_FROM: 'gc_date_from',
       DATE_TO: 'gc_date_to',
-      CLIENT_ID: 'gc_client_id' // NEW: Store selected client ID
+      CLIENT_ID: 'gc_client_id'
     };
 
     let CURRENT_CONFIG = {
@@ -1253,7 +1253,6 @@
       chartInstances: {},
       currencySymbol: '£',
       hourlyCurrencySymbol: '£',
-      // NEW: Store raw API responses
       apiData: {
         users: null,
         analytics: null,
@@ -1339,7 +1338,6 @@
       statTotalHiHours: document.getElementById('statTotalHiHours'),
       statAvgHiHours: document.getElementById('statAvgHiHours'),
       statHourlyCost: document.getElementById('statHourlyCost'),
-      // NEW API Export buttons
       btnExportUsersAPI: document.getElementById('btnExportUsersAPI'),
       btnExportAnalyticsAPI: document.getElementById('btnExportAnalyticsAPI'),
       btnExportPresenceAPI: document.getElementById('btnExportPresenceAPI'),
@@ -1457,7 +1455,7 @@
       return true;
     }
 
-    // ==================== NEW API EXPORT FUNCTIONS ====================
+    // ==================== API EXPORT FUNCTIONS ====================
     function exportJSON(data, filename) {
       const jsonStr = JSON.stringify(data, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -1488,7 +1486,7 @@
       }
       const dateStr = new Date().toISOString().split('T')[0];
       exportJSON(appState.apiData.analytics, `genesys_analytics_api_${dateStr}.json`);
-      logMessage('SUCCESS', 'Analytics API data exported', `${appState.apiData.analytics.totalRecords || 0} records across ${appState.apiData.analytics.totalPages || 0} pages`);
+      logMessage('SUCCESS', 'Analytics API data exported', `${appState.apiData.analytics.totalRecords || 0} records`);
     }
 
     function exportPresenceAPI() {
@@ -1547,7 +1545,6 @@
         const dateTo = localStorage.getItem(STORAGE_KEYS.DATE_TO);
         const storedClientId = localStorage.getItem(STORAGE_KEYS.CLIENT_ID);
 
-        // Set client ID from storage or default
         if (storedClientId) {
           CLIENT_ID = storedClientId;
           el.clientIdSelect.value = storedClientId === CLIENT_IDS.org1 ? CLIENT_IDS.org1 : CLIENT_IDS.org2;
@@ -2005,7 +2002,7 @@
       }
     }
 
-    // ==================== MAIN FETCH FUNCTION - WITH CORRECT ANALYTICS API ====================
+    // ==================== MAIN FETCH FUNCTION - WITH PROPER DATA MAPPING ====================
     async function fetchUserData() {
       if (!validateDateRange()) {
         showStatusMessage('❌ Please select valid dates', 'error');
@@ -2088,14 +2085,12 @@
         try {
           logMessage('INFO', 'Querying Users Details Analytics API for interaction data');
           
-          let pageNumber = 1;
-          const pageSize = 100;
           let hasMorePages = true;
+          let cursor = null;
           let totalRecords = 0;
           const allAnalyticsResponses = [];
 
           while (hasMorePages) {
-            // Exact schema as provided
             const queryBody = {
               interval: interval,
               routingStatusFilters: [
@@ -2112,12 +2107,15 @@
                 }
               ],
               paging: {
-                pageSize: pageSize
-                // pageNumber not included - API handles pagination differently
+                pageSize: 100
               }
             };
 
-            logMessage('INFO', `Querying page ${pageNumber} of user details analytics`);
+            if (cursor) {
+              queryBody.cursor = cursor;
+            }
+
+            logMessage('INFO', `Querying user details analytics${cursor ? ' with cursor' : ''}`);
             
             try {
               const analyticsResponse = await apiCall('/api/v2/analytics/users/details/query', {
@@ -2125,9 +2123,8 @@
                 body: JSON.stringify(queryBody)
               });
 
-              // Store each page response
               allAnalyticsResponses.push({
-                page: pageNumber,
+                cursor: cursor,
                 query: queryBody,
                 response: analyticsResponse
               });
@@ -2138,8 +2135,7 @@
                     const userId = userDetail.userId;
                     let totalInteractingSeconds = 0;
 
-                    // Sum up all primary and secondary status times
-                    if (userDetail.primaryStatuses) {
+                    if (userDetail.primaryStatuses && Array.isArray(userDetail.primaryStatuses)) {
                       userDetail.primaryStatuses.forEach(status => {
                         if (status.status === 'INTERACTING') {
                           totalInteractingSeconds += status.seconds || 0;
@@ -2147,7 +2143,7 @@
                       });
                     }
 
-                    if (userDetail.secondaryStatuses) {
+                    if (userDetail.secondaryStatuses && Array.isArray(userDetail.secondaryStatuses)) {
                       userDetail.secondaryStatuses.forEach(status => {
                         if (status.status === 'INTERACTING') {
                           totalInteractingSeconds += status.seconds || 0;
@@ -2155,28 +2151,40 @@
                       });
                     }
 
-                    // Convert seconds to milliseconds
+                    if (userDetail.metrics && Array.isArray(userDetail.metrics)) {
+                      userDetail.metrics.forEach(metric => {
+                        if (metric.name === 'tInteracting') {
+                          totalInteractingSeconds += metric.seconds || 0;
+                        }
+                      });
+                    }
+
                     const totalInteractingMs = totalInteractingSeconds * 1000;
                     
                     if (totalInteractingMs > 0) {
-                      // If user appears in multiple pages, sum their time
                       if (userHoursMap[userId]) {
                         userHoursMap[userId] += totalInteractingMs;
                       } else {
                         userHoursMap[userId] = totalInteractingMs;
+                      }
+                      
+                      if (Object.keys(userHoursMap).length <= 5) {
+                        const user = userMap[userId];
+                        const userName = user ? user.name : userId;
+                        logMessage('DEBUG', `User ${userName}`, 
+                          `Interacting time: ${formatMillisecondsToHHMMSS(totalInteractingMs)} (${(totalInteractingSeconds/3600).toFixed(2)} hours)`);
                       }
                     }
                   }
                 });
 
                 totalRecords += analyticsResponse.userDetails.length;
-                logMessage('INFO', `Page ${pageNumber} returned ${analyticsResponse.userDetails.length} user records`);
+                logMessage('INFO', `Received ${analyticsResponse.userDetails.length} user records (total: ${totalRecords})`);
               }
 
-              // Check if we need to fetch more pages - API uses cursor-based pagination
-              if (analyticsResponse.nextUri) {
-                pageNumber++;
-                // Add delay to avoid rate limiting
+              if (analyticsResponse.nextCursor) {
+                cursor = analyticsResponse.nextCursor;
+                logMessage('INFO', `More pages available, next cursor: ${cursor.substring(0, 20)}...`);
                 await new Promise(resolve => setTimeout(resolve, 500));
               } else {
                 hasMorePages = false;
@@ -2184,32 +2192,36 @@
               }
 
             } catch (pageError) {
-              logMessage('ERROR', `Failed to fetch page ${pageNumber}`, pageError.message);
+              logMessage('ERROR', `Failed to fetch analytics page`, pageError.message);
               hasMorePages = false;
             }
           }
 
-          // Store all analytics responses
           appState.apiData.analytics = {
             pages: allAnalyticsResponses,
-            totalPages: pageNumber,
             totalRecords: totalRecords,
+            usersWithHours: Object.keys(userHoursMap).length,
             timestamp: new Date().toISOString()
           };
 
           logMessage('SUCCESS', 'Users Details Analytics API query completed', 
-            `Found ${Object.keys(userHoursMap).length} users with INTERACTING time across ${allAnalyticsResponses.length} pages`);
+            `Found ${Object.keys(userHoursMap).length} users with INTERACTING time out of ${totalRecords} total records`);
 
         } catch (analyticsError) {
           logMessage('ERROR', 'Analytics API query failed', analyticsError.message);
           console.error('Analytics API error details:', analyticsError);
         }
 
+        let usersWithHoursCount = 0;
         appState.userData.forEach(user => {
           const interactTimeMs = userHoursMap[user.id] || 0;
           user.interactingMilliseconds = interactTimeMs;
           user.interactingHoursFormatted = formatMillisecondsToHHMMSS(interactTimeMs);
           user.interactingHoursDecimal = formatMillisecondsToDecimalHours(interactTimeMs);
+          
+          if (interactTimeMs > 0) {
+            usersWithHoursCount++;
+          }
         });
 
         updateLoadingProgress(70);
@@ -2235,7 +2247,6 @@
         const totalInteractingHours = formatMillisecondsToDecimalHours(totalInteractingMs);
         
         const communicatingUsers = appState.userData.filter(u => u.isCommunicating).length;
-        logMessage('INFO', `Communicating users detected`, `${communicatingUsers} users are currently in a communicating state`);
         
         logMessage('INFO', `Interacting time distribution`, 
           `${usersWithHours.length} users have > 0 interacting time, ${appState.userData.length - usersWithHours.length} users have 0 interacting time`);
@@ -2245,7 +2256,7 @@
         if (usersWithHours.length > 0) {
           const avgMs = totalInteractingMs / usersWithHours.length;
           const avgHoursFormatted = formatMillisecondsToHHMMSS(avgMs);
-          logMessage('INFO', `Average per user`, `${avgHoursFormatted} per active user`);
+          logMessage('INFO', `Average per active user`, `${avgHoursFormatted} per active user`);
         }
 
         updateLoadingProgress(95);
