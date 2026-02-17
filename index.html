@@ -2033,11 +2033,12 @@
       }
     }
 
-    async function waitForJobCompletion(jobId, maxAttempts = 60) {
+    async function waitForJobCompletion(jobId, maxAttempts = 30) {
       logMessage('INFO', 'Waiting for job completion', `Job ID: ${jobId}`);
       
+      // Check every 2 seconds for up to 60 seconds (30 attempts * 2 seconds)
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        updateLoadingProgress(50 + (attempt * 0.5));
+        updateLoadingProgress(50 + (attempt * 1.5)); // Slower progress increment
         
         try {
           const jobStatus = await apiCall(`/api/v2/analytics/users/details/jobs/${jobId}`);
@@ -2051,17 +2052,20 @@
             throw new Error(`Job failed: ${jobStatus.errorMessage || 'Unknown error'}`);
           } else if (jobStatus.state === 'CANCELLED') {
             throw new Error('Job was cancelled');
+          } else if (jobStatus.state === 'PENDING' || jobStatus.state === 'RUNNING') {
+            // Job is still processing, continue polling
+            logMessage('INFO', `Job still ${jobStatus.state.toLowerCase()}, waiting...`);
           }
           
-          // Wait 5 seconds before next check
-          await new Promise(resolve => setTimeout(resolve, 5000));
+          // Wait 2 seconds before next check
+          await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (error) {
           logMessage('ERROR', 'Error checking job status', error.message);
           throw error;
         }
       }
       
-      throw new Error('Job timed out after 5 minutes');
+      throw new Error('Job timed out after 60 seconds');
     }
 
     async function fetchJobResults(jobId) {
@@ -2070,7 +2074,7 @@
       let allResults = [];
       let pageNumber = 1;
       let hasMorePages = true;
-      const pageSize = 1000;
+      const pageSize = 10000; // Max page size as per API
       const allResponses = [];
 
       while (hasMorePages) {
@@ -2112,19 +2116,9 @@
             logMessage('INFO', `Page ${pageNumber} had no records`);
           }
 
-          // Check if there are more pages
-          if (results.nextUri) {
+          // Check if there are more pages - with pageSize=10000, likely only one page
+          if (results.nextUri || userDetails.length === pageSize) {
             logMessage('INFO', `More pages available, nextUri: ${results.nextUri}`);
-            pageNumber++;
-            updateLoadingProgress(80 + (pageNumber * 2));
-            await new Promise(resolve => setTimeout(resolve, 500));
-          } else if (results.totalPages && pageNumber < results.totalPages) {
-            logMessage('INFO', `More pages available, totalPages: ${results.totalPages}`);
-            pageNumber++;
-            updateLoadingProgress(80 + (pageNumber * 2));
-            await new Promise(resolve => setTimeout(resolve, 500));
-          } else if (results.hasNext === true) {
-            logMessage('INFO', `More pages available, hasNext: true`);
             pageNumber++;
             updateLoadingProgress(80 + (pageNumber * 2));
             await new Promise(resolve => setTimeout(resolve, 500));
