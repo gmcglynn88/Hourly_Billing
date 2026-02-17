@@ -644,6 +644,12 @@
       background: var(--primary-color);
     }
     
+    .btn-api-export:disabled {
+      background: var(--text-light);
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
     .api-export-title {
       font-size: 14px;
       font-weight: 600;
@@ -1472,7 +1478,7 @@
       }
       const dateStr = new Date().toISOString().split('T')[0];
       exportJSON(appState.apiData.users, `genesys_users_api_${dateStr}.json`);
-      logMessage('SUCCESS', 'Users API data exported', `${appState.apiData.users.entities?.length || 0} users`);
+      logMessage('SUCCESS', 'Users API data exported', `${appState.apiData.users.pages?.reduce((sum, page) => sum + (page.entities?.length || 0), 0) || 0} users`);
     }
 
     function exportAnalyticsAPI() {
@@ -1495,7 +1501,7 @@
       }
       const dateStr = new Date().toISOString().split('T')[0];
       exportJSON(appState.apiData.presence, `genesys_presence_api_${dateStr}.json`);
-      logMessage('SUCCESS', 'Presence API data exported', `${Object.keys(appState.apiData.presence).length} presence records`);
+      logMessage('SUCCESS', 'Presence API data exported', `${Object.keys(appState.apiData.presence.results || {}).length} presence records`);
     }
 
     function exportAllAPI() {
@@ -1673,12 +1679,12 @@
     }
 
     function parseEnvironmentFromState(state) {
-      if (!state) return 'eu-west-2'; // FIXED: Changed from 'us-east-1' to 'eu-west-2' (London)
+      if (!state) return 'eu-west-2';
       try {
         const stateObj = JSON.parse(atob(state));
-        return stateObj.env || 'eu-west-2'; // FIXED: Changed default from 'us-east-1' to 'eu-west-2'
+        return stateObj.env || 'eu-west-2';
       } catch (e) {
-        return 'eu-west-2'; // FIXED: Changed from 'us-east-1' to 'eu-west-2'
+        return 'eu-west-2';
       }
     }
 
@@ -1720,7 +1726,6 @@
         logMessage('ERROR', 'Authentication failed', `${error}: ${errorDescription}`);
         showStatusMessage(`❌ Authentication failed: ${error}`, 'error');
         
-        // Show specific CORS error guidance
         if (errorDescription && errorDescription.includes('CORS') || error === 'access_denied') {
           showStatusMessage('🔧 Please check OAuth client configuration in Genesys Cloud', 'warn');
           logMessage('INFO', 'CORS Issue Detected', 'Make sure your GitHub Pages URL is added to the OAuth client\'s Authorized Redirect URIs');
@@ -1751,8 +1756,7 @@
     }
 
     function authenticate() {
-      // Default to EU West 2 (London) - this is correct for UK deployments
-      const envRegion = 'eu-west-2'; // London is the correct default
+      const envRegion = 'eu-west-2';
       const env = ENVIRONMENTS[envRegion];
       
       if (!env) {
@@ -1823,11 +1827,9 @@
       }
       
       if (confirm('Switch organisation? This will disconnect your current session and clear all data.')) {
-        // Update the client ID
         CLIENT_ID = selectedClientId;
         localStorage.setItem(STORAGE_KEYS.CLIENT_ID, CLIENT_ID);
         
-        // Clear credentials and data
         clearCredentials();
         appState.userData = [];
         appState.analysisResults = null;
@@ -1838,20 +1840,16 @@
           analyticsQuery: null
         };
         
-        // Hide main content and show auth
         el.mainContent.style.display = 'none';
         el.authContainer.style.display = 'block';
         updateConnectionStatus(false, 'Not Connected');
         
-        // Log the switch
         const orgName = CLIENT_ID === CLIENT_IDS.org1 ? 'Org 1 (Default)' : 'Org 2';
         logMessage('INFO', 'Switched organisation', `Now using ${orgName} (${CLIENT_ID.substring(0,8)}...)`);
         showStatusMessage(`🔄 Switched to ${orgName}`, 'info');
         
-        // Re-initialise auth
         setTimeout(() => initAuth(), 500);
       } else {
-        // Reset dropdown to previous value
         el.clientIdSelect.value = previousClientId;
       }
     }
@@ -1970,7 +1968,7 @@
       return 'other';
     }
 
-    // ==================== NEW FUNCTION: FETCH USER PRESENCE STATUS ====================
+    // ==================== FETCH USER PRESENCE STATUS ====================
     async function fetchUserPresenceStatus(userIds) {
       try {
         const batchSize = 50;
@@ -1981,7 +1979,6 @@
           const batch = userIds.slice(i, i + batchSize);
           const response = await apiCall(`/api/v2/users?pageSize=${batchSize}&pageNumber=1&id=${batch.join(',')}&expand=presence`);
           
-          // Store raw API response
           allPresenceData.push(response);
           
           if (response.entities) {
@@ -1998,11 +1995,9 @@
             });
           }
           
-          // Add delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 100));
         }
         
-        // Store raw API data
         appState.apiData.presence = {
           batches: allPresenceData,
           results: presenceResults,
@@ -2016,7 +2011,7 @@
       }
     }
 
-    // ==================== MAIN FUNCTIONS ====================
+    // ==================== MAIN FETCH FUNCTION - NO DEMO DATA ====================
     async function fetchUserData() {
       if (!validateDateRange()) {
         showStatusMessage('❌ Please select valid dates', 'error');
@@ -2050,7 +2045,6 @@
           updateLoadingProgress(20 + (page * 5));
         }
 
-        // Store raw Users API data
         appState.apiData.users = {
           pages: allUsersResponses,
           totalUsers: allUsers.length,
@@ -2098,7 +2092,6 @@
         const userHoursMap = {};
 
         try {
-          // Try Conversations Analytics API first
           logMessage('INFO', 'Trying Conversations Analytics API for interaction data');
           
           const agentUserIds = appState.userData
@@ -2161,7 +2154,6 @@
                 body: JSON.stringify(queryBody)
               });
 
-              // Store raw Analytics API data
               appState.apiData.analytics = analyticsResponse;
               appState.apiData.analyticsQuery = queryBody;
 
@@ -2193,43 +2185,20 @@
                 });
 
                 logMessage('SUCCESS', 'Conversations API query completed', `Found ${Object.keys(userHoursMap).length} users with interaction time`);
-                
-                // Debug sample data
-                const usersWithHours = Object.keys(userHoursMap);
-                const sampleCount = Math.min(10, usersWithHours.length);
-                for (let i = 0; i < sampleCount; i++) {
-                  const userId = usersWithHours[i];
-                  const user = userMap[userId];
-                  const userName = user ? user.name : userId;
-                  const hoursFormatted = formatMillisecondsToHHMMSS(userHoursMap[userId]);
-                  const hoursDecimal = formatMillisecondsToDecimalHours(userHoursMap[userId]);
-                  logMessage('DEBUG', `User: ${userName}`, `Interaction time: ${hoursFormatted} (${hoursDecimal.toFixed(2)} hours)`);
-                }
               } else {
-                logMessage('WARN', 'No conversation data found in selected period', 'Users will have 0 interacting time');
+                logMessage('INFO', 'No conversation data found in selected period', 'All users will have 0 interacting time');
               }
             } catch (convError) {
               logMessage('WARN', 'Conversations API failed', convError.message);
-              
-              // Add demo data for testing
-              appState.userData.forEach((user, index) => {
-                if (user.userType === 'agent' && index % 3 === 0) {
-                  const randomHours = Math.floor(Math.random() * 80) + 1;
-                  userHoursMap[user.id] = randomHours * 60 * 60 * 1000;
-                }
-              });
-              
-              logMessage('INFO', 'Using demo data', 'Added sample interaction times for demonstration');
             }
           } else {
-            logMessage('WARN', 'No agent users found', 'Only supervisors and admins in the organization');
+            logMessage('INFO', 'No agent users found', 'Only supervisors and admins in the organization - all users will have 0 interacting time');
           }
         } catch (analyticsError) {
           logMessage('ERROR', 'Analytics API query failed', analyticsError.message);
           console.error('Analytics API error details:', analyticsError);
         }
 
-        // Update user data with interacting time
         appState.userData.forEach(user => {
           const interactTimeMs = userHoursMap[user.id] || 0;
           user.interactingMilliseconds = interactTimeMs;
@@ -2237,33 +2206,28 @@
           user.interactingHoursDecimal = formatMillisecondsToDecimalHours(interactTimeMs);
         });
 
-        // Fetch user presence status to check for communicating users
         updateLoadingProgress(70);
         logMessage('INFO', 'Fetching user presence status');
         
         const userIds = appState.userData.map(u => u.id);
         const presenceData = await fetchUserPresenceStatus(userIds);
         
-        // Update user status based on presence
         appState.userData.forEach(user => {
           const presence = presenceData[user.id];
           if (presence) {
             user.presenceStatus = presence.presence;
             user.isCommunicating = presence.isCommunicating;
             
-            // Log if user is currently communicating
             if (user.isCommunicating) {
               logMessage('INFO', `User ${user.name} is currently ${user.presenceStatus}`, 'This user may be actively communicating');
             }
           }
         });
 
-        // Calculate statistics
         const usersWithHours = appState.userData.filter(u => u.interactingMilliseconds > 0);
         const totalInteractingMs = usersWithHours.reduce((sum, u) => sum + u.interactingMilliseconds, 0);
         const totalInteractingHours = formatMillisecondsToDecimalHours(totalInteractingMs);
         
-        // Count communicating users
         const communicatingUsers = appState.userData.filter(u => u.isCommunicating).length;
         logMessage('INFO', `Communicating users detected`, `${communicatingUsers} users are currently in a communicating state`);
         
@@ -2292,7 +2256,6 @@
         el.btnRunAnalysis.disabled = false;
         el.btnExportUsers.disabled = false;
         
-        // Update API export buttons
         updateAPIExportButtons();
 
         renderUserTable();
@@ -2422,7 +2385,6 @@
         tbody.appendChild(row);
       });
       
-      // Add summary row
       const summaryRow = document.createElement('tr');
       summaryRow.style.backgroundColor = 'rgba(220, 53, 69, 0.05)';
       summaryRow.innerHTML = `
@@ -2479,15 +2441,12 @@
             user.recommendedLicense = 'Named';
             user.recommendedReason = `${user.userType === 'admin' ? 'Admin' : 'Supervisor'} role`;
           } else if (user.userType === 'agent' && user.interactingHoursDecimal > 0 && user.interactingHoursDecimal < threshold) {
-            // FIXED: Only agents can get Hourly Interacting license
             user.recommendedLicense = 'Hourly Interacting';
             user.recommendedReason = `Agent under ${threshold} hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
           } else if (user.userType === 'agent' && user.interactingHoursDecimal >= threshold) {
-            // FIXED: Only agents get Named based on hours
             user.recommendedLicense = 'Named';
             user.recommendedReason = `Agent over ${threshold} hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
           } else if (user.userType === 'other' && user.interactingHoursDecimal > 0) {
-            // FIXED: Other users with hours get Named
             user.recommendedLicense = 'Named';
             user.recommendedReason = `Other role with hours (${user.interactingHoursDecimal.toFixed(1)}h)`;
           } else {
@@ -2509,7 +2468,6 @@
         const activeUsers = usersToAnalyze.filter(u => u.interactingMilliseconds > 0).length;
         const namedUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'Named').length;
         
-        // FIXED: Only count agents for Hourly Interacting statistic
         const hiUsers = usersToAnalyze.filter(u => 
           u.recommendedLicense === 'Hourly Interacting' && u.userType === 'agent'
         ).length;
@@ -2517,7 +2475,6 @@
         const nologinUsers = usersToAnalyze.filter(u => u.recommendedLicense === 'NOLOGIN').length;
         const totalHours = usersToAnalyze.reduce((sum, u) => sum + u.interactingHoursDecimal, 0);
 
-        // FIXED: Only include agents in Hourly Interacting details
         const hiUsersList = usersToAnalyze.filter(u => 
           u.recommendedLicense === 'Hourly Interacting' && u.userType === 'agent'
         );
@@ -2526,7 +2483,7 @@
         const hourlyCost = hiHours * hourlyLicenseRate;
 
         const agentNamed = usersToAnalyze.filter(u => u.userType === 'agent' && u.recommendedLicense === 'Named').length;
-        const agentHI = hiUsers; // Already filtered for agents only
+        const agentHI = hiUsers;
         const supervisorNamed = usersToAnalyze.filter(u => u.userType === 'supervisor' && u.recommendedLicense === 'Named').length;
         const adminNamed = usersToAnalyze.filter(u => u.userType === 'admin' && u.recommendedLicense === 'Named').length;
 
@@ -2574,7 +2531,6 @@
         el.statSupervisorNamed.textContent = supervisorNamed;
         el.statAdminNamed.textContent = adminNamed;
         
-        // Update Hourly Interacting details
         el.statHiUsersDetailed.textContent = hiUsers;
         el.statTotalHiHours.textContent = Math.round(hiHours);
         el.statAvgHiHours.textContent = avgHiHours.toFixed(1);
@@ -3190,7 +3146,6 @@
         el.btnExportUsers.disabled = true;
         el.btnExportOverage.disabled = true;
 
-        // Disable API export buttons
         updateAPIExportButtons();
 
         el.usersTableBody.innerHTML = `
@@ -3220,13 +3175,11 @@
     }
 
     function initializeApp() {
-      // Set max date to today
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
       el.dateTo.max = todayStr;
       el.dateFrom.max = todayStr;
       
-      // Load stored preferences
       const storedCurrency = localStorage.getItem(STORAGE_KEYS.CURRENCY);
       const storedHourlyCurrency = localStorage.getItem(STORAGE_KEYS.HOURLY_CURRENCY);
       const storedDateFrom = localStorage.getItem(STORAGE_KEYS.DATE_FROM);
@@ -3242,7 +3195,6 @@
         el.hourlyCurrencySymbol.value = storedHourlyCurrency;
       }
       
-      // Set default dates
       if (!storedDateFrom || !storedDateTo) {
         const mostRecentMonth = getMostRecentMonth();
         el.dateFrom.value = mostRecentMonth.from;
@@ -3252,7 +3204,6 @@
         el.dateTo.value = storedDateTo;
       }
       
-      // Save dates when changed
       el.dateFrom.addEventListener('change', () => {
         localStorage.setItem(STORAGE_KEYS.DATE_FROM, el.dateFrom.value);
       });
@@ -3262,7 +3213,6 @@
       
       updateDateRangeInfo();
 
-      // Event listeners
       el.btnDisconnect.addEventListener('click', disconnect);
       el.btnSwitchClient.addEventListener('click', switchClient);
       el.btnFetchData.addEventListener('click', fetchUserData);
@@ -3273,7 +3223,6 @@
       el.btnExportOverage.addEventListener('click', exportOverageTable);
       el.btnReset.addEventListener('click', resetApplication);
 
-      // NEW API Export event listeners
       el.btnExportUsersAPI.addEventListener('click', exportUsersAPI);
       el.btnExportAnalyticsAPI.addEventListener('click', exportAnalyticsAPI);
       el.btnExportPresenceAPI.addEventListener('click', exportPresenceAPI);
@@ -3320,7 +3269,6 @@
         navigator.clipboard.writeText(logText).then(() => showStatusMessage('Logs copied to clipboard', 'success'));
       });
 
-      // Currency change handlers
       el.currencySymbol.addEventListener('change', function() {
         appState.currencySymbol = this.value;
         localStorage.setItem(STORAGE_KEYS.CURRENCY, this.value);
@@ -3335,7 +3283,6 @@
         logMessage('INFO', 'Currency updated', `Hourly rate currency: ${this.value}`);
       });
 
-      // Update cost displays when values change
       el.namedLicenseCost.addEventListener('change', () => {
         updateCurrencyDisplay();
       });
@@ -3344,10 +3291,7 @@
         updateCurrencyDisplay();
       });
 
-      // Initial currency display update
       updateCurrencyDisplay();
-      
-      // Initial API export button state
       updateAPIExportButtons();
 
       logMessage('INFO', 'Hourly Billing Calculator initialised', `Active Client ID: ${CLIENT_ID.substring(0,8)}...`);
