@@ -2011,8 +2011,10 @@
 
         logMessage('INFO', 'Job creation response', JSON.stringify(response));
 
-        // Check if response has id
-        if (!response || !response.id) {
+        // Check for job ID in either 'id' or 'jobId' field
+        const jobId = response.id || response.jobId;
+        
+        if (!jobId) {
           throw new Error('Job creation failed - no job ID returned');
         }
 
@@ -2021,8 +2023,10 @@
           jobResponse: response
         };
 
-        logMessage('SUCCESS', 'Analytics job created', `Job ID: ${response.id}`);
-        return response;
+        logMessage('SUCCESS', 'Analytics job created', `Job ID: ${jobId}`);
+        
+        // Return response with consistent id field
+        return { ...response, id: jobId };
       } catch (error) {
         logMessage('ERROR', 'Failed to create analytics job', error.message);
         throw error;
@@ -2075,7 +2079,8 @@
           
           const results = await apiCall(`/api/v2/analytics/users/details/jobs/${jobId}/results?pageSize=${pageSize}&pageNumber=${pageNumber}`);
           
-          logMessage('INFO', `Page ${pageNumber} response`, JSON.stringify(results).substring(0, 200) + '...');
+          logMessage('INFO', `Page ${pageNumber} response summary`, 
+            `Has userDetails: ${!!results.userDetails}, entities: ${!!results.entities}, results: ${!!results.results}`);
           
           allResponses.push({
             pageNumber,
@@ -2086,20 +2091,40 @@
           let userDetails = [];
           if (results.userDetails && Array.isArray(results.userDetails)) {
             userDetails = results.userDetails;
+            logMessage('INFO', `Found userDetails array with ${userDetails.length} items`);
           } else if (results.entities && Array.isArray(results.entities)) {
             userDetails = results.entities;
+            logMessage('INFO', `Found entities array with ${userDetails.length} items`);
           } else if (results.results && Array.isArray(results.results)) {
             userDetails = results.results;
+            logMessage('INFO', `Found results array with ${userDetails.length} items`);
+          } else if (Array.isArray(results)) {
+            userDetails = results;
+            logMessage('INFO', `Response is array with ${userDetails.length} items`);
+          } else {
+            logMessage('WARN', 'Unknown response structure', JSON.stringify(results).substring(0, 200));
           }
 
           if (userDetails.length > 0) {
             allResults = allResults.concat(userDetails);
             logMessage('INFO', `Fetched page ${pageNumber}`, `${userDetails.length} records (total: ${allResults.length})`);
+          } else {
+            logMessage('INFO', `Page ${pageNumber} had no records`);
           }
 
           // Check if there are more pages
-          // Some APIs use nextUri, some use total pages, some use hasNext
-          if (results.nextUri || (results.totalPages && pageNumber < results.totalPages) || results.hasNext === true) {
+          if (results.nextUri) {
+            logMessage('INFO', `More pages available, nextUri: ${results.nextUri}`);
+            pageNumber++;
+            updateLoadingProgress(80 + (pageNumber * 2));
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } else if (results.totalPages && pageNumber < results.totalPages) {
+            logMessage('INFO', `More pages available, totalPages: ${results.totalPages}`);
+            pageNumber++;
+            updateLoadingProgress(80 + (pageNumber * 2));
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } else if (results.hasNext === true) {
+            logMessage('INFO', `More pages available, hasNext: true`);
             pageNumber++;
             updateLoadingProgress(80 + (pageNumber * 2));
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -2211,7 +2236,7 @@
         // Step 1: Create the job
         logMessage('INFO', 'Step 1: Creating analytics job');
         const jobResponse = await createAnalyticsJob(interval);
-        const jobId = jobResponse.id;
+        const jobId = jobResponse.id; // Now this will work because we normalized the response
         
         if (!jobId) {
           throw new Error('No job ID returned from job creation');
