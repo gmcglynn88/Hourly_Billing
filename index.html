@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Genesys Cloud - Hourly Interacting Calculator</title>
   <style>
-    /* [All your existing styles remain exactly the same] */
     :root{
       --primary-color:#63AB8F; --secondary-color:#4A8C7D; --border-color:#DEE2E6;
       --light-bg:#F8F9FA; --card-bg:#FFFFFF; --text-color:#2C3E50; --text-light:#6C757D;
@@ -2002,18 +2001,32 @@
         ]
       };
 
-      const response = await apiCall('/api/v2/analytics/users/details/jobs', {
-        method: 'POST',
-        body: JSON.stringify(jobBody)
-      });
+      logMessage('INFO', 'Job request body', JSON.stringify(jobBody));
 
-      appState.apiData.analyticsQuery = {
-        jobBody,
-        jobResponse: response
-      };
+      try {
+        const response = await apiCall('/api/v2/analytics/users/details/jobs', {
+          method: 'POST',
+          body: JSON.stringify(jobBody)
+        });
 
-      logMessage('INFO', 'Analytics job created', `Job ID: ${response.id}`);
-      return response;
+        logMessage('INFO', 'Job creation response', JSON.stringify(response));
+
+        // Check if response has id
+        if (!response || !response.id) {
+          throw new Error('Job creation failed - no job ID returned');
+        }
+
+        appState.apiData.analyticsQuery = {
+          jobBody,
+          jobResponse: response
+        };
+
+        logMessage('SUCCESS', 'Analytics job created', `Job ID: ${response.id}`);
+        return response;
+      } catch (error) {
+        logMessage('ERROR', 'Failed to create analytics job', error.message);
+        throw error;
+      }
     }
 
     async function waitForJobCompletion(jobId, maxAttempts = 60) {
@@ -2022,24 +2035,29 @@
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         updateLoadingProgress(50 + (attempt * 0.5));
         
-        const jobStatus = await apiCall(`/api/v2/analytics/users/details/jobs/${jobId}`);
-        
-        logMessage('INFO', `Job status check ${attempt}/${maxAttempts}`, `State: ${jobStatus.state}`);
-        
-        if (jobStatus.state === 'COMPLETED') {
-          logMessage('SUCCESS', 'Job completed successfully', `Job ID: ${jobId}`);
-          return true;
-        } else if (jobStatus.state === 'FAILED') {
-          throw new Error(`Job failed: ${jobStatus.errorMessage || 'Unknown error'}`);
-        } else if (jobStatus.state === 'CANCELLED') {
-          throw new Error('Job was cancelled');
+        try {
+          const jobStatus = await apiCall(`/api/v2/analytics/users/details/jobs/${jobId}`);
+          
+          logMessage('INFO', `Job status check ${attempt}/${maxAttempts}`, `State: ${jobStatus.state}`);
+          
+          if (jobStatus.state === 'COMPLETED') {
+            logMessage('SUCCESS', 'Job completed successfully', `Job ID: ${jobId}`);
+            return true;
+          } else if (jobStatus.state === 'FAILED') {
+            throw new Error(`Job failed: ${jobStatus.errorMessage || 'Unknown error'}`);
+          } else if (jobStatus.state === 'CANCELLED') {
+            throw new Error('Job was cancelled');
+          }
+          
+          // Wait 5 seconds before next check
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        } catch (error) {
+          logMessage('ERROR', 'Error checking job status', error.message);
+          throw error;
         }
-        
-        // Wait 5 seconds before next check
-        await new Promise(resolve => setTimeout(resolve, 5000));
       }
       
-      throw new Error('Job timed out');
+      throw new Error('Job timed out after 5 minutes');
     }
 
     async function fetchJobResults(jobId) {
@@ -2048,34 +2066,51 @@
       let allResults = [];
       let pageNumber = 1;
       let hasMorePages = true;
-      const pageSize = 10000;
+      const pageSize = 1000;
       const allResponses = [];
 
       while (hasMorePages) {
         try {
+          logMessage('INFO', `Fetching page ${pageNumber}`, `Page size: ${pageSize}`);
+          
           const results = await apiCall(`/api/v2/analytics/users/details/jobs/${jobId}/results?pageSize=${pageSize}&pageNumber=${pageNumber}`);
+          
+          logMessage('INFO', `Page ${pageNumber} response`, JSON.stringify(results).substring(0, 200) + '...');
           
           allResponses.push({
             pageNumber,
             response: results
           });
 
-          if (results.userDetails && results.userDetails.length > 0) {
-            allResults = allResults.concat(results.userDetails);
-            logMessage('INFO', `Fetched page ${pageNumber}`, `${results.userDetails.length} records (total: ${allResults.length})`);
+          // Check different possible response structures
+          let userDetails = [];
+          if (results.userDetails && Array.isArray(results.userDetails)) {
+            userDetails = results.userDetails;
+          } else if (results.entities && Array.isArray(results.entities)) {
+            userDetails = results.entities;
+          } else if (results.results && Array.isArray(results.results)) {
+            userDetails = results.results;
+          }
+
+          if (userDetails.length > 0) {
+            allResults = allResults.concat(userDetails);
+            logMessage('INFO', `Fetched page ${pageNumber}`, `${userDetails.length} records (total: ${allResults.length})`);
           }
 
           // Check if there are more pages
-          if (results.userDetails && results.userDetails.length === pageSize) {
+          // Some APIs use nextUri, some use total pages, some use hasNext
+          if (results.nextUri || (results.totalPages && pageNumber < results.totalPages) || results.hasNext === true) {
             pageNumber++;
             updateLoadingProgress(80 + (pageNumber * 2));
             await new Promise(resolve => setTimeout(resolve, 500));
           } else {
             hasMorePages = false;
+            logMessage('INFO', 'No more pages to fetch');
           }
         } catch (error) {
           logMessage('ERROR', `Failed to fetch page ${pageNumber}`, error.message);
           hasMorePages = false;
+          throw error;
         }
       }
 
@@ -2090,7 +2125,7 @@
       return allResults;
     }
 
-    // ==================== MAIN FETCH FUNCTION - UPDATED WITH JOB API ====================
+    // ==================== UPDATED MAIN FETCH FUNCTION ====================
     async function fetchUserData() {
       if (!validateDateRange()) {
         showStatusMessage('❌ Please select valid dates', 'error');
@@ -2114,10 +2149,12 @@
         const allUsersResponses = [];
 
         while (true) {
+          logMessage('INFO', `Fetching users page ${page}`);
           const usersData = await apiCall(`/api/v2/users?pageSize=${pageSize}&pageNumber=${page}&expand=dateLastLogin,authorization,groups,team`);
           allUsersResponses.push(usersData);
           const users = usersData?.entities || [];
           allUsers = allUsers.concat(users);
+          
           if (!usersData?.nextUri || users.length < pageSize) break;
           page++;
           await new Promise(resolve => setTimeout(resolve, 200));
@@ -2131,8 +2168,9 @@
         };
 
         updateLoadingProgress(40);
-        logMessage('INFO', `Loaded ${allUsers.length} users from API`);
+        logMessage('SUCCESS', `Loaded ${allUsers.length} users from API`);
 
+        // Create user map
         const userMap = {};
         appState.userData = allUsers.map(user => {
           const teamName = user.team?.name || (user.groups && user.groups.length > 0 ? user.groups[0].name : 'Unassigned');
@@ -2171,49 +2209,68 @@
         const interval = `${dateFrom}T00:00:00.000Z/${dateTo}T23:59:59.999Z`;
         
         // Step 1: Create the job
+        logMessage('INFO', 'Step 1: Creating analytics job');
         const jobResponse = await createAnalyticsJob(interval);
         const jobId = jobResponse.id;
         
+        if (!jobId) {
+          throw new Error('No job ID returned from job creation');
+        }
+        
+        logMessage('SUCCESS', 'Job created successfully', `Job ID: ${jobId}`);
+        
         // Step 2: Wait for job completion
+        logMessage('INFO', 'Step 2: Waiting for job completion');
         await waitForJobCompletion(jobId);
         
         // Step 3: Fetch all results with pagination
         updateLoadingProgress(70);
+        logMessage('INFO', 'Step 3: Fetching job results');
         const analyticsResults = await fetchJobResults(jobId);
+
+        logMessage('SUCCESS', 'Job results fetched', `Total records: ${analyticsResults.length}`);
 
         // Process the analytics results
         const userHoursMap = {};
         let usersWithInteractingTime = 0;
 
         analyticsResults.forEach(userDetail => {
-          if (userDetail.userId) {
-            const userId = userDetail.userId;
+          // Handle different possible response structures
+          const userId = userDetail.userId || userDetail.id || userDetail.user_id;
+          
+          if (userId) {
             let totalInteractingSeconds = 0;
 
-            // Sum up all INTERACTING time from primary and secondary statuses
+            // Check primaryStatuses
             if (userDetail.primaryStatuses && Array.isArray(userDetail.primaryStatuses)) {
               userDetail.primaryStatuses.forEach(status => {
-                if (status.status === 'INTERACTING') {
+                if (status.status === 'INTERACTING' || status.systemPresence === 'INTERACTING') {
                   totalInteractingSeconds += status.seconds || 0;
                 }
               });
             }
 
+            // Check secondaryStatuses
             if (userDetail.secondaryStatuses && Array.isArray(userDetail.secondaryStatuses)) {
               userDetail.secondaryStatuses.forEach(status => {
-                if (status.status === 'INTERACTING') {
+                if (status.status === 'INTERACTING' || status.systemPresence === 'INTERACTING') {
                   totalInteractingSeconds += status.seconds || 0;
                 }
               });
             }
 
-            // Also check metrics for tInteracting
+            // Check metrics for tInteracting
             if (userDetail.metrics && Array.isArray(userDetail.metrics)) {
               userDetail.metrics.forEach(metric => {
-                if (metric.name === 'tInteracting') {
-                  totalInteractingSeconds += metric.seconds || 0;
+                if (metric.name === 'tInteracting' || metric.metric === 'tInteracting') {
+                  totalInteractingSeconds += metric.seconds || metric.value || 0;
                 }
               });
+            }
+
+            // Check for direct seconds property
+            if (userDetail.seconds) {
+              totalInteractingSeconds += userDetail.seconds;
             }
 
             const totalInteractingMs = totalInteractingSeconds * 1000;
@@ -2277,7 +2334,7 @@
         if (usersWithHoursCount > 0) {
           const avgMs = totalInteractingMs / usersWithHoursCount;
           const avgHoursFormatted = formatMillisecondsToHHMMSS(avgMs);
-          logMessage('INFO', `Average per active user`, `${avgHoursFormatted} per active user`);
+          logMessage('INFO', 'Average per active user', `${avgHoursFormatted} per active user`);
         }
 
         updateLoadingProgress(95);
@@ -2309,8 +2366,8 @@
       } catch (error) {
         setLoading(false);
         logMessage('ERROR', 'Failed to fetch data', error.message);
-        showStatusMessage('❌ Failed to fetch data', 'error');
         console.error('Fetch error details:', error);
+        showStatusMessage(`❌ Failed to fetch data: ${error.message}`, 'error');
       }
     }
 
