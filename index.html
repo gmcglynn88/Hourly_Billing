@@ -1400,7 +1400,7 @@
           el.dateRangeInfo.style.color = 'var(--danger)';
           el.btnFetchData.disabled = true;
         } else {
-          el.dateRangeInfo.innerHTML = `<strong>Selected:</strong> ${fromDisplay} to ${toDisplay} (${days} days)`;
+          el.dateRangeInfo.innerHTML = `<strong>Selected:</strong> ${fromDisplay} to ${toDisplay} (${days} days, ${days * 6} intervals)`;
           el.dateRangeInfo.style.color = 'var(--text-light)';
           el.btnFetchData.disabled = false;
         }
@@ -1981,23 +1981,38 @@
       }
     }
 
-    // ==================== SPLIT DATE RANGE INTO DAYS ====================
-    function splitDateRangeIntoDays(startDate, endDate) {
-      const days = [];
+    // ==================== NEW FUNCTION: SPLIT DATE RANGE INTO 4-HOUR INTERVALS ====================
+    function splitDateRangeIntoIntervals(startDate, endDate) {
+      const intervals = [];
       const start = new Date(startDate);
       const end = new Date(endDate);
       
       let currentDate = new Date(start);
       
       while (currentDate <= end) {
-        days.push({
-          date: currentDate.toISOString().split('T')[0]
+        const dateStr = currentDate.toISOString().split('T')[0];
+        
+        // 6 x 4-hour intervals per day
+        const timeBlocks = [
+          { start: '00:00:00.000Z', end: '03:59:59.999Z' },
+          { start: '04:00:00.000Z', end: '07:59:59.999Z' },
+          { start: '08:00:00.000Z', end: '11:59:59.999Z' },
+          { start: '12:00:00.000Z', end: '15:59:59.999Z' },
+          { start: '16:00:00.000Z', end: '19:59:59.999Z' },
+          { start: '20:00:00.000Z', end: '23:59:59.999Z' }
+        ];
+        
+        timeBlocks.forEach(block => {
+          intervals.push({
+            date: dateStr,
+            interval: `${dateStr}T${block.start}/${dateStr}T${block.end}`
+          });
         });
         
         currentDate.setDate(currentDate.getDate() + 1);
       }
       
-      return days;
+      return intervals;
     }
 
     // ==================== CALCULATE INTERACTING TIME FROM SEGMENTS ====================
@@ -2211,7 +2226,7 @@
       };
     }
 
-    // ==================== UPDATED MAIN FETCH FUNCTION WITH DAILY BATCHES ====================
+    // ==================== UPDATED MAIN FETCH FUNCTION WITH 4-HOUR INTERVALS ====================
     async function fetchUserData() {
       if (!validateDateRange()) {
         showStatusMessage('❌ Please select valid dates', 'error');
@@ -2289,43 +2304,45 @@
         });
 
         updateLoadingProgress(50);
-        logMessage('INFO', 'Creating analytics jobs for interaction data (splitting into daily batches)');
-
-        // Split date range into daily batches
-        const days = splitDateRangeIntoDays(dateFrom, dateTo);
-        logMessage('INFO', `Split date range into ${days.length} daily batches`);
+        
+        // Split date range into 4-hour intervals
+        const intervals = splitDateRangeIntoIntervals(dateFrom, dateTo);
+        logMessage('INFO', `Split date range into ${intervals.length} intervals (6 x 4-hour blocks per day)`);
+        
+        // Update loading subtext to show the number of intervals
+        el.loadingSubtext.textContent = `Processing ${intervals.length} intervals — this may take several minutes...`;
 
         const allAnalyticsResults = [];
         const allJobResponses = [];
 
-        // Process each day sequentially with rate limiting
-        for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
-          const day = days[dayIndex];
-          const interval = `${day.date}T00:00:00.000Z/${day.date}T23:59:59.999Z`;
+        // Process each interval sequentially with rate limiting
+        for (let intervalIndex = 0; intervalIndex < intervals.length; intervalIndex++) {
+          const intervalData = intervals[intervalIndex];
+          const interval = intervalData.interval; // already pre-built
           
-          logMessage('INFO', `Processing day ${dayIndex + 1}/${days.length}`, `Date: ${day.date}`);
-          updateLoadingProgress(50 + ((dayIndex / days.length) * 30));
+          logMessage('INFO', `Processing interval ${intervalIndex + 1}/${intervals.length}`, `${intervalData.interval}`);
+          updateLoadingProgress(50 + ((intervalIndex / intervals.length) * 30));
 
-          // Step 1: Create the job for this day
-          logMessage('INFO', `Creating analytics job for ${day.date}`);
+          // Step 1: Create the job for this interval
+          logMessage('INFO', `Creating analytics job for interval`, `${intervalData.interval}`);
           const jobResponse = await createAnalyticsJob(interval);
           const jobId = jobResponse.id;
           
           if (!jobId) {
-            throw new Error(`No job ID returned from job creation for ${day.date}`);
+            throw new Error(`No job ID returned from job creation for interval ${intervalData.interval}`);
           }
           
-          logMessage('SUCCESS', `Job created for ${day.date}`, `Job ID: ${jobId}`);
+          logMessage('SUCCESS', `Job created for interval`, `Job ID: ${jobId}`);
           
           // Step 2: Wait for job completion
           await waitForJobCompletion(jobId);
           
-          // Step 3: Fetch all results for this day
-          logMessage('INFO', `Fetching job results for ${day.date}`);
-          const dayResults = await fetchJobResults(jobId);
+          // Step 3: Fetch all results for this interval
+          logMessage('INFO', `Fetching job results for interval ${intervalIndex + 1}`);
+          const intervalResults = await fetchJobResults(jobId);
           
           // Process each user detail to calculate total interacting time
-          dayResults.results.forEach(userDetail => {
+          intervalResults.results.forEach(userDetail => {
             const userId = userDetail.userId || userDetail.id || userDetail.user_id;
             if (userId) {
               const totalSeconds = calculateInteractingTimeFromSegments(userDetail);
@@ -2333,36 +2350,37 @@
                 allAnalyticsResults.push({
                   userId: userId,
                   seconds: totalSeconds,
-                  date: day.date
+                  interval: intervalData.interval,
+                  date: intervalData.date
                 });
               }
             }
           });
           
           allJobResponses.push({
-            date: day.date,
-            interval,
+            date: intervalData.date,
+            interval: intervalData.interval,
             jobId,
-            recordCount: dayResults.results.length,
-            usersWithHours: dayResults.results.filter(u => calculateInteractingTimeFromSegments(u) > 0).length
+            recordCount: intervalResults.results.length,
+            usersWithHours: intervalResults.results.filter(u => calculateInteractingTimeFromSegments(u) > 0).length
           });
           
-          logMessage('SUCCESS', `Day ${day.date} complete`, `Found ${allJobResponses[allJobResponses.length-1].usersWithHours} users with interacting time`);
+          logMessage('SUCCESS', `Interval complete`, `${intervalData.interval} — ${allJobResponses[allJobResponses.length-1].usersWithHours} users with interacting time`);
           
-          // Rate limiting - wait 1 second between daily jobs
-          if (dayIndex < days.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+          // Rate limiting - wait 2 seconds between jobs (increased due to higher job count)
+          if (intervalIndex < intervals.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
           }
         }
 
         appState.apiData.analytics = {
-          days: allJobResponses,
+          intervals: allJobResponses,
           totalRecords: allAnalyticsResults.length,
           usersWithHours: 0,
           timestamp: new Date().toISOString()
         };
 
-        logMessage('SUCCESS', 'All daily jobs completed', `Total interaction records: ${allAnalyticsResults.length}`);
+        logMessage('SUCCESS', 'All interval jobs completed', `Total interaction records: ${allAnalyticsResults.length}`);
 
         // Aggregate interaction times by user
         const userHoursMap = {};
